@@ -1,0 +1,133 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_app/db/summary_calculator.dart';
+import 'package:ledger_app/models/household_member.dart';
+import 'package:ledger_app/models/transaction.dart';
+
+TransactionResponse _tx({
+  int id = 1,
+  required int userId,
+  required String userName,
+  int categoryId = 1,
+  String categoryName = '食費',
+  required double amount,
+  DateTime? spentAt,
+}) {
+  return TransactionResponse(
+    id: id,
+    userId: userId,
+    userName: userName,
+    categoryId: categoryId,
+    categoryName: categoryName,
+    amount: amount,
+    spentAt: spentAt ?? DateTime(2026, 7, 1),
+  );
+}
+
+void main() {
+  group('buildMonthlySummary', () {
+    test('カテゴリ別は合計の降順、totalは総和', () {
+      final txns = [
+        _tx(userId: 1, userName: 'A', categoryId: 1, categoryName: '食費', amount: 500),
+        _tx(userId: 1, userName: 'A', categoryId: 2, categoryName: '交通費', amount: 1500),
+        _tx(userId: 2, userName: 'B', categoryId: 1, categoryName: '食費', amount: 300),
+      ];
+
+      final s = buildMonthlySummary(2026, 7, txns);
+
+      expect(s.total, 2300);
+      // 降順: 交通費(1500) > 食費(800)
+      expect(s.byCategory.first.categoryName, '交通費');
+      expect(s.byCategory.first.total, 1500);
+      expect(s.byCategory[1].categoryName, '食費');
+      expect(s.byCategory[1].total, 800);
+    });
+
+    test('メンバー別に集計される', () {
+      final txns = [
+        _tx(userId: 1, userName: 'A', amount: 500),
+        _tx(userId: 1, userName: 'A', amount: 500),
+        _tx(userId: 2, userName: 'B', amount: 300),
+      ];
+
+      final s = buildMonthlySummary(2026, 7, txns);
+      final byUser = {for (final u in s.byUser) u.userName: u.total};
+      expect(byUser['A'], 1000);
+      expect(byUser['B'], 300);
+    });
+
+    test('取引が無ければ total は 0', () {
+      final s = buildMonthlySummary(2026, 7, []);
+      expect(s.total, 0);
+      expect(s.byCategory, isEmpty);
+      expect(s.byUser, isEmpty);
+    });
+  });
+
+  group('buildSplit', () {
+    final members2 = [
+      const HouseholdMember(id: 1, name: 'A'),
+      const HouseholdMember(id: 2, name: 'B'),
+    ];
+
+    test('2人: 片方が全額払ったら「支払う」文言', () {
+      final txns = [_tx(userId: 1, userName: 'A', amount: 1000)];
+      final split = buildSplit(2026, 7, txns, members2);
+
+      expect(split.total, 1000);
+      expect(split.fairShare, 500);
+      final a = split.users.firstWhere((u) => u.userId == 1);
+      final b = split.users.firstWhere((u) => u.userId == 2);
+      expect(a.balance, 500);
+      expect(b.balance, -500);
+      expect(split.settlement, 'B → A に 500 円支払う');
+    });
+
+    test('均等に払っていれば精算不要', () {
+      final txns = [
+        _tx(userId: 1, userName: 'A', amount: 500),
+        _tx(userId: 2, userName: 'B', amount: 500),
+      ];
+      final split = buildSplit(2026, 7, txns, members2);
+      expect(split.settlement, '精算不要');
+    });
+
+    test('3人以上は一覧形式で支払い必要額を列挙', () {
+      final members3 = [
+        const HouseholdMember(id: 1, name: 'A'),
+        const HouseholdMember(id: 2, name: 'B'),
+        const HouseholdMember(id: 3, name: 'C'),
+      ];
+      final txns = [_tx(userId: 1, userName: 'A', amount: 3000)];
+      final split = buildSplit(2026, 7, txns, members3);
+
+      expect(split.total, 3000);
+      expect(split.fairShare, 1000);
+      final lines = split.settlement.split('\n');
+      expect(lines.length, 2);
+      expect(lines, contains('B は 1000 円の支払いが必要'));
+      expect(lines, contains('C は 1000 円の支払いが必要'));
+    });
+
+    test('支出0のメンバーも均等割の対象になる', () {
+      final txns = [_tx(userId: 1, userName: 'A', amount: 900)];
+      final split = buildSplit(2026, 7, txns, members2);
+      // 900 / 2 = 450
+      expect(split.fairShare, 450);
+      final b = split.users.firstWhere((u) => u.userId == 2);
+      expect(b.paid, 0);
+      expect(b.balance, -450);
+    });
+
+    test('fairShare は小数第2位で四捨五入（HALF_UP）', () {
+      final members3 = [
+        const HouseholdMember(id: 1, name: 'A'),
+        const HouseholdMember(id: 2, name: 'B'),
+        const HouseholdMember(id: 3, name: 'C'),
+      ];
+      final txns = [_tx(userId: 1, userName: 'A', amount: 100)];
+      final split = buildSplit(2026, 7, txns, members3);
+      // 100 / 3 = 33.333... -> 33.33
+      expect(split.fairShare, 33.33);
+    });
+  });
+}
