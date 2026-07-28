@@ -44,7 +44,7 @@ gh auth login
 
 ```bash
 git clone <このリポジトリの URL>
-cd Ledger
+cd LedgerCore
 ```
 
 ## 通常の開発フロー
