@@ -18,10 +18,10 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# .vscode/ は各自のエディタ設定なのでバージョン管理から除外する。
+# チームで共有したい設定（launch.json など）が出てきたら
+# `!.vscode/launch.json` のような例外を追加して個別にコミットする。
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
