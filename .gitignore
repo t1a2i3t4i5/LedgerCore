@@ -19,8 +19,9 @@ migrate_working_dir/
 .idea/
 
 # .vscode/ は各自のエディタ設定なのでバージョン管理から除外する。
-# チームで共有したい設定（launch.json など）が出てきたら
-# `!.vscode/launch.json` のような例外を追加して個別にコミットする。
+# チームで共有したい設定（launch.json など）が出てきたら、この行を
+# `.vscode/*` に変えたうえで `!.vscode/launch.json` を追記する
+# （ディレクトリごと除外していると例外指定が効かないため）。
 .vscode/
 
 # Flutter/Dart/Pub related
