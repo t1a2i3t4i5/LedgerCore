@@ -2,6 +2,8 @@
 
 このファイルは Claude Code (claude.ai/code) がこのリポジトリで作業する際のガイドです。
 
+セットアップ手順・機能一覧・ディレクトリ構成の詳細は [README.md](README.md) を参照すること。このファイルには、コードを読んだだけでは分かりにくい運用ルールと設計上の約束を書く。
+
 ## プロジェクト概要
 
 **LedgerCore** はサーバ不要・モバイル端末内だけで完結するオフライン家計簿アプリ（Flutter 単体）。
@@ -10,41 +12,26 @@
 
 ## 技術スタック
 
-| 項目       | 内容                                                       |
-| ---------- | ---------------------------------------------------------- |
-| 言語・SDK  | Dart `>=3.0.0 <4.0.0` / Flutter 3.41 以上                   |
-| 状態管理   | `provider`（`ChangeNotifier`）                             |
-| 永続化     | `drift` + `drift_flutter`（端末内 `ledgercore.sqlite`）    |
-| 日付整形   | `intl`                                                     |
-| コード生成 | `drift_dev` + `build_runner`                               |
-| Lint       | `flutter_lints`（`analysis_options.yaml`）                 |
+| 項目       | 内容                                                    |
+| ---------- | ------------------------------------------------------- |
+| 言語・SDK  | Dart `>=3.0.0 <4.0.0`（必要な Flutter バージョンは README.md） |
+| 状態管理   | `provider`（`ChangeNotifier`）                          |
+| 永続化     | `drift` + `drift_flutter`（端末内 `ledgercore.sqlite`） |
+| 日付整形   | `intl`                                                  |
+| コード生成 | `drift_dev` + `build_runner`                            |
+| Lint       | `flutter_lints`（`analysis_options.yaml`）              |
 
 `http` や `shared_preferences` は依存に含まれていない。ネットワーク通信を伴う実装を追加しないこと。
 
-## ディレクトリ構成
+## アーキテクチャ
 
 ```
 lib/
-├── main.dart                    # エントリポイント。AppDatabase を生成し MultiProvider で配布、MainScreen へ直行
-├── db/
-│   ├── database.dart            # drift のテーブル定義・DAO・マイグレーション
-│   ├── database.g.dart          # build_runner の生成コード（手で編集しない）
-│   └── summary_calculator.dart  # 月次サマリー・割り勘の計算（純関数）
-├── models/                      # 表示用モデル（DB の JOIN 結果や入力値を保持する単純なクラス）
-├── providers/                   # 状態管理。AppDatabase をコンストラクタ注入で受け取る
-│   ├── member_provider.dart
-│   ├── category_provider.dart
-│   ├── transaction_provider.dart
-│   └── summary_provider.dart
-└── screens/                     # 画面ウィジェット
-    ├── main_screen.dart         # NavigationBar の 4 タブ + AppBar から MembersScreen へ遷移
-    ├── summary_screen.dart      # 月次サマリー（カテゴリ別・メンバー別）
-    ├── transactions_screen.dart # 取引一覧（月切替・フィルタ・ソート）
-    ├── transaction_filter_sheet.dart
-    ├── add_transaction_screen.dart
-    ├── categories_screen.dart   # カテゴリ管理
-    ├── split_screen.dart        # 割り勘
-    └── members_screen.dart      # メンバー管理
+├── main.dart      # AppDatabase を生成し MultiProvider で配布、MainScreen へ直行（認証なし）
+├── db/            # drift のテーブル定義・DAO（database.dart）と集計の純関数（summary_calculator.dart）
+├── models/        # 表示用モデル（DB の JOIN 結果や入力値を保持する単純なクラス）
+├── providers/     # 状態管理。AppDatabase をコンストラクタ注入で受け取る
+└── screens/       # 画面ウィジェット
 ```
 
 データの流れは一方向:
@@ -58,23 +45,11 @@ screens → providers → AppDatabase（drift） → SQLite
 ## 主要コマンド
 
 ```bash
-flutter pub get
-```
-
-```bash
-dart run build_runner build
-```
-
-```bash
-flutter run
-```
-
-```bash
-flutter test
-```
-
-```bash
-flutter analyze
+flutter pub get                 # 依存取得
+dart run build_runner build     # drift のコード生成（*.g.dart）
+flutter run                     # 実行
+flutter test                    # テスト
+flutter analyze                 # 静的解析
 ```
 
 `build_runner` が既存の生成物と衝突する場合は `dart run build_runner build --delete-conflicting-outputs` を使う。
@@ -103,16 +78,10 @@ flutter analyze
 - **命名の名残に注意** — `TransactionResponse` / `userId` / `userName` は派生元の REST API の名前がそのまま残っているもので、実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスではない
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）
 
-## テスト
+## テストの書き方
 
-```bash
-flutter test
-```
-
-- `test/summary_calculator_test.dart` — 月次集計・割り勘計算（純関数）
-- `test/database_test.dart` — drift の DAO。`AppDatabase.forTesting(NativeDatabase.memory())` でインメモリ DB を使い、実端末のファイルに触らない
-
-DB を伴うテストを書くときは `AppDatabase.forTesting` を使うこと。
+- 集計・割り勘のロジックは純関数として `summary_calculator.dart` に置き、DB なしでテストする（`test/summary_calculator_test.dart`）
+- DB を伴うテストは `AppDatabase.forTesting(NativeDatabase.memory())` でインメモリ DB を使い、実端末のファイルに触らない（`test/database_test.dart`）
 
 ## git 運用
 
