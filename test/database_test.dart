@@ -166,6 +166,38 @@ void main() {
     expect(totals.last.total, 1300);
   });
 
+  test('年レンジの境界をDAO側で正しく絞り込む', () async {
+    final cats = await db.getCategories();
+    final members = await db.getMembers();
+    final catId = cats.first.id;
+    final memberId = members.first.id;
+
+    // 前年の大晦日直前 / 対象年の元日 / 対象年の大晦日直前 / 翌年の元日
+    for (final d in [
+      DateTime(2025, 12, 31, 23, 59, 59),
+      DateTime(2026, 1, 1),
+      DateTime(2026, 12, 31, 23, 59, 59),
+      DateTime(2027, 1, 1),
+    ]) {
+      await db.insertTransaction(TransactionRequest(
+          userId: memberId, categoryId: catId, amount: 100, spentAt: d));
+    }
+
+    // 純関数側の年フィルタに頼らず、DAO のレンジ指定そのものを検証する
+    final inYear = await db.getTransactionsByRange(
+      DateTime(2026, 1, 1),
+      DateTime(2027, 1, 1),
+    );
+    expect(inYear.length, 2);
+    expect(inYear.every((t) => t.spentAt.year == 2026), isTrue);
+
+    // 年境界の取引が 1月 と 12月 に振り分けられる
+    final yearly = await db.getYearlySummary(2026);
+    expect(yearly.total, 200);
+    expect(yearly.byMonth.first.total, 100); // 1/1 00:00
+    expect(yearly.byMonth.last.total, 100); // 12/31 23:59:59
+  });
+
   test('カテゴリの追加・更新・削除', () async {
     await db.insertCategory('臨時費');
     var cats = await db.getCategories();
