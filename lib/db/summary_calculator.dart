@@ -10,26 +10,15 @@ MonthlySummaryResponse buildMonthlySummary(
   int month,
   List<TransactionResponse> txns,
 ) {
-  final catTotals = <int, double>{};
-  final catNames = <int, String>{};
   final userTotals = <int, double>{};
   final userNames = <int, String>{};
 
   for (final t in txns) {
-    catTotals[t.categoryId] = (catTotals[t.categoryId] ?? 0) + t.amount;
-    catNames[t.categoryId] = t.categoryName;
     userTotals[t.userId] = (userTotals[t.userId] ?? 0) + t.amount;
     userNames[t.userId] = t.userName;
   }
 
-  final byCategory = catTotals.entries
-      .map((e) => CategorySummaryItem(
-            categoryId: e.key,
-            categoryName: catNames[e.key]!,
-            total: e.value,
-          ))
-      .toList()
-    ..sort((a, b) => b.total.compareTo(a.total));
+  final byCategory = _buildCategoryItems(txns);
 
   final byUser = userTotals.entries
       .map((e) => UserSummaryItem(
@@ -48,6 +37,70 @@ MonthlySummaryResponse buildMonthlySummary(
     byCategory: byCategory,
     byUser: byUser,
   );
+}
+
+/// 指定年の年次サマリーを組み立てる。
+/// 月別合計は取引の無い月も 0 で埋めた 12 件を返す（グラフの X 軸を欠けさせないため）。
+/// txns に他の年の取引が混ざっていても、指定年のものだけを集計する。
+YearlySummaryResponse buildYearlySummary(
+  int year,
+  List<TransactionResponse> txns,
+) {
+  final inYear = txns.where((t) => t.spentAt.year == year).toList();
+
+  final monthTotals = List<double>.filled(12, 0);
+  for (final t in inYear) {
+    monthTotals[t.spentAt.month - 1] += t.amount;
+  }
+
+  final byMonth = List.generate(
+    12,
+    (i) => PeriodTotal(
+      year: year,
+      month: i + 1,
+      total: monthTotals[i],
+    ),
+  );
+
+  return YearlySummaryResponse(
+    year: year,
+    total: monthTotals.fold<double>(0, (s, v) => s + v),
+    byMonth: byMonth,
+    byCategory: _buildCategoryItems(inYear),
+  );
+}
+
+/// 年別の合計金額を求める。取引のある年だけを年の昇順で返す。
+List<PeriodTotal> buildYearlyTotals(List<TransactionResponse> txns) {
+  final yearTotals = <int, double>{};
+  for (final t in txns) {
+    yearTotals[t.spentAt.year] = (yearTotals[t.spentAt.year] ?? 0) + t.amount;
+  }
+
+  final years = yearTotals.keys.toList()..sort();
+  return years
+      .map((y) => PeriodTotal(year: y, total: yearTotals[y]!))
+      .toList();
+}
+
+/// カテゴリ別の合計を金額の降順で組み立てる（サーバの SUM(amount) DESC を踏襲）。
+List<CategorySummaryItem> _buildCategoryItems(List<TransactionResponse> txns) {
+  final catTotals = <int, double>{};
+  final catNames = <int, String>{};
+
+  for (final t in txns) {
+    catTotals[t.categoryId] = (catTotals[t.categoryId] ?? 0) + t.amount;
+    catNames[t.categoryId] = t.categoryName;
+  }
+
+  return catTotals.entries
+      .map((e) => CategorySummaryItem(
+            categoryId: e.key,
+            categoryName: catNames[e.key]!,
+            total: e.value,
+          ))
+      .toList()
+    ..sort((a, b) => b.total.compareTo(a.total));
 }
 
 /// 割り勘を計算する。全メンバーで均等割りし、各自の過不足と精算文を求める。

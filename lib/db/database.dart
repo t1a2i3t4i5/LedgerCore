@@ -124,16 +124,46 @@ class AppDatabase extends _$AppDatabase {
   Future<List<TransactionResponse>> getTransactionsByMonth(
     int year,
     int month,
-  ) async {
-    final start = DateTime(year, month, 1);
-    final end = DateTime(year, month + 1, 1);
+  ) =>
+      getTransactionsByRange(
+        DateTime(year, month, 1),
+        DateTime(year, month + 1, 1),
+      );
 
+  /// 期間 [start, end) の取引を、メンバー名・カテゴリ名を JOIN して取得する。
+  /// 月・年をまたぐ集計の共通入口。
+  Future<List<TransactionResponse>> getTransactionsByRange(
+    DateTime start,
+    DateTime end,
+  ) =>
+      _selectTransactions(start: start, end: end);
+
+  /// 全期間の取引を取得する（年別集計用）。
+  Future<List<TransactionResponse>> getAllTransactions() =>
+      _selectTransactions();
+
+  /// 取引をメンバー名・カテゴリ名付きで取得する共通クエリ。
+  /// start / end を渡すと半開区間 [start, end) で絞り込む。
+  Future<List<TransactionResponse>> _selectTransactions({
+    DateTime? start,
+    DateTime? end,
+  }) async {
     final query = select(transactions).join([
       innerJoin(members, members.id.equalsExp(transactions.memberId)),
       innerJoin(categories, categories.id.equalsExp(transactions.categoryId)),
-    ])
-      ..where(transactions.spentAt.isBiggerOrEqualValue(start) &
-          transactions.spentAt.isSmallerThanValue(end));
+    ]);
+
+    Expression<bool>? predicate;
+    if (start != null) {
+      predicate = transactions.spentAt.isBiggerOrEqualValue(start);
+    }
+    if (end != null) {
+      final upper = transactions.spentAt.isSmallerThanValue(end);
+      predicate = predicate == null ? upper : predicate & upper;
+    }
+    if (predicate != null) {
+      query.where(predicate);
+    }
 
     final rows = await query.get();
     return rows.map((row) {
@@ -181,6 +211,22 @@ class AppDatabase extends _$AppDatabase {
   Future<MonthlySummaryResponse> getMonthlySummary(int year, int month) async {
     final txns = await getTransactionsByMonth(year, month);
     return buildMonthlySummary(year, month, txns);
+  }
+
+  /// 指定年の年次サマリー（月別推移＋カテゴリ別内訳）。
+  /// 年レンジは半開区間 [1/1, 翌年1/1)。
+  Future<YearlySummaryResponse> getYearlySummary(int year) async {
+    final txns = await getTransactionsByRange(
+      DateTime(year, 1, 1),
+      DateTime(year + 1, 1, 1),
+    );
+    return buildYearlySummary(year, txns);
+  }
+
+  /// 全期間の年別合計（取引のある年のみ、昇順）。
+  Future<List<PeriodTotal>> getYearlyTotals() async {
+    final txns = await getAllTransactions();
+    return buildYearlyTotals(txns);
   }
 
   Future<SplitResponse> getSplit(int year, int month) async {

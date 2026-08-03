@@ -63,6 +63,84 @@ void main() {
     });
   });
 
+  group('buildYearlySummary', () {
+    test('取引の無い月も 0 で埋めた12件を返す', () {
+      final txns = [
+        _tx(userId: 1, userName: 'A', amount: 1000, spentAt: DateTime(2026, 3, 5)),
+        _tx(userId: 1, userName: 'A', amount: 500, spentAt: DateTime(2026, 3, 20)),
+        _tx(userId: 1, userName: 'A', amount: 2000, spentAt: DateTime(2026, 12, 31)),
+      ];
+
+      final s = buildYearlySummary(2026, txns);
+
+      expect(s.byMonth.length, 12);
+      expect(s.byMonth.first.month, 1);
+      expect(s.byMonth.first.year, 2026);
+      expect(s.byMonth.first.total, 0);
+      expect(s.byMonth[2].month, 3);
+      expect(s.byMonth[2].total, 1500);
+      expect(s.byMonth.last.total, 2000);
+      expect(s.total, 3500);
+    });
+
+    test('他の年の取引は集計に含めない', () {
+      final txns = [
+        _tx(userId: 1, userName: 'A', amount: 1000, spentAt: DateTime(2025, 12, 31)),
+        _tx(userId: 1, userName: 'A', amount: 300, spentAt: DateTime(2026, 1, 1)),
+        _tx(userId: 1, userName: 'A', amount: 700, spentAt: DateTime(2027, 1, 1)),
+      ];
+
+      final s = buildYearlySummary(2026, txns);
+
+      expect(s.total, 300);
+      expect(s.byMonth.first.total, 300);
+      expect(s.byMonth.skip(1).every((p) => p.total == 0), isTrue);
+    });
+
+    test('カテゴリ別は年合計の降順', () {
+      final txns = [
+        _tx(userId: 1, userName: 'A', categoryId: 1, categoryName: '食費', amount: 400, spentAt: DateTime(2026, 2, 1)),
+        _tx(userId: 1, userName: 'A', categoryId: 1, categoryName: '食費', amount: 400, spentAt: DateTime(2026, 9, 1)),
+        _tx(userId: 1, userName: 'A', categoryId: 2, categoryName: '交通費', amount: 500, spentAt: DateTime(2026, 5, 1)),
+      ];
+
+      final s = buildYearlySummary(2026, txns);
+
+      expect(s.byCategory.first.categoryName, '食費');
+      expect(s.byCategory.first.total, 800);
+      expect(s.byCategory[1].categoryName, '交通費');
+    });
+
+    test('取引が無くても12件返り total は 0', () {
+      final s = buildYearlySummary(2026, []);
+      expect(s.byMonth.length, 12);
+      expect(s.total, 0);
+      expect(s.byCategory, isEmpty);
+    });
+  });
+
+  group('buildYearlyTotals', () {
+    test('取引のある年だけを昇順で返す', () {
+      final txns = [
+        _tx(userId: 1, userName: 'A', amount: 100, spentAt: DateTime(2026, 5, 1)),
+        _tx(userId: 1, userName: 'A', amount: 200, spentAt: DateTime(2024, 8, 1)),
+        _tx(userId: 1, userName: 'A', amount: 300, spentAt: DateTime(2026, 1, 1)),
+      ];
+
+      final totals = buildYearlyTotals(txns);
+
+      expect(totals.map((p) => p.year), [2024, 2026]);
+      expect(totals.first.total, 200);
+      expect(totals.last.total, 400);
+      // 年別集計では月は持たない
+      expect(totals.first.month, isNull);
+    });
+
+    test('取引が無ければ空リスト', () {
+      expect(buildYearlyTotals([]), isEmpty);
+    });
+  });
+
   group('buildSplit', () {
     final members2 = [
       const HouseholdMember(id: 1, name: 'A'),
