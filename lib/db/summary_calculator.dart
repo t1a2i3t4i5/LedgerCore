@@ -56,7 +56,6 @@ YearlySummaryResponse buildYearlySummary(
   final byMonth = List.generate(
     12,
     (i) => PeriodTotal(
-      label: '${i + 1}月',
       year: year,
       month: i + 1,
       total: monthTotals[i],
@@ -80,11 +79,7 @@ List<PeriodTotal> buildYearlyTotals(List<TransactionResponse> txns) {
 
   final years = yearTotals.keys.toList()..sort();
   return years
-      .map((y) => PeriodTotal(
-            label: '$y年',
-            year: y,
-            total: yearTotals[y]!,
-          ))
+      .map((y) => PeriodTotal(year: y, total: yearTotals[y]!))
       .toList();
 }
 

@@ -74,7 +74,8 @@ void main() {
       final s = buildYearlySummary(2026, txns);
 
       expect(s.byMonth.length, 12);
-      expect(s.byMonth.first.label, '1月');
+      expect(s.byMonth.first.month, 1);
+      expect(s.byMonth.first.year, 2026);
       expect(s.byMonth.first.total, 0);
       expect(s.byMonth[2].month, 3);
       expect(s.byMonth[2].total, 1500);
@@ -129,7 +130,6 @@ void main() {
       final totals = buildYearlyTotals(txns);
 
       expect(totals.map((p) => p.year), [2024, 2026]);
-      expect(totals.first.label, '2024年');
       expect(totals.first.total, 200);
       expect(totals.last.total, 400);
       // 年別集計では月は持たない

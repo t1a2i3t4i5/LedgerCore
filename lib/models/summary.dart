@@ -23,17 +23,15 @@ class UserSummaryItem {
 }
 
 /// 期間（月 or 年）とその合計金額の組。推移グラフの1点に対応する。
+/// 表示用のラベルは持たない（軸の幅に応じた整形は画面側の責務）。
 class PeriodTotal {
-  /// 表示用ラベル（月別なら "1月"、年別なら "2026年"）
-  final String label;
   final int year;
 
-  /// 年別集計では null
+  /// 年別集計では null。月別か年別かの判別にも使う
   final int? month;
   final double total;
 
   const PeriodTotal({
-    required this.label,
     required this.year,
     this.month,
     required this.total,
