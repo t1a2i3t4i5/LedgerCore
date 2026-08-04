@@ -9,6 +9,18 @@ import 'chart_palette.dart';
 /// 狭い扇形に % を載せると隣と重なって読めないため（カテゴリ名は凡例に必ず出る）。
 const double _minLabelRatio = 0.05;
 
+/// ドーナツ中央の穴の半径。
+const double _centerSpaceRadius = 40;
+
+/// ドーナツの帯の幅。
+const double _sectionRadius = 56;
+
+/// グラフ部分の高さ。ListView の中でも崩れないよう固定にする。
+/// 円の直径は (_centerSpaceRadius + _sectionRadius) * 2 = 192px なので、
+/// これより小さくすると円の上下が切れる。fl_chart は Canvas 直描きなので
+/// はみ出しても例外も overflow の縞模様も出ず静かに切れる点に注意。
+const double _chartHeight = 220;
+
 final _fmt = NumberFormat('#,###', 'ja_JP');
 
 /// カテゴリ別の構成比を描くドーナツグラフ。
@@ -17,14 +29,7 @@ class CategoryPieChart extends StatelessWidget {
   /// 描画するカテゴリ別合計。並び順はそのままセクションの順序になる
   final List<CategorySummaryItem> items;
 
-  /// グラフ部分の高さ。ListView の中でも崩れないよう固定にする
-  final double chartHeight;
-
-  const CategoryPieChart({
-    super.key,
-    required this.items,
-    this.chartHeight = 220,
-  });
+  const CategoryPieChart({super.key, required this.items});
 
   @override
   Widget build(BuildContext context) {
@@ -42,11 +47,11 @@ class CategoryPieChart extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          height: chartHeight,
+          height: _chartHeight,
           child: PieChart(
             PieChartData(
               sections: items.map((item) => _section(item, total)).toList(),
-              centerSpaceRadius: 40,
+              centerSpaceRadius: _centerSpaceRadius,
               sectionsSpace: 2,
             ),
           ),
@@ -68,7 +73,7 @@ class CategoryPieChart extends StatelessWidget {
     return PieChartSectionData(
       value: item.total,
       color: color,
-      radius: 56,
+      radius: _sectionRadius,
       showTitle: ratio >= _minLabelRatio,
       title: '${(ratio * 100).toStringAsFixed(1)}%',
       titleStyle: TextStyle(
