@@ -18,6 +18,7 @@
 | 状態管理   | `provider`（`ChangeNotifier`）                          |
 | 永続化     | `drift` + `drift_flutter`（端末内 `ledgercore.sqlite`） |
 | 日付整形   | `intl`                                                  |
+| グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし）    |
 | コード生成 | `drift_dev` + `build_runner`                            |
 | Lint       | `flutter_lints`（`analysis_options.yaml`）              |
 
@@ -31,7 +32,8 @@ lib/
 ├── db/            # drift のテーブル定義・DAO（database.dart）と集計の純関数（summary_calculator.dart）
 ├── models/        # 表示用モデル（DB の JOIN 結果や入力値を保持する単純なクラス）
 ├── providers/     # 状態管理。AppDatabase をコンストラクタ注入で受け取る
-└── screens/       # 画面ウィジェット
+├── screens/       # 画面ウィジェット
+└── widgets/       # 画面から切り離した再利用ウィジェット（グラフなど）
 ```
 
 データの流れは一方向:
@@ -77,11 +79,15 @@ flutter analyze                 # 静的解析
 - **Provider は `AppDatabase` を注入で受け取る** — 内部で生成しない。状態更新後は `notifyListeners()` を呼ぶ
 - **命名の名残に注意** — `TransactionResponse` / `userId` / `userName` は派生元の REST API の名前がそのまま残っているもので、実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスではない
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）
+- **グラフウィジェットは `AppDatabase` も Provider も参照しない** — 表示データはすべて引数で受け取る。DB なしでウィジェットテストできる状態を保つ
+- **グラフの色は `widgets/chart_palette.dart` に集約する** — `categoryColor(categoryId)` はカテゴリ ID から決定的に色を選ぶので、同じカテゴリはグラフ・凡例・リストで常に同じ色になる。新しいグラフを追加するときもここを使い、ウィジェット内で色を直書きしない
 
 ## テストの書き方
 
 - 集計・割り勘のロジックは純関数として `summary_calculator.dart` に置き、DB なしでテストする（`test/summary_calculator_test.dart`）
 - DB を伴うテストは `AppDatabase.forTesting(NativeDatabase.memory())` でインメモリ DB を使い、実端末のファイルに触らない（`test/database_test.dart`）
+- ウィジェットテストは `test/widgets/` に置く。fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.text()` では拾えない。検証は凡例など通常のウィジェットに対して行う
+- ウィジェットテストの画面サイズは `tester.view.physicalSize` でスマホ幅（360x690）に設定する。既定の 800x600 は実機より広く overflow を見逃す
 
 ## git 運用
 

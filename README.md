@@ -11,7 +11,7 @@
 - **取引管理** — 収支の追加・編集・削除、月切り替え、カテゴリ/登録者/金額/メモでのフィルタ・ソート
 - **カテゴリ管理** — 初回起動時に既定カテゴリ（食費・日用品ほか）を自動投入
 - **メンバー管理** — 端末内でメンバーを登録し、割り勘の対象にする
-- **月次サマリー** — カテゴリ別・メンバー別の集計
+- **月次サマリー** — カテゴリ別・メンバー別の集計と、カテゴリ別構成比のドーナツグラフ
 - **割り勘** — メンバー全員で均等割りし、各自の過不足と精算方法を算出（すべて端末内で計算）
 
 ## 必要環境
@@ -43,6 +43,8 @@ flutter test
 
 - `test/summary_calculator_test.dart` — 月次集計・割り勘計算（純関数）
 - `test/database_test.dart` — drift DAO（インメモリDBで月レンジ・集計・CRUD を検証）
+- `test/widgets/category_pie_chart_test.dart` — カテゴリ別ドーナツグラフ（ウィジェットテスト）
+- `test/widgets/summary_screen_chart_test.dart` — サマリー画面へのグラフ組み込み（インメモリDB + Provider）
 
 ## 構成
 
@@ -59,8 +61,12 @@ lib/
 │   ├── category_provider.dart
 │   ├── transaction_provider.dart
 │   └── summary_provider.dart
-└── screens/                   # 各画面（サマリー / 取引 / カテゴリ / 割り勘 / メンバー管理）
+├── screens/                   # 各画面（サマリー / 取引 / カテゴリ / 割り勘 / メンバー管理）
+└── widgets/                   # 画面から切り離した再利用ウィジェット
+    ├── chart_palette.dart     # グラフの色パレット（カテゴリ ID から決定的に決まる）
+    └── category_pie_chart.dart# カテゴリ別構成比のドーナツグラフ
 ```
 
 - 状態管理: `provider`（ChangeNotifier）
 - 永続化: `drift` + `sqlite3`（端末内 `ledgercore.sqlite`）
+- グラフ描画: `fl_chart`（純 Dart 実装。ネイティブ依存・ネットワーク通信なし）
