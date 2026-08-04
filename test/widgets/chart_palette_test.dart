@@ -2,13 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 
-/// WCAG 2.1 のコントラスト比。扇形に載せるラベルは 12px bold で
-/// 「通常サイズ」扱いなので AA は 4.5:1 を要求する。
-double _contrastRatio(Color a, Color b) {
-  final la = a.computeLuminance();
-  final lb = b.computeLuminance();
-  final lighter = la > lb ? la : lb;
-  final darker = la > lb ? lb : la;
+/// [foreground] を [background] の上に src-over で合成する。
+/// labelColorOn が返す Colors.black87 はアルファ 0xDD の半透明で、
+/// Color.computeLuminance() はアルファを無視するため、合成せずに比を取ると
+/// 実際に描画されるより良い数値が出てしまう（teal で 7.00 対 6.19）。
+Color _composite(Color foreground, Color background) {
+  final a = foreground.a;
+  int channel(double fg, double bg) =>
+      ((a * fg + (1 - a) * bg) * 255).round();
+  return Color.fromARGB(
+    255,
+    channel(foreground.r, background.r),
+    channel(foreground.g, background.g),
+    channel(foreground.b, background.b),
+  );
+}
+
+/// 実際に描画される色で見た WCAG 2.1 のコントラスト比。
+/// 扇形に載せるラベルは 12px bold で「通常サイズ」扱いなので AA は 4.5:1。
+double _effectiveContrastRatio(Color foreground, Color background) {
+  final lf = _composite(foreground, background).computeLuminance();
+  final lb = background.computeLuminance();
+  final lighter = lf > lb ? lf : lb;
+  final darker = lf > lb ? lb : lf;
   return (lighter + 0.05) / (darker + 0.05);
 }
 
@@ -44,9 +60,9 @@ void main() {
   });
 
   group('labelColorOn', () {
-    test('パレット全色でコントラスト比が WCAG AA（4.5:1）以上になる', () {
+    test('パレット全色で実効コントラスト比が WCAG AA（4.5:1）以上になる', () {
       for (final color in _allPaletteColors()) {
-        final ratio = _contrastRatio(color, labelColorOn(color));
+        final ratio = _effectiveContrastRatio(labelColorOn(color), color);
         expect(
           ratio,
           greaterThanOrEqualTo(4.5),
@@ -55,13 +71,13 @@ void main() {
       }
     });
 
-    test('白と黒のうちコントラストが高い側を選ぶ', () {
+    test('白と黒のうち実効コントラストが高い側を選ぶ', () {
       for (final color in _allPaletteColors()) {
         final chosen = labelColorOn(color);
         final other = chosen == Colors.white ? Colors.black87 : Colors.white;
         expect(
-          _contrastRatio(color, chosen),
-          greaterThanOrEqualTo(_contrastRatio(color, other)),
+          _effectiveContrastRatio(chosen, color),
+          greaterThanOrEqualTo(_effectiveContrastRatio(other, color)),
           reason: '色 ${color.toARGB32().toRadixString(16)} で読みにくい側を選んでいる',
         );
       }

@@ -35,6 +35,11 @@ Future<void> _pump(
 CategorySummaryItem _item(int id, String name, double total) =>
     CategorySummaryItem(categoryId: id, categoryName: name, total: total);
 
+/// 描画された PieChart のセクション定義を取り出す。
+/// 扇形は Canvas 直描きなので、中身の検証はこのデータに対して行う。
+List<PieChartSectionData> _sections(WidgetTester tester) =>
+    tester.widget<PieChart>(find.byType(PieChart)).data.sections;
+
 void main() {
   group('CategoryPieChart', () {
     testWidgets('空リストのときは「データがありません」を出しグラフを描かない',
@@ -85,6 +90,69 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(PieChart), findsOneWidget);
       expect(find.textContaining('カテゴリ10'), findsOneWidget);
+    });
+
+    // カテゴリ名はユーザーが編集でき、DB は 50 文字まで許可している
+    // （categories_screen.dart の TextField に maxLength は無い）。
+    // Flexible で包む前は 25 文字で凡例が横にはみ出していた。
+    for (final length in [25, 50]) {
+      testWidgets('カテゴリ名が$length文字でも凡例がはみ出さない', (tester) async {
+        await _pump(tester, [
+          _item(1, 'あ' * length, 6000),
+          _item(2, '食費', 4000),
+        ]);
+
+        expect(tester.takeException(), isNull);
+        expect(find.byType(PieChart), findsOneWidget);
+      });
+    }
+  });
+
+  group('CategoryPieChart のセクション', () {
+    testWidgets('金額と並び順が入力どおりセクションに渡る', (tester) async {
+      await _pump(tester, [
+        _item(1, '食費', 6000),
+        _item(2, '交通費', 3000),
+        _item(3, '日用品', 1000),
+      ]);
+
+      final sections = _sections(tester);
+      expect(sections.map((s) => s.value), [6000, 3000, 1000]);
+    });
+
+    testWidgets('構成比を小数1桁のラベルにする', (tester) async {
+      await _pump(tester, [
+        _item(1, '食費', 7500),
+        _item(2, '交通費', 2500),
+      ]);
+
+      final sections = _sections(tester);
+      expect(sections[0].title, '75.0%');
+      expect(sections[1].title, '25.0%');
+      expect(sections.every((s) => s.showTitle), isTrue);
+    });
+
+    testWidgets('構成比5%未満のセクションはラベルを出さない', (tester) async {
+      // 96% / 4% にして、境界の下側だけラベルが消えることを見る
+      await _pump(tester, [
+        _item(1, '食費', 9600),
+        _item(2, '交通費', 400),
+      ]);
+
+      final sections = _sections(tester);
+      expect(sections[0].showTitle, isTrue);
+      expect(sections[1].showTitle, isFalse);
+      // 非表示でも凡例には出るので情報は落ちない
+      expect(find.textContaining('交通費'), findsOneWidget);
+    });
+
+    testWidgets('ちょうど5%のセクションはラベルを出す', (tester) async {
+      await _pump(tester, [
+        _item(1, '食費', 9500),
+        _item(2, '交通費', 500),
+      ]);
+
+      expect(_sections(tester)[1].showTitle, isTrue);
     });
   });
 }

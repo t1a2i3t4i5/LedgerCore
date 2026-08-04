@@ -105,9 +105,14 @@ class _Legend extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
-        Text(
-          '${item.categoryName} ¥${_fmt.format(item.total)}',
-          style: Theme.of(context).textTheme.bodySmall,
+        // カテゴリ名はユーザーが編集でき DB 上は 50 文字まで入るので、
+        // Flexible で包まないと 25 文字あたりから横にはみ出す
+        Flexible(
+          child: Text(
+            '${item.categoryName} ¥${_fmt.format(item.total)}',
+            style: Theme.of(context).textTheme.bodySmall,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
