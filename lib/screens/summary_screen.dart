@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/summary_provider.dart';
+import '../widgets/category_pie_chart.dart';
+import '../widgets/chart_palette.dart';
 
 class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key});
@@ -131,10 +133,19 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 Text('カテゴリ別',
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
+                CategoryPieChart(items: provider.summary!.byCategory),
+                const SizedBox(height: 8),
+                // グラフの下に金額のリストも残す（数値も確認したいため）
                 ...provider.summary!.byCategory.map(
                   (item) => ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.label_outline, size: 20),
+                    // 扇形と同じ色にしてグラフとリストの対応を分かりやすくする
+                    leading: CircleAvatar(
+                      backgroundColor: categoryColor(item.categoryId),
+                      child: Icon(
+                        Icons.label_outline,
+                        size: 20,
+                        color: labelColorOn(categoryColor(item.categoryId)),
+                      ),
                     ),
                     title: Text(item.categoryName),
                     trailing: Text('¥${_fmt.format(item.total)}'),
