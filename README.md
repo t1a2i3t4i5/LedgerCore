@@ -46,6 +46,8 @@ flutter test
 
 ## 構成
 
+テーブル定義・ER 図・表示用モデルとの対応は [docs/db-schema.md](docs/db-schema.md) を参照。
+
 ```
 lib/
 ├── main.dart                  # 起動・Provider 登録（認証なしでメイン画面へ直行）
