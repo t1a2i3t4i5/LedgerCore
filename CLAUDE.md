@@ -62,6 +62,8 @@ flutter analyze                 # 静的解析
 
 ## DB スキーマ変更時の注意
 
+テーブル定義・ER 図・表示用モデルとの対応は [docs/db-schema.md](docs/db-schema.md) にまとめてある。スキーマを変更したらこのドキュメントも同じコミットで更新すること。
+
 `AppDatabase.schemaVersion` は現在 `1`。テーブルやカラムを変更する場合は:
 
 1. `schemaVersion` をインクリメントする
