@@ -43,6 +43,7 @@ flutter test
 
 - `test/summary_calculator_test.dart` — 月次集計・割り勘計算（純関数）
 - `test/database_test.dart` — drift DAO（インメモリDBで月レンジ・集計・CRUD を検証）
+- `test/widgets/chart_palette_test.dart` — グラフの色パレット（決定性・WCAG コントラスト）
 - `test/widgets/category_pie_chart_test.dart` — カテゴリ別ドーナツグラフ（ウィジェットテスト）
 - `test/widgets/summary_screen_chart_test.dart` — サマリー画面へのグラフ組み込み（インメモリDB + Provider）
 

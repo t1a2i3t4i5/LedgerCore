@@ -21,7 +21,15 @@ const List<Color> _palette = [
 /// 同じカテゴリは常に同じ色になるので、グラフ・凡例・リストの対応が崩れない。
 Color categoryColor(int categoryId) => _palette[categoryId % _palette.length];
 
+/// 白と黒のどちらが読みやすいかが入れ替わる輝度。
+/// 白との比 (1.05)/(L+0.05) と黒との比 (L+0.05)/0.05 が等しくなる点で、
+/// L = sqrt(0.0525) - 0.05 ≒ 0.179。
+/// 0.5 を境にすると中間色（teal・orange など）で読みにくい側を選んでしまう。
+const double _labelLuminanceThreshold = 0.179;
+
 /// [background] の上に載せる文字色を返す。
 /// 塗り色の明るさで白／黒を切り替え、テーマに依らずコントラストを確保する。
 Color labelColorOn(Color background) =>
-    background.computeLuminance() > 0.5 ? Colors.black87 : Colors.white;
+    background.computeLuminance() > _labelLuminanceThreshold
+        ? Colors.black87
+        : Colors.white;
