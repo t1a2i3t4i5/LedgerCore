@@ -22,11 +22,14 @@ void main() {
   });
   tearDown(() async => db.close());
 
-  /// 2026/7/[day] に [amount] の取引を入れ、その id を返す。
+  /// 2026/7/10 に [amount] の取引を入れ、その id を返す。
   /// [categoryIndex] で既定カテゴリ 10 件のうちどれを使うか選ぶ。
+  ///
+  /// insertTransaction が挿入行の id を返さないため金額で引き直している。
+  /// 同じ金額を 2 件入れると 2 件目でも 1 件目の id が返るので、
+  /// 1 つのテスト内では金額を一意にすること。
   Future<int> seedTransaction({
     required double amount,
-    int day = 10,
     int categoryIndex = 0,
   }) async {
     final cats = await db.getCategories();
@@ -35,7 +38,7 @@ void main() {
       userId: members.first.id,
       categoryId: cats[categoryIndex].id,
       amount: amount,
-      spentAt: DateTime(2026, 7, day),
+      spentAt: DateTime(2026, 7, 10),
     ));
     final txns = await db.getTransactionsByMonth(2026, 7);
     return txns.firstWhere((t) => t.amount == amount).id;
@@ -56,18 +59,29 @@ void main() {
     expect(await db.getTransactionsByMonth(2026, 7), hasLength(1));
   });
 
-  test('delete がリスナーに通知する', () async {
+  test('delete がリスナーに通知し、最後の通知時点で対象が消えている', () async {
     final targetId = await seedTransaction(amount: 1000);
+    await seedTransaction(amount: 2000);
     await provider.fetch();
 
-    var notified = 0;
-    provider.addListener(() => notified++);
+    // 通知のたびに「そのときリスナーから見えた一覧」を記録する。
+    // 回数だけを数えると、fetch() が先頭で loading=true として
+    // 削除前の一覧のまま通知する分で条件を満たしてしまい、
+    // 「通知は来たが中身が古い」不具合を見逃す
+    final seenIds = <List<int>>[];
+    provider.addListener(
+      () => seenIds.add(provider.transactions.map((t) => t.id).toList()),
+    );
 
     await provider.delete(targetId);
 
-    // create/update と同じく fetch() に委譲する規約なので、
-    // 回数そのものではなく「通知が飛ぶ」ことを見る
-    expect(notified, greaterThanOrEqualTo(1));
+    expect(seenIds, isNotEmpty, reason: '削除で通知が飛ぶこと');
+    expect(
+      seenIds.last,
+      isNot(contains(targetId)),
+      reason: '最後の通知時点でリスナーから見える一覧に削除対象が残っていないこと',
+    );
+    expect(seenIds.last, hasLength(1));
   });
 
   test('delete 後に filteredTotal が削除分だけ減る', () async {

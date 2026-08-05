@@ -89,6 +89,23 @@ void main() {
     expect(await db.getAllTransactions(), hasLength(1));
   });
 
+  testWidgets('ダイアログ外をタップして閉じても削除されない', (tester) async {
+    final categoryName = await seedTransaction(amount: 1200);
+    await pumpScreen(tester);
+
+    await tester.longPress(find.text(categoryName));
+    await tester.pumpAndSettle();
+    // バリアをタップして閉じると showDialog<bool> は null を返す。
+    // 実装が `confirmed == true` ではなく `confirmed != false` だと
+    // ここで削除が走ってしまう
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    expect(find.text('取引を削除'), findsNothing);
+    expect(find.text(categoryName), findsOneWidget);
+    expect(await db.getAllTransactions(), hasLength(1));
+  });
+
   testWidgets('削除を選ぶと一覧と DB から消える', (tester) async {
     final categoryName = await seedTransaction(amount: 1200);
     await seedTransaction(amount: 3500, day: 6, categoryIndex: 1);
