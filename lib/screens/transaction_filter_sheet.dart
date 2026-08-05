@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/transaction_provider.dart';
+import '../widgets/amount_input_formatter.dart';
 
 /// 取引一覧のソート・フィルター設定用 BottomSheet
 class TransactionFilterSheet extends StatefulWidget {
@@ -31,6 +32,7 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
     _sortOrder = p.sortOrder;
     _categoryIds = {...p.filterCategoryIds};
     _userIds = {...p.filterUserIds};
+    // 入力欄が整数しか受け付けないので toStringAsFixed(0) で往復しても値は変わらない
     if (p.filterMinAmount != null) {
       _minAmountCtrl.text = p.filterMinAmount!.toStringAsFixed(0);
     }
@@ -223,6 +225,9 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                     child: TextFormField(
                       controller: _minAmountCtrl,
                       keyboardType: TextInputType.number,
+                      // 取引追加画面と同じフォーマッタ。全角の正規化・
+                      // 記号の除去・桁数制限の挙動を揃える
+                      inputFormatters: const [AmountInputFormatter()],
                       decoration: const InputDecoration(
                         labelText: '最小 (¥)',
                         border: OutlineInputBorder(),
@@ -238,6 +243,7 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                     child: TextFormField(
                       controller: _maxAmountCtrl,
                       keyboardType: TextInputType.number,
+                      inputFormatters: const [AmountInputFormatter()],
                       decoration: const InputDecoration(
                         labelText: '最大 (¥)',
                         border: OutlineInputBorder(),
