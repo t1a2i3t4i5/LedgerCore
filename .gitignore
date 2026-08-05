@@ -44,3 +44,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Claude Code
+# 作業用の一時 worktree。共有しない。
+# .claude/ 配下でも commands/ agents/ settings.json はレビュー体制の定義なので
+# 追跡対象に残す（settings.local.json は各自の許可設定なので別途除外済み）。
+.claude/worktrees/
