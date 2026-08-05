@@ -438,7 +438,10 @@ class $TransactionsTable extends Transactions
   @override
   late final GeneratedColumn<double> amount = GeneratedColumn<double>(
       'amount', aliasedName, false,
-      check: () => ComparableExpr(amount).isBiggerThanValue(0),
+      check: () =>
+          ComparableExpr(amount).isBiggerThanValue(0) &
+          ComparableExpr(amount).isSmallerOrEqualValue(kMaxAmount) &
+          const CustomExpression<bool>('amount = CAST(amount AS INTEGER)'),
       type: DriftSqlType.double,
       requiredDuringInsert: true);
   static const VerificationMeta _spentAtMeta =

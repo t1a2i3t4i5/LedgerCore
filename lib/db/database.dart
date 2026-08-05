@@ -40,11 +40,29 @@ class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get memberId => integer().references(Members, #id)();
   IntColumn get categoryId => integer().references(Categories, #id)();
-  // 支出額なので 0 より大きい値のみ許す（入力側の validator と二重に防ぐ）。
+  // 金額は「0 より大きい」「上限以下」「整数」の 3 つを満たす値のみ許す
+  // （入力側の validator と二重に防ぐ）。
+  //
+  // 整数に限る理由: 金額の表示は全画面 NumberFormat('#,###') で小数部を出さない。
+  // 0.4 円の取引を 3 件入れると一覧は 3 行とも「¥0」・合計は「¥1」になり、
+  // 画面上で 0 + 0 + 0 = 1 になる。記録できても読めない値でしかない。
+  // 整数判定は drift の式 API に無いので CustomExpression で書く。
+  // Infinity は上限の比較と CAST の比較の両方で弾かれる。
+  //
+  // カラム型は RealColumn のまま。IntColumn にすると表示用モデル・集計・
+  // グラフまで int が波及する一方、割り勘の fairShare は「合計 ÷ 人数」で
+  // 本質的に小数なので、結局 double が残って中途半端になる。
+  //
   // check() の中で自分自身を参照するのは drift が定める書き方なので、
   // 再帰ゲッターの lint は無視する（実際には評価されず SQL の CHECK 句になる）
   // ignore: recursive_getters
-  RealColumn get amount => real().check(amount.isBiggerThanValue(0))();
+  RealColumn get amount => real().check(
+        // ignore: recursive_getters
+        amount.isBiggerThanValue(0) &
+            // ignore: recursive_getters
+            amount.isSmallerOrEqualValue(kMaxAmount) &
+            const CustomExpression<bool>('amount = CAST(amount AS INTEGER)'),
+      )();
   DateTimeColumn get spentAt => dateTime()();
   TextColumn get memo => text().nullable()();
   DateTimeColumn get createdAt =>
@@ -61,7 +79,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -81,25 +99,31 @@ class AppDatabase extends _$AppDatabase {
           // 未対応のバージョンを黙って素通りさせない。drift の既定 onUpgrade は
           // 「移行が書かれていません」と例外を投げる安全網だが、それを上書きして
           // しまうため、分岐から漏れたら気付けるようにここで落とす。
-          if (from < 1 || to > 2) {
+          if (from < 1 || to > 3) {
             throw StateError('未対応のマイグレーションです: v$from → v$to');
           }
-          if (from < 2) {
-            // drift は onUpgrade をトランザクションで包まない。包まないと
-            // customStatement の UPDATE / DELETE がそれぞれ autocommit され、
-            // 後続の alterTable（内部で独自のトランザクションを張る）が
-            // 容量不足などで失敗したとき、「データは書き換え済み・スキーマは
-            // v1 のまま・user_version も 1 のまま」で固定されてしまう。
-            // 全体を 1 つのトランザクションにして全部成功か全部巻き戻しにする。
+          // drift は onUpgrade をトランザクションで包まない。包まないと
+          // customStatement の UPDATE / DELETE がそれぞれ autocommit され、
+          // 後続の alterTable（内部で独自のトランザクションを張る）が
+          // 容量不足などで失敗したとき、「データは書き換え済み・スキーマは
+          // 旧版のまま・user_version も旧版のまま」で固定されてしまう。
+          // 全体を 1 つのトランザクションにして全部成功か全部巻き戻しにする。
+          //
+          // onUpgrade の時点では beforeOpen がまだ走っておらず
+          // PRAGMA foreign_keys は OFF なので、alterTable が
+          // トランザクション内で PRAGMA を切り替えようとする問題は起きない。
+          await transaction(() async {
+            // v2 / v3 はどちらも amount の CHECK 制約を変える移行で、SQLite は
+            // 既存カラムへの CHECK 追加をサポートしないためテーブルを作り直す。
+            // 作り直しは新テーブルへのコピーを伴うので、制約違反の行が残っていると
+            // 移行そのものが失敗する。先に既存データを制約に合う形へ整えておく。
             //
-            // onUpgrade の時点では beforeOpen がまだ走っておらず
-            // PRAGMA foreign_keys は OFF なので、alterTable が
-            // トランザクション内で PRAGMA を切り替えようとする問題は起きない。
-            await transaction(() async {
-              // v2 で amount に CHECK (amount > 0) を足すためテーブルを作り直す。
-              // 作り直しは新テーブルへのコピーを伴うので、制約違反の行が残っていると
-              // 移行そのものが失敗する。先に既存データを制約に合う形へ整えておく。
-              //
+            // **データ整形をすべて済ませてから、最後に一度だけ作り直す。**
+            // TableMigration は「そのとき Dart 側に書かれている最新の定義」で
+            // テーブルを作るため、v1 の端末で from < 2 のブロック内から呼ぶと
+            // v3 の CHECK を持つテーブルに小数のまま流し込むことになり、
+            // v1 → v3 の直行だけが移行に失敗する。
+            if (from < 2) {
               // 負の金額はマイナス記号の打ち間違いとみなして絶対値に補正し、
               // 0 円は集計上意味を持たない（グラフでも幅 0 のセクションになる）ので削除する。
               await customStatement(
@@ -108,13 +132,35 @@ class AppDatabase extends _$AppDatabase {
               await customStatement(
                 'DELETE FROM transactions WHERE amount <= 0',
               );
-              // SQLite は既存カラムへの CHECK 追加ができないため、drift の
-              // TableMigration でテーブルごと作り直す。experimental 扱いだが
-              // 制約変更を伴う移行はこれが drift の標準手段。
-              // ignore: experimental_member_use
-              await m.alterTable(TableMigration(transactions));
-            });
-          }
+            }
+            if (from < 3) {
+              // 上限超過は誤入力とみなして行ごと削除する。桁を打ち続けて
+              // Infinity になった行もここで一緒に落ちる（Infinity は
+              // どんな有限値より大きい）。NaN は SQLite が NULL として
+              // 保存するため、NOT NULL に弾かれて最初から存在しない。
+              await customStatement(
+                'DELETE FROM transactions WHERE amount > $kMaxAmount',
+              );
+              // 四捨五入で 0 になる行（0 < amount < 0.5）は v2 と同じ方針で
+              // 削除する。**四捨五入より先に消す**のがポイントで、逆順にすると
+              // v2 起点の移行が落ちる。v2 のテーブルには CHECK (amount > 0.0) が
+              // 付いており、テーブルを作り直す前の UPDATE の時点で 0 を書き込むと
+              // 自分自身の制約に弾かれるため（v1 には CHECK が無いので v1 起点
+              // では起きず、v2 起点だけが失敗する）。
+              await customStatement(
+                'DELETE FROM transactions WHERE ROUND(amount) <= 0',
+              );
+              // 小数は四捨五入する。表示側の NumberFormat('#,###') が既に
+              // 四捨五入して見せている値と一致するので、ユーザーから見て
+              // 金額は変わらない。
+              await customStatement(
+                'UPDATE transactions SET amount = ROUND(amount)',
+              );
+            }
+            // experimental 扱いだが、制約変更を伴う移行はこれが drift の標準手段。
+            // ignore: experimental_member_use
+            await m.alterTable(TableMigration(transactions));
+          });
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');

@@ -9,7 +9,7 @@ import 'package:ledger_app/providers/transaction_provider.dart';
 import 'package:ledger_app/screens/add_transaction_screen.dart';
 import 'package:provider/provider.dart';
 
-/// 取引追加画面の金額欄が 0 以下を弾くことを確認する。
+/// 取引追加画面の金額欄が 0 以下・小数・上限超過を弾くことを確認する。
 /// DB 側の CHECK 制約は database_test.dart 側で担保しており、
 /// ここでは「入り口で止まって保存に到達しない」ことを見る。
 void main() {
@@ -52,6 +52,14 @@ void main() {
 
   Finder amountField() => find.byType(TextFormField).first;
 
+  /// フォーマッタを経由しない経路（コントローラへの直接代入）で金額を入れる。
+  /// 入力欄からは打てない値に対して validator が保険になっているかを見るのに使う。
+  void setAmountDirectly(WidgetTester tester, String text) {
+    tester
+        .state<FormFieldState<String>>(find.byType(TextFormField).first)
+        .didChange(text);
+  }
+
   testWidgets('0 を入れて保存するとエラーが出て保存されない', (tester) async {
     await pumpScreen(tester);
     await selectFirstCategory(tester);
@@ -75,42 +83,54 @@ void main() {
     expect(find.text('500'), findsOneWidget);
   });
 
-  testWidgets('小数点は入力できる', (tester) async {
+  testWidgets('小数点は入力自体を受け付けない', (tester) async {
     await pumpScreen(tester);
 
+    // 小数は全画面 NumberFormat('#,###') で表示されないため、
+    // 保存できても読めない値にしかならない。入り口で落とす
     await tester.enterText(amountField(), '1234.5');
     await tester.pump();
 
-    expect(find.text('1234.5'), findsOneWidget);
+    expect(find.text('1234.5'), findsNothing);
+    expect(find.text('12345'), findsOneWidget);
   });
 
   testWidgets('全角数字は半角に直して受け付ける', (tester) async {
     await pumpScreen(tester);
 
     // 日本語 IME で全角のまま打つケース。落とすだけだと欄が空になってしまう
+    await tester.enterText(amountField(), '１２３４');
+    await tester.pump();
+
+    expect(find.text('1234'), findsOneWidget);
+  });
+
+  testWidgets('全角ピリオドも小数点として扱わず落とす', (tester) async {
+    await pumpScreen(tester);
+
+    // 全角→半角の正規化対象は数字だけ。ピリオドは半角と同じく除去される
     await tester.enterText(amountField(), '１２３４．５');
     await tester.pump();
 
-    expect(find.text('1234.5'), findsOneWidget);
+    expect(find.text('12345'), findsOneWidget);
   });
 
-  testWidgets('小数を含む取引を編集して保存しても値が丸まらない', (tester) async {
+  testWidgets('取引を編集して保存し直しても金額が変わらない', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
     await db.insertTransaction(TransactionRequest(
       userId: memberId,
       categoryId: cats.first.id,
-      amount: 1234.5,
+      amount: 1234,
       spentAt: DateTime(2026, 7, 10),
     ));
     final existing = (await db.getAllTransactions()).single;
 
     await pumpScreen(tester, existing: existing);
-    // 編集画面には小数がそのまま出る（toStringAsFixed(0) だと 1235 になっていた）
-    expect(find.text('1234.5'), findsOneWidget);
+    expect(find.text('1234'), findsOneWidget);
 
     // 金額に触らず保存し直しても値は変わらない。
-    // ただし「保存後も 1234.5」だけを見ると、保存が一度も実行されなくても
+    // ただし「保存後も 1234」だけを見ると、保存が一度も実行されなくても
     // 通ってしまう。メモを書き換えて、更新が実際に走ったことを併せて確かめる
     await tester.enterText(find.byType(TextFormField).last, '保存し直した');
     await tester.tap(find.text('保存'));
@@ -118,7 +138,7 @@ void main() {
 
     final saved = (await db.getAllTransactions()).single;
     expect(saved.memo, '保存し直した', reason: '更新が実行されていない');
-    expect(saved.amount, 1234.5);
+    expect(saved.amount, 1234);
   });
 
   testWidgets('整数の取引は編集画面で小数部を出さない', (tester) async {
@@ -166,10 +186,7 @@ void main() {
     await selectFirstCategory(tester);
 
     // フォーマッタを通らない経路（コントローラへの直接代入）の保険を確かめる
-    final state = tester.state<FormFieldState<String>>(
-      find.byType(TextFormField).first,
-    );
-    state.didChange('1000000000000'); // 1 兆（上限 999,999,999,999 の 1 つ上）
+    setAmountDirectly(tester, '1000000000000'); // 1 兆（上限の 1 つ上）
     await tester.pump();
 
     await tester.tap(find.text('保存'));
@@ -208,6 +225,22 @@ void main() {
     expect(committed.controller!.text, '123');
   });
 
+  testWidgets('小数はコントローラへ直接代入してもエラーになる', (tester) async {
+    await pumpScreen(tester);
+    await selectFirstCategory(tester);
+
+    // フォーマッタが小数点を通さないので画面からは到達しないが、
+    // DB の CHECK と揃える二重の守りとして validator も見ている
+    setAmountDirectly(tester, '1234.5');
+    await tester.pump();
+
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('金額は整数で入力してください'), findsOneWidget);
+    expect(await db.getAllTransactions(), isEmpty);
+  });
+
   testWidgets('空欄・非数値のエラーメッセージは従来どおり', (tester) async {
     await pumpScreen(tester);
     await selectFirstCategory(tester);
@@ -216,8 +249,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('金額を入力してください'), findsOneWidget);
 
-    // 数字と小数点しか通らないので、非数値は「.」の連続で作る
-    await tester.enterText(amountField(), '..');
+    // 数字しか通らなくなったので、非数値はフォーマッタを経由しない
+    // 直接代入で作る
+    setAmountDirectly(tester, 'abc');
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
     expect(find.text('有効な数値を入力してください'), findsOneWidget);
