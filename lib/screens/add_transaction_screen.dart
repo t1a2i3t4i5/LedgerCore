@@ -18,6 +18,32 @@ class AddTransactionScreen extends StatefulWidget {
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
 }
 
+/// 全角数字・全角ピリオドを半角に直したうえで、数字と小数点以外を落とす。
+///
+/// 単に落とすだけだと、日本語 IME で全角のまま打ったときに文字が消えるだけで
+/// 理由が分からない。半角に直してから絞ることで全角入力もそのまま通す。
+final _amountInputFormatters = <TextInputFormatter>[
+  TextInputFormatter.withFunction((oldValue, newValue) {
+    // 全角→半角は 1 文字 1 文字の置換なので、文字数もカーソル位置も変わらない
+    final normalized = newValue.text.replaceAllMapped(
+      RegExp(r'[０-９．]'),
+      (m) => String.fromCharCode(m.group(0)!.codeUnitAt(0) - 0xFEE0),
+    );
+    return normalized == newValue.text
+        ? newValue
+        : newValue.copyWith(text: normalized);
+  }),
+  // マイナス記号やその他の記号は入力自体を受け付けない
+  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+];
+
+/// 金額をテキスト欄の初期値にする。
+///
+/// 整数なら小数部を出さず「1000」と見せる。`toStringAsFixed(0)` で丸めてしまうと、
+/// 小数を含む取引を編集画面で開いて保存し直しただけで値が変わってしまう。
+String _formatAmount(double amount) =>
+    amount == amount.roundToDouble() ? amount.toStringAsFixed(0) : '$amount';
+
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountCtrl = TextEditingController();
@@ -33,7 +59,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     super.initState();
     final ex = widget.existing;
     if (ex != null) {
-      _amountCtrl.text = ex.amount.toStringAsFixed(0);
+      _amountCtrl.text = _formatAmount(ex.amount);
       _memoCtrl.text = ex.memo ?? '';
       _spentAt = ex.spentAt;
       _selectedCategoryId = ex.categoryId;
@@ -156,10 +182,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   controller: _amountCtrl,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  // マイナス記号やその他の記号は入力自体を受け付けない
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
+                  inputFormatters: _amountInputFormatters,
                   decoration: const InputDecoration(
                     labelText: '金額',
                     prefixIcon: Icon(Icons.currency_yen),

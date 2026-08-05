@@ -2,6 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
+import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/category_provider.dart';
 import 'package:ledger_app/providers/member_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
@@ -17,7 +18,11 @@ void main() {
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
-  Future<void> pumpScreen(WidgetTester tester) async {
+  /// [existing] を渡すと編集モードで開く
+  Future<void> pumpScreen(
+    WidgetTester tester, {
+    TransactionResponse? existing,
+  }) async {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -29,7 +34,7 @@ void main() {
           ChangeNotifierProvider(create: (_) => MemberProvider(db)),
           ChangeNotifierProvider(create: (_) => TransactionProvider(db)),
         ],
-        child: const MaterialApp(home: AddTransactionScreen()),
+        child: MaterialApp(home: AddTransactionScreen(existing: existing)),
       ),
     );
     // initState の postFrameCallback でカテゴリ・メンバーを読むので落ち着かせる
@@ -77,6 +82,54 @@ void main() {
     await tester.pump();
 
     expect(find.text('1234.5'), findsOneWidget);
+  });
+
+  testWidgets('全角数字は半角に直して受け付ける', (tester) async {
+    await pumpScreen(tester);
+
+    // 日本語 IME で全角のまま打つケース。落とすだけだと欄が空になってしまう
+    await tester.enterText(amountField(), '１２３４．５');
+    await tester.pump();
+
+    expect(find.text('1234.5'), findsOneWidget);
+  });
+
+  testWidgets('小数を含む取引を編集して保存しても値が丸まらない', (tester) async {
+    final cats = await db.getCategories();
+    final memberId = (await db.getMembers()).first.id;
+    await db.insertTransaction(TransactionRequest(
+      userId: memberId,
+      categoryId: cats.first.id,
+      amount: 1234.5,
+      spentAt: DateTime(2026, 7, 10),
+    ));
+    final existing = (await db.getAllTransactions()).single;
+
+    await pumpScreen(tester, existing: existing);
+    // 編集画面には小数がそのまま出る（toStringAsFixed(0) だと 1235 になっていた）
+    expect(find.text('1234.5'), findsOneWidget);
+
+    // 金額に触らず保存し直しても値は変わらない
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+    expect((await db.getAllTransactions()).single.amount, 1234.5);
+  });
+
+  testWidgets('整数の取引は編集画面で小数部を出さない', (tester) async {
+    final cats = await db.getCategories();
+    final memberId = (await db.getMembers()).first.id;
+    await db.insertTransaction(TransactionRequest(
+      userId: memberId,
+      categoryId: cats.first.id,
+      amount: 1000,
+      spentAt: DateTime(2026, 7, 10),
+    ));
+    final existing = (await db.getAllTransactions()).single;
+
+    await pumpScreen(tester, existing: existing);
+
+    expect(find.text('1000'), findsOneWidget);
+    expect(find.text('1000.0'), findsNothing);
   });
 
   testWidgets('空欄・非数値のエラーメッセージは従来どおり', (tester) async {

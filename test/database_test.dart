@@ -3,6 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
 
+/// amount の CHECK 制約違反であることまで確かめる。
+/// 単なる `isA<Exception>()` だと FK 違反や型エラーでも通ってしまい、
+/// 「制約が効いている」ことの証明にならない。
+final throwsAmountCheckViolation = throwsA(
+  isA<Exception>().having(
+    (e) => e.toString(),
+    'メッセージ',
+    contains('CHECK constraint failed: amount'),
+  ),
+);
+
 void main() {
   late AppDatabase db;
 
@@ -212,8 +223,8 @@ void main() {
         );
 
     // CHECK (amount > 0) に弾かれる
-    await expectLater(insert(-500), throwsA(isA<Exception>()));
-    await expectLater(insert(0), throwsA(isA<Exception>()));
+    await expectLater(insert(-500), throwsAmountCheckViolation);
+    await expectLater(insert(0), throwsAmountCheckViolation);
 
     expect(await db.getAllTransactions(), isEmpty);
 
@@ -242,8 +253,8 @@ void main() {
           ),
         );
 
-    await expectLater(updateTo(-1), throwsA(isA<Exception>()));
-    await expectLater(updateTo(0), throwsA(isA<Exception>()));
+    await expectLater(updateTo(-1), throwsAmountCheckViolation);
+    await expectLater(updateTo(0), throwsAmountCheckViolation);
 
     // 元の値のまま残る
     expect((await db.getAllTransactions()).single.amount, 500);

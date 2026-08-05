@@ -37,7 +37,7 @@ void main() {
   tearDown(() async => tempDir.delete(recursive: true));
 
   /// v1 相当の DB ファイルを作り、指定した金額の取引を入れておく。
-  /// 戻り値は投入した取引の (金額, メモ) の並び。
+  /// メモには `金額 <値>` を入れ、移行後に元の行を追えるようにする。
   Future<void> seedV1(List<double> amounts) async {
     final db = AppDatabase.forTesting(NativeDatabase(dbFile));
     // onCreate で v2 のスキーマが作られるので、transactions だけ v1 相当に戻す
@@ -98,7 +98,11 @@ void main() {
         amount: -1,
         spentAt: DateTime(2026, 7, 11),
       )),
-      throwsA(isA<Exception>()),
+      throwsA(isA<Exception>().having(
+        (e) => e.toString(),
+        'メッセージ',
+        contains('CHECK constraint failed: amount'),
+      )),
     );
   });
 
