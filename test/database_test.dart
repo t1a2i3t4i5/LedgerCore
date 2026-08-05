@@ -266,4 +266,52 @@ void main() {
     cats = await db.getCategories();
     expect(cats.map((c) => c.name), isNot(contains('特別費')));
   });
+
+  test('取引を削除するとカテゴリが削除できるようになる', () async {
+    await db.insertCategory('臨時費');
+    final target =
+        (await db.getCategories()).firstWhere((c) => c.name == '臨時費');
+    final members = await db.getMembers();
+    await db.insertTransaction(TransactionRequest(
+      userId: members.first.id,
+      categoryId: target.id,
+      amount: 500,
+      spentAt: DateTime(2026, 7, 10),
+    ));
+
+    // 取引が参照している間は ON DELETE 未指定（NO ACTION）で弾かれる
+    await expectLater(db.deleteCategory(target.id), throwsForeignKeyViolation);
+
+    await db.deleteTransaction((await db.getAllTransactions()).single.id);
+
+    // 取引を消せば制約が解ける
+    await db.deleteCategory(target.id);
+    expect(
+      (await db.getCategories()).map((c) => c.name),
+      isNot(contains('臨時費')),
+    );
+  });
+
+  test('取引を削除するとメンバーが削除できるようになる', () async {
+    await db.insertMember('パートナー');
+    final target =
+        (await db.getMembers()).firstWhere((m) => m.name == 'パートナー');
+    final cats = await db.getCategories();
+    await db.insertTransaction(TransactionRequest(
+      userId: target.id,
+      categoryId: cats.first.id,
+      amount: 500,
+      spentAt: DateTime(2026, 7, 10),
+    ));
+
+    await expectLater(db.deleteMember(target.id), throwsForeignKeyViolation);
+
+    await db.deleteTransaction((await db.getAllTransactions()).single.id);
+
+    await db.deleteMember(target.id);
+    expect(
+      (await db.getMembers()).map((m) => m.name),
+      isNot(contains('パートナー')),
+    );
+  });
 }
