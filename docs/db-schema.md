@@ -5,7 +5,7 @@ LedgerCore のデータはすべて [drift](https://drift.simonbinder.eu/)（SQL
 3 テーブルがアプリの持つデータのすべて。
 
 - **定義元** — [`lib/db/database.dart`](../lib/db/database.dart)。`database.g.dart` は `build_runner` の生成物
-- **`schemaVersion`** — 現在 `1`
+- **`schemaVersion`** — 現在 `2`（v1 → v2 で `transactions.amount` に `CHECK (amount > 0)` を追加）
 - このドキュメントと実装が食い違った場合は `database.dart` が正。スキーマを変更したらこのファイルも更新する
 
 Dart 側の識別子は camelCase だが、drift が実際の SQL 名を **snake_case** に変換する
@@ -93,7 +93,7 @@ CREATE TABLE "transactions" (
   "id"          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   "member_id"   INTEGER NOT NULL REFERENCES members (id),
   "category_id" INTEGER NOT NULL REFERENCES categories (id),
-  "amount"      REAL NOT NULL,
+  "amount"      REAL NOT NULL CHECK ("amount" > 0),
   "spent_at"    INTEGER NOT NULL,
   "memo"        TEXT NULL,
   "created_at"  INTEGER NOT NULL,
@@ -106,7 +106,7 @@ CREATE TABLE "transactions" (
 | `id` | `id` | INTEGER | PK / AUTOINCREMENT | |
 | `member_id` | `memberId` | INTEGER | NOT NULL / FK → `members.id` | 支払ったメンバー |
 | `category_id` | `categoryId` | INTEGER | NOT NULL / FK → `categories.id` | |
-| `amount` | `amount` | REAL | NOT NULL | 金額。整数ではなく `double` |
+| `amount` | `amount` | REAL | NOT NULL / CHECK `> 0` | 金額。整数ではなく `double`。支出額なので 0 と負の値は DB が弾く |
 | `spent_at` | `spentAt` | INTEGER | NOT NULL | 支出日。Unix 秒（UTC） |
 | `memo` | `memo` | TEXT | NULL 可 | |
 | `created_at` | `createdAt` | INTEGER | NOT NULL | 作成日時。`clientDefault` |
@@ -193,3 +193,21 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 
 既にアプリを起動したことのある端末には旧スキーマの DB ファイルが残っているので、
 `onUpgrade` を書かないと実行時エラーになる。詳細は [CLAUDE.md](../CLAUDE.md) を参照。
+
+### マイグレーション履歴
+
+| バージョン | 内容 |
+| --- | --- |
+| 1 | 初版（`categories` / `members` / `transactions`） |
+| 2 | `transactions.amount` に `CHECK (amount > 0)` を追加 |
+
+SQLite は既存カラムへの CHECK 追加をサポートしないため、v2 の `onUpgrade` は
+drift の `TableMigration` で `transactions` を作り直している。作り直しは新テーブルへの
+コピーを伴うので、制約違反の行が残っていると移行そのものが失敗する。そのため
+コピー前に既存データを整えている。
+
+- 負の金額 → マイナス記号の打ち間違いとみなして**絶対値に補正**（記録を残す）
+- 0 円 → 集計上意味を持たないので**削除**
+
+検証は [`test/database_migration_test.dart`](../test/database_migration_test.dart)。
+インメモリ DB は接続を閉じると消えてしまうため、このテストだけテンポラリのファイル DB を使う。

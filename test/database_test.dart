@@ -198,6 +198,57 @@ void main() {
     expect(yearly.byMonth.last.total, 100); // 12/31 23:59:59
   });
 
+  test('0 以下の金額は insert できない', () async {
+    final cats = await db.getCategories();
+    final members = await db.getMembers();
+
+    Future<void> insert(double amount) => db.insertTransaction(
+          TransactionRequest(
+            userId: members.first.id,
+            categoryId: cats.first.id,
+            amount: amount,
+            spentAt: DateTime(2026, 7, 10),
+          ),
+        );
+
+    // CHECK (amount > 0) に弾かれる
+    await expectLater(insert(-500), throwsA(isA<Exception>()));
+    await expectLater(insert(0), throwsA(isA<Exception>()));
+
+    expect(await db.getAllTransactions(), isEmpty);
+
+    // 正の値は通る
+    await insert(500);
+    expect((await db.getAllTransactions()).single.amount, 500);
+  });
+
+  test('0 以下の金額には update できない', () async {
+    final cats = await db.getCategories();
+    final members = await db.getMembers();
+    await db.insertTransaction(TransactionRequest(
+        userId: members.first.id,
+        categoryId: cats.first.id,
+        amount: 500,
+        spentAt: DateTime(2026, 7, 10)));
+    final id = (await db.getAllTransactions()).single.id;
+
+    Future<void> updateTo(double amount) => db.updateTransaction(
+          id,
+          TransactionRequest(
+            userId: members.first.id,
+            categoryId: cats.first.id,
+            amount: amount,
+            spentAt: DateTime(2026, 7, 10),
+          ),
+        );
+
+    await expectLater(updateTo(-1), throwsA(isA<Exception>()));
+    await expectLater(updateTo(0), throwsA(isA<Exception>()));
+
+    // 元の値のまま残る
+    expect((await db.getAllTransactions()).single.amount, 500);
+  });
+
   test('カテゴリの追加・更新・削除', () async {
     await db.insertCategory('臨時費');
     var cats = await db.getCategories();

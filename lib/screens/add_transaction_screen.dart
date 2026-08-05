@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -153,7 +154,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 // 金額
                 TextFormField(
                   controller: _amountCtrl,
-                  keyboardType: TextInputType.number,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  // マイナス記号やその他の記号は入力自体を受け付けない
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  ],
                   decoration: const InputDecoration(
                     labelText: '金額',
                     prefixIcon: Icon(Icons.currency_yen),
@@ -161,7 +167,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return '金額を入力してください';
-                    if (double.tryParse(v) == null) return '有効な数値を入力してください';
+                    final amount = double.tryParse(v);
+                    if (amount == null) return '有効な数値を入力してください';
+                    // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
+                    if (amount <= 0) return '金額は 0 より大きい値を入力してください';
                     return null;
                   },
                 ),

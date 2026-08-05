@@ -40,7 +40,11 @@ class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get memberId => integer().references(Members, #id)();
   IntColumn get categoryId => integer().references(Categories, #id)();
-  RealColumn get amount => real()();
+  // 支出額なので 0 より大きい値のみ許す（入力側の validator と二重に防ぐ）。
+  // check() の中で自分自身を参照するのは drift が定める書き方なので、
+  // 再帰ゲッターの lint は無視する（実際には評価されず SQL の CHECK 句になる）
+  // ignore: recursive_getters
+  RealColumn get amount => real().check(amount.isBiggerThanValue(0))();
   DateTimeColumn get spentAt => dateTime()();
   TextColumn get memo => text().nullable()();
   DateTimeColumn get createdAt =>
@@ -57,7 +61,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -72,6 +76,25 @@ class AppDatabase extends _$AppDatabase {
             );
             b.insert(members, MembersCompanion.insert(name: '自分'));
           });
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // v2 で amount に CHECK (amount > 0) を足すためテーブルを作り直す。
+            // 作り直しは新テーブルへのコピーを伴うので、制約違反の行が残っていると
+            // 移行そのものが失敗する。先に既存データを制約に合う形へ整えておく。
+            //
+            // 負の金額はマイナス記号の打ち間違いとみなして絶対値に補正し、
+            // 0 円は集計上意味を持たない（グラフでも幅 0 のセクションになる）ので削除する。
+            await customStatement(
+              'UPDATE transactions SET amount = abs(amount) WHERE amount < 0',
+            );
+            await customStatement('DELETE FROM transactions WHERE amount <= 0');
+            // SQLite は既存カラムへの CHECK 追加ができないため、drift の
+            // TableMigration でテーブルごと作り直す。experimental 扱いだが
+            // 制約変更を伴う移行はこれが drift の標準手段。
+            // ignore: experimental_member_use
+            await m.alterTable(TableMigration(transactions));
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
