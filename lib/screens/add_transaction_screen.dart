@@ -18,24 +18,61 @@ class AddTransactionScreen extends StatefulWidget {
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
 }
 
-/// 全角数字・全角ピリオドを半角に直したうえで、数字と小数点以外を落とす。
+/// 金額欄に入力できる最大文字数。
 ///
-/// 単に落とすだけだと、日本語 IME で全角のまま打ったときに文字が消えるだけで
-/// 理由が分からない。半角に直してから絞ることで全角入力もそのまま通す。
-final _amountInputFormatters = <TextInputFormatter>[
-  TextInputFormatter.withFunction((oldValue, newValue) {
-    // 全角→半角は 1 文字 1 文字の置換なので、文字数もカーソル位置も変わらない
-    final normalized = newValue.text.replaceAllMapped(
-      RegExp(r'[０-９．]'),
-      (m) => String.fromCharCode(m.group(0)!.codeUnitAt(0) - 0xFEE0),
+/// 上限が無いと桁を打ち続けるだけで `double` が `Infinity` に飽和する。
+/// `Infinity` は `> 0` を満たすので validator も DB の CHECK もすり抜け、
+/// 円グラフの構成比が `Inf / Inf = NaN` になってグラフ全体が壊れる。
+/// 12 文字なら 999,999,999,999 円まで入力でき、家計簿の用途には十分。
+const _maxAmountLength = 12;
+
+/// 金額として認める上限。`_maxAmountLength` を超える値が
+/// コントローラへ直接代入された場合の保険（フォーマッタは代入経路を通らない）。
+const _maxAmount = 999999999999.0;
+
+/// 金額欄の入力フォーマッタ。
+///
+/// **IME の変換確定前（composing 中）は一切書き換えない。** Flutter は
+/// `TextInputFormatter` について composing 中の本文書き換えを禁じており
+/// （`services/text_formatter.dart`）、破ると IME 側のバッファと食い違って
+/// 二重入力や巻き戻りを起こす。実際、確定前に「１２３」を送ると本文だけ
+/// 「123」に書き換わり composing 範囲は残ったままになる。
+///
+/// 確定後の値は「全角→半角の正規化 → 数字と小数点以外の除去 → 桁数制限」の
+/// 順で整える。正規化を先に置くのは、単に全角を落とすだけだと日本語 IME で
+/// 全角のまま打ったときに文字が消えて理由が分からないため。
+class _AmountInputFormatter extends TextInputFormatter {
+  const _AmountInputFormatter();
+
+  static final _steps = <TextInputFormatter>[
+    TextInputFormatter.withFunction((oldValue, newValue) {
+      // 全角→半角は 1 文字 1 文字の置換なので、文字数もカーソル位置も変わらない
+      final normalized = newValue.text.replaceAllMapped(
+        RegExp(r'[０-９．]'),
+        (m) => String.fromCharCode(m.group(0)!.codeUnitAt(0) - 0xFEE0),
+      );
+      return normalized == newValue.text
+          ? newValue
+          : newValue.copyWith(text: normalized);
+    }),
+    // マイナス記号やその他の記号は入力自体を受け付けない
+    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+    LengthLimitingTextInputFormatter(_maxAmountLength),
+  ];
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (!newValue.composing.isCollapsed) return newValue;
+    // EditableText 自身と同じく、各段に同じ oldValue を渡して畳み込む
+    return _steps.fold(
+      newValue,
+      (value, step) => step.formatEditUpdate(oldValue, value),
     );
-    return normalized == newValue.text
-        ? newValue
-        : newValue.copyWith(text: normalized);
-  }),
-  // マイナス記号やその他の記号は入力自体を受け付けない
-  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-];
+  }
+}
 
 /// 金額をテキスト欄の初期値にする。
 ///
@@ -182,7 +219,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   controller: _amountCtrl,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: _amountInputFormatters,
+                  inputFormatters: const [_AmountInputFormatter()],
                   decoration: const InputDecoration(
                     labelText: '金額',
                     prefixIcon: Icon(Icons.currency_yen),
@@ -194,6 +231,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     if (amount == null) return '有効な数値を入力してください';
                     // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
                     if (amount <= 0) return '金額は 0 より大きい値を入力してください';
+                    // Infinity は `> 0` を満たすため CHECK 制約では止まらない。
+                    // ここで弾かないと合計と円グラフが NaN になって復旧できない
+                    if (!amount.isFinite || amount > _maxAmount) {
+                      return '金額が大きすぎます';
+                    }
                     return null;
                   },
                 ),

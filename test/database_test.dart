@@ -3,16 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
 
-/// amount の CHECK 制約違反であることまで確かめる。
-/// 単なる `isA<Exception>()` だと FK 違反や型エラーでも通ってしまい、
-/// 「制約が効いている」ことの証明にならない。
-final throwsAmountCheckViolation = throwsA(
-  isA<Exception>().having(
-    (e) => e.toString(),
-    'メッセージ',
-    contains('CHECK constraint failed: amount'),
-  ),
-);
+import 'matchers.dart';
 
 void main() {
   late AppDatabase db;

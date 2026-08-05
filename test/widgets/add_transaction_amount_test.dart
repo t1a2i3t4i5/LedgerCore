@@ -109,10 +109,16 @@ void main() {
     // 編集画面には小数がそのまま出る（toStringAsFixed(0) だと 1235 になっていた）
     expect(find.text('1234.5'), findsOneWidget);
 
-    // 金額に触らず保存し直しても値は変わらない
+    // 金額に触らず保存し直しても値は変わらない。
+    // ただし「保存後も 1234.5」だけを見ると、保存が一度も実行されなくても
+    // 通ってしまう。メモを書き換えて、更新が実際に走ったことを併せて確かめる
+    await tester.enterText(find.byType(TextFormField).last, '保存し直した');
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
-    expect((await db.getAllTransactions()).single.amount, 1234.5);
+
+    final saved = (await db.getAllTransactions()).single;
+    expect(saved.memo, '保存し直した', reason: '更新が実行されていない');
+    expect(saved.amount, 1234.5);
   });
 
   testWidgets('整数の取引は編集画面で小数部を出さない', (tester) async {
@@ -130,6 +136,76 @@ void main() {
 
     expect(find.text('1000'), findsOneWidget);
     expect(find.text('1000.0'), findsNothing);
+  });
+
+  testWidgets('桁を打ち続けても Infinity が保存されない', (tester) async {
+    await pumpScreen(tester);
+    await selectFirstCategory(tester);
+
+    // 上限が無いと double が Infinity に飽和する。Infinity は `> 0` を満たすので
+    // validator も DB の CHECK もすり抜け、円グラフの構成比が Inf/Inf = NaN になり
+    // その行を手で消すまで合計が復旧しない
+    await tester.enterText(amountField(), '9' * 400);
+    await tester.pump();
+
+    // 桁数制限で打ち切られる（マイナス記号と同じく入力の時点で分かる）
+    final field = tester.widget<TextField>(find.byType(TextField).first);
+    expect(field.controller!.text, '9' * 12);
+
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    // 保存されるのは有限の値だけ。Infinity は DB に届かない
+    final saved = (await db.getAllTransactions()).single.amount;
+    expect(saved.isFinite, isTrue, reason: 'Infinity が保存されている');
+    expect(saved, 999999999999);
+  });
+
+  testWidgets('上限を超える金額はエラーになる', (tester) async {
+    await pumpScreen(tester);
+    await selectFirstCategory(tester);
+
+    // フォーマッタを通らない経路（コントローラへの直接代入）の保険を確かめる
+    final state = tester.state<FormFieldState<String>>(
+      find.byType(TextFormField).first,
+    );
+    state.didChange('1000000000000'); // 1 兆（上限 999,999,999,999 の 1 つ上）
+    await tester.pump();
+
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('金額が大きすぎます'), findsOneWidget);
+    expect(await db.getAllTransactions(), isEmpty);
+  });
+
+  testWidgets('IME の変換確定前は入力を書き換えない', (tester) async {
+    await pumpScreen(tester);
+    await tester.tap(amountField());
+    await tester.pump();
+
+    // enterText は composing を空で送るので、この経路は通らない。
+    // 実機の IME を再現するには composing 範囲を明示して送る必要がある
+    tester.testTextInput.updateEditingValue(const TextEditingValue(
+      text: '１２３',
+      selection: TextSelection.collapsed(offset: 3),
+      composing: TextRange(start: 0, end: 3),
+    ));
+    await tester.pump();
+
+    // 確定前に本文だけ書き換えると IME 側のバッファと食い違う
+    final composing = tester.widget<TextField>(find.byType(TextField).first);
+    expect(composing.controller!.text, '１２３');
+
+    // 確定（composing が空）になった時点で正規化される
+    tester.testTextInput.updateEditingValue(const TextEditingValue(
+      text: '１２３',
+      selection: TextSelection.collapsed(offset: 3),
+    ));
+    await tester.pump();
+
+    final committed = tester.widget<TextField>(find.byType(TextField).first);
+    expect(committed.controller!.text, '123');
   });
 
   testWidgets('空欄・非数値のエラーメッセージは従来どおり', (tester) async {

@@ -93,7 +93,7 @@ CREATE TABLE "transactions" (
   "id"          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   "member_id"   INTEGER NOT NULL REFERENCES members (id),
   "category_id" INTEGER NOT NULL REFERENCES categories (id),
-  "amount"      REAL NOT NULL CHECK ("amount" > 0),
+  "amount"      REAL NOT NULL CHECK ("amount" > 0.0),
   "spent_at"    INTEGER NOT NULL,
   "memo"        TEXT NULL,
   "created_at"  INTEGER NOT NULL,
@@ -206,8 +206,20 @@ drift の `TableMigration` で `transactions` を作り直している。作り�
 コピーを伴うので、制約違反の行が残っていると移行そのものが失敗する。そのため
 コピー前に既存データを整えている。
 
-- 負の金額 → マイナス記号の打ち間違いとみなして**絶対値に補正**（記録を残す）
-- 0 円 → 集計上意味を持たないので**削除**
+- 負の金額 → マイナス記号の打ち間違いとみなして**絶対値に補正**（行は残るが、元の金額は残らない）
+- 0 円 → 集計上意味を持たないので**行ごと削除**
+
+**この書き換えは不可逆で、バックアップも取っていない。** 元の値を復元する手段はなく、
+補正された行の分だけ月次合計が変わる（`-2000` が `+2000` になれば合計は 4000 円ずれる）。
+移行後にユーザーへ通知する仕組みも無い。
+
+`onUpgrade` 全体は `transaction()` で包んである。drift は `onUpgrade` を
+トランザクションで包まないため、包まないと「クリーンアップだけコミット済み・
+`alterTable` は失敗してスキーマは v1 のまま・`user_version` も 1 のまま」という
+中間状態で固定されうる（`alterTable` はテーブル全体をコピーするので、
+容量不足で失敗する余地が現実にある）。
 
 検証は [`test/database_migration_test.dart`](../test/database_migration_test.dart)。
 インメモリ DB は接続を閉じると消えてしまうため、このテストだけテンポラリのファイル DB を使う。
+移行後に主キー `id` が保たれること・外部キー制約が引き継がれることも併せて確認している
+（どちらもテーブル再作成で壊れうるが、壊れても金額のアサーションだけでは気付けないため）。

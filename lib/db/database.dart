@@ -78,22 +78,42 @@ class AppDatabase extends _$AppDatabase {
           });
         },
         onUpgrade: (m, from, to) async {
+          // 未対応のバージョンを黙って素通りさせない。drift の既定 onUpgrade は
+          // 「移行が書かれていません」と例外を投げる安全網だが、それを上書きして
+          // しまうため、分岐から漏れたら気付けるようにここで落とす。
+          if (from < 1 || to > 2) {
+            throw StateError('未対応のマイグレーションです: v$from → v$to');
+          }
           if (from < 2) {
-            // v2 で amount に CHECK (amount > 0) を足すためテーブルを作り直す。
-            // 作り直しは新テーブルへのコピーを伴うので、制約違反の行が残っていると
-            // 移行そのものが失敗する。先に既存データを制約に合う形へ整えておく。
+            // drift は onUpgrade をトランザクションで包まない。包まないと
+            // customStatement の UPDATE / DELETE がそれぞれ autocommit され、
+            // 後続の alterTable（内部で独自のトランザクションを張る）が
+            // 容量不足などで失敗したとき、「データは書き換え済み・スキーマは
+            // v1 のまま・user_version も 1 のまま」で固定されてしまう。
+            // 全体を 1 つのトランザクションにして全部成功か全部巻き戻しにする。
             //
-            // 負の金額はマイナス記号の打ち間違いとみなして絶対値に補正し、
-            // 0 円は集計上意味を持たない（グラフでも幅 0 のセクションになる）ので削除する。
-            await customStatement(
-              'UPDATE transactions SET amount = abs(amount) WHERE amount < 0',
-            );
-            await customStatement('DELETE FROM transactions WHERE amount <= 0');
-            // SQLite は既存カラムへの CHECK 追加ができないため、drift の
-            // TableMigration でテーブルごと作り直す。experimental 扱いだが
-            // 制約変更を伴う移行はこれが drift の標準手段。
-            // ignore: experimental_member_use
-            await m.alterTable(TableMigration(transactions));
+            // onUpgrade の時点では beforeOpen がまだ走っておらず
+            // PRAGMA foreign_keys は OFF なので、alterTable が
+            // トランザクション内で PRAGMA を切り替えようとする問題は起きない。
+            await transaction(() async {
+              // v2 で amount に CHECK (amount > 0) を足すためテーブルを作り直す。
+              // 作り直しは新テーブルへのコピーを伴うので、制約違反の行が残っていると
+              // 移行そのものが失敗する。先に既存データを制約に合う形へ整えておく。
+              //
+              // 負の金額はマイナス記号の打ち間違いとみなして絶対値に補正し、
+              // 0 円は集計上意味を持たない（グラフでも幅 0 のセクションになる）ので削除する。
+              await customStatement(
+                'UPDATE transactions SET amount = abs(amount) WHERE amount < 0',
+              );
+              await customStatement(
+                'DELETE FROM transactions WHERE amount <= 0',
+              );
+              // SQLite は既存カラムへの CHECK 追加ができないため、drift の
+              // TableMigration でテーブルごと作り直す。experimental 扱いだが
+              // 制約変更を伴う移行はこれが drift の標準手段。
+              // ignore: experimental_member_use
+              await m.alterTable(TableMigration(transactions));
+            });
           }
         },
         beforeOpen: (details) async {
