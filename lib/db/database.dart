@@ -150,9 +150,14 @@ class AppDatabase extends _$AppDatabase {
               await customStatement(
                 'DELETE FROM transactions WHERE ROUND(amount) <= 0',
               );
-              // 小数は四捨五入する。表示側の NumberFormat('#,###') が既に
-              // 四捨五入して見せている値と一致するので、ユーザーから見て
-              // 金額は変わらない。
+              // 小数は四捨五入する。SQLite の ROUND は half away from zero で、
+              // 表示側の NumberFormat('#,###') と同じ丸め方なので、**行ごとの
+              // 表示額は変わらない**（1234.5 はどちらも 1,235）。
+              //
+              // ただし合計は変わりうる。「和を丸めた値」と「丸めた値の和」は
+              // 別物なので、100.6 が 2 件あると移行前の合計表示 ¥201 が
+              // 移行後は ¥202 になる。0 < amount < 0.5 の行は上で消えるため、
+              // その行が寄与していた分も合計から減る。
               await customStatement(
                 'UPDATE transactions SET amount = ROUND(amount)',
               );

@@ -34,6 +34,19 @@ final _latestVersion = GeneratedHelper.versions.last;
 final _oldVersions =
     GeneratedHelper.versions.where((v) => v != _latestVersion).toList();
 
+/// amount に CHECK（正・整数・上限）が入ったバージョン。
+///
+/// これ以降を起点にすると、汚いデータの seed そのものが CHECK 違反で落ちる。
+const _amountCheckVersion = 3;
+
+/// 小数・上限超過を保存できた起点バージョン。
+///
+/// リテラルの `[1, 2]` を置かない。`schemaVersion` が上がると `_oldVersions`
+/// に新しい版が加わるが、その版は CHECK 済みなので掃除の検証には使えない。
+/// 生成物から導出しておけば、人手でこのリストを追従させる必要がない。
+final _versionsWithDirtyAmount =
+    _oldVersions.where((v) => v < _amountCheckVersion).toList();
+
 /// 検証を厳しめにする。既定では `validateDropped: false` で
 /// 「参照に無いのに実在するテーブル」を見ないため、移行が中間テーブルを
 /// 残しても素通りする。有効にしても現状のコードでは追加コストは無い。
@@ -167,11 +180,22 @@ void main() {
     );
   });
 
-  // 起点は `_oldVersions` ではなく明示の [1, 2]。小数や上限超過を保存できたのは
-  // CHECK が整数と上限を強制する前の v1 / v2 だけで、v3 以降を起点にすると
-  // seed の INSERT 自体が CHECK 違反で落ちる。「小数を持ちうる古い版」の一覧であり、
-  // 「最新版以外」ではない。
-  for (final from in [1, 2]) {
+  // 起点は `_oldVersions` 全部ではない。小数や上限超過を保存できたのは CHECK が
+  // 整数と上限を強制する前の版だけで、v3 以降を起点にすると seed の INSERT 自体が
+  // CHECK 違反で落ちる。「小数を持ちうる古い版」であって「最新版以外」ではない。
+  //
+  // この一覧が空になると、掃除の検証も順序依存（DELETE を UPDATE より先に置く）の
+  // 守りも黙って消える。導出が壊れていないことを 1 本のテストで押さえておく。
+  test('小数を持ちうる起点バージョンが存在する', () {
+    expect(_versionsWithDirtyAmount, isNotEmpty);
+    // 掃除の検証に使えない版が混ざっていないこと
+    expect(
+      _versionsWithDirtyAmount.every((v) => v < _amountCheckVersion),
+      isTrue,
+    );
+  });
+
+  for (final from in _versionsWithDirtyAmount) {
     test('v$from の小数は四捨五入され、上限超過は削除される', () async {
       final (db, ids) = await migrateFrom(from, [
         1234.5, // 四捨五入して 1235

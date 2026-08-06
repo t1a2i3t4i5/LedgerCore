@@ -21,9 +21,11 @@ class AddTransactionScreen extends StatefulWidget {
 /// 金額欄に入力できる最大文字数。
 ///
 /// 上限が無いと桁を打ち続けるだけで `double` が `Infinity` に飽和する。
-/// 12 文字なら [kMaxAmount]（999,999,999,999 円）まで入力でき、
-/// 家計簿の用途には十分。値そのものの上限は [kMaxAmount] 側で持つ。
-const _maxAmountLength = 12;
+///
+/// 桁数は [kMaxAmount] から導出する。リテラルで持つと、上限を変えたときに
+/// ここだけ取り残されて「上限まで打てない」か「打てるのに保存で落ちる」に
+/// なる（値の上限と入力欄の桁数は必ず同じ源から採る）。
+final _maxAmountLength = kMaxAmount.toStringAsFixed(0).length;
 
 /// 金額欄の入力フォーマッタ。
 ///

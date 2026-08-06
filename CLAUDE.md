@@ -93,7 +93,9 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 - **Provider は `AppDatabase` を注入で受け取る** — 内部で生成しない。状態更新後は `notifyListeners()` を呼ぶ
 - **命名の名残に注意** — `TransactionResponse` / `userId` / `userName` は派生元の REST API の名前がそのまま残っているもので、実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスではない
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）
-- **金額は正の整数のみ** — 入力側（`add_transaction_screen.dart` の `_AmountInputFormatter` と validator）と DB の CHECK 制約の二重で守る。上限は `models/transaction.dart` の `kMaxAmount` を両方が参照するので、変えるときはそこだけを直す。片方にしか無い条件を足すと「画面では通るのに保存で落ちる」か、その逆になる。ただし割り勘の `fairShare` は `合計 ÷ 人数` の導出値なので小数のまま
+- **金額は正の整数のみ** — 入力側（`add_transaction_screen.dart` の `_AmountInputFormatter` と validator）と DB の CHECK 制約の二重で守る。上限は `models/transaction.dart` の `kMaxAmount` を両方が参照し、入力欄の桁数制限も同じ値から導出しているので、変えるときはそこだけを直す。片方にしか無い条件を足すと「画面では通るのに保存で落ちる」か、その逆になる。ただし割り勘の `fairShare` は `合計 ÷ 人数` の導出値なので小数のまま
+  - **`kMaxAmount` はスキーマ定義値でもある** — CHECK 制約にリテラルとして焼き込まれるため、値を変えるだけでは済まない。`schemaVersion` のインクリメントと移行、固定スキーマの再生成まで必要（下記「DB スキーマ変更時の注意」）
+  - **金額を描くウィジェットテストには `kMaxAmount` を使ったケースを置く** — `¥999,999,999,999` は実機幅の 1/3 以上を占める。短い金額しか描かないと overflow を見逃す（実際、合計パネルが 9.3px はみ出していた）
 - **グラフウィジェットは `AppDatabase` も Provider も参照しない** — 表示データはすべて引数で受け取る。DB なしでウィジェットテストできる状態を保つ
 - **グラフの色は `widgets/chart_palette.dart` に集約する** — `categoryColor(categoryId)` はカテゴリ ID から決定的に色を選ぶので、同じカテゴリはグラフ・凡例・リストで常に同じ色になる。新しいグラフを追加するときもここを使い、ウィジェット内で色を直書きしない
 
