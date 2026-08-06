@@ -43,7 +43,7 @@ flutter test
 
 - `test/summary_calculator_test.dart` — 月次集計・割り勘計算（純関数）
 - `test/database_test.dart` — drift DAO（インメモリDBで月レンジ・集計・CRUD・外部キー制約を検証）
-- `test/database_migration_test.dart` — v1 → v2 のマイグレーション（一時ファイル DB を使う唯一のテスト）
+- `test/database_migration_test.dart` — マイグレーション（`drift_schemas/` に固定した過去バージョンから起こし、移行後のスキーマと新規作成時のスキーマを検証）
 - `test/transaction_provider_test.dart` — 取引 Provider の状態遷移（削除が一覧・合計・フィルター結果に波及するか）
 - `test/widgets/chart_palette_test.dart` — グラフの色パレット（決定性・WCAG コントラスト）
 - `test/widgets/category_pie_chart_test.dart` — カテゴリ別ドーナツグラフ（ウィジェットテスト）
@@ -57,6 +57,8 @@ flutter test
 テーブル定義・ER 図・表示用モデルとの対応は [docs/db-schema.md](docs/db-schema.md) を参照。
 
 ```
+drift_schemas/                 # 各スキーマバージョンの固定記録（生成物・git 管理）
+test/generated_migrations/     # 固定記録から起こした移行ヘルパ（生成物・git 管理）
 lib/
 ├── main.dart                  # 起動・Provider 登録（認証なしでメイン画面へ直行）
 ├── db/

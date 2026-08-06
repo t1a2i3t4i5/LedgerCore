@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' show Value;
+import 'package:drift/native.dart';
 // migrations.dart は非推奨。テストは常にネイティブの sqlite3 上で動くので
 // ネイティブ版を直接読む（web 版は wasm 用で、このアプリでは使わない）
 import 'package:drift_dev/api/migrations_native.dart';
@@ -10,26 +11,35 @@ import 'generated_migrations/schema.dart';
 import 'generated_migrations/schema_v1.dart' as v1;
 import 'matchers.dart';
 
-/// schemaVersion 1 → 2 のマイグレーション検証。
+/// マイグレーションの検証。
 ///
 /// v1 では amount に CHECK 制約が無く 0 以下の金額を保存できたため、
 /// 既にそういうデータが入った端末でも移行が失敗しないことを確かめる。
 ///
-/// 起点のスキーマは `drift_schemas/drift_schema_v1.json` に固定したものを使い、
-/// drift の [SchemaVerifier] に組み立てさせる。手書き DDL で transactions だけ
+/// 起点のスキーマは `drift_schemas/` に固定したものを使い、drift の
+/// [SchemaVerifier] に組み立てさせる。手書き DDL で transactions だけ
 /// v1 相当に差し替える方式だと、検証しているのは「v1 の DB」ではなく
 /// 「ほかのテーブルは最新・transactions だけ v1」という実在しない状態になる。
 /// 今は偶然一致していても、v3 で categories に列を足した瞬間に、
 /// TableMigration による作り直しが成功してしまい、実端末で必要な v1 → v3 の経路を
 /// 一度も通さないままグリーンになる。
 ///
-/// スキーマを変更したときは、以下を実行して固定スキーマと移行ヘルパを更新すること。
+/// 固定スキーマと移行ヘルパの再生成手順は CLAUDE.md の
+/// 「スキーマ検証用の生成物」を参照（コマンドの正本はそちら）。
 ///
-/// ```bash
-/// dart run drift_dev schema dump lib/db/database.dart drift_schemas/
-/// dart run drift_dev schema generate --data-classes --companions \
-///     drift_schemas/ test/generated_migrations/
-/// ```
+/// このファイルは対象バージョンをリテラルで持たない。起点は
+/// [GeneratedHelper.versions]（生成物）を回し、終点は常にその最新版にする。
+/// `migrateAndValidate(db, 2)` のようにリテラルで書くと、drift は
+/// `AppDatabase.schemaVersion` ではなく引数の値まで移行するため、
+/// schemaVersion を 3 に上げてもテストは v1 → v2 だけを見たままグリーンになる。
+
+/// 固定スキーマの最新版。移行の終点であり、参照スキーマの出どころでもある。
+final _latestVersion = GeneratedHelper.versions.last;
+
+/// 検証を厳しめにする。既定では `validateDropped: false` で
+/// 「参照に無いのに実在するテーブル」を見ないため、移行が中間テーブルを
+/// 残しても素通りする。有効にしても現状のコードでは追加コストは無い。
+const _validation = ValidationOptions(validateDropped: true);
 
 /// 移行前に入れておくカテゴリ名・メンバー名。
 ///
@@ -43,7 +53,7 @@ void main() {
 
   setUpAll(() => verifier = SchemaVerifier(GeneratedHelper()));
 
-  /// v1 の DB に指定した金額の取引を入れ、`AppDatabase` で開いて v2 へ移行する。
+  /// v1 の DB に指定した金額の取引を入れ、`AppDatabase` で開いて最新版へ移行する。
   ///
   /// メモには `金額 <値>` を入れ、移行後に元の行を追えるようにする。
   /// 戻り値は移行後の DB と「金額 → その行の id」。
@@ -82,19 +92,56 @@ void main() {
 
     final db = AppDatabase.forTesting(schema.newConnection());
     addTearDown(db.close);
-    // 移行を走らせたうえで、移行後のスキーマが v2 の定義と一致することも見る
-    await verifier.migrateAndValidate(db, 2);
+    // 移行を走らせたうえで、移行後のスキーマが最新の定義と一致することも見る
+    await verifier.migrateAndValidate(db, _latestVersion, options: _validation);
     return (db, ids);
   }
 
-  test('v1 のスキーマから移行すると v2 の定義と一致する', () async {
-    // データを入れずスキーマの形だけを見る。手書き DDL の方式では
-    // categories / members が最初から最新だったため検証できていなかった部分。
-    final db = AppDatabase.forTesting(await verifier.startAt(1));
+  test('固定スキーマの最新版が AppDatabase.schemaVersion と一致する', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 
-    await verifier.migrateAndValidate(db, 2);
+    // schemaVersion を上げたのに drift_schemas/ を再生成していないと、
+    // 以降のテストは古い版を終点にしたまま緑で通り続ける。ここで先に落とす。
+    expect(
+      _latestVersion,
+      db.schemaVersion,
+      reason: 'drift_schemas/ の再生成が漏れている。CLAUDE.md の手順を実行すること',
+    );
   });
+
+  test('新規作成時のスキーマが最新の固定スキーマと一致する', () async {
+    // 空の DB は user_version = 0 なので onCreate（createAll）が走る。
+    // 参照側は drift_schemas/ から起こしたヘルパなので、この 1 本だけが
+    // 「lib/db/database.dart の定義」と「固定スキーマ」を直接突き合わせる。
+    //
+    // 移行のテストだけでは足りない。移行が作り直すのは transactions だけで、
+    // categories / members は「ヘルパ v1 が作った形」対「ヘルパ v2 の形」の
+    // 比較になり、アプリ本体の定義が一度も登場しないため。
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    await verifier.migrateAndValidate(db, _latestVersion, options: _validation);
+  });
+
+  for (final from
+      in GeneratedHelper.versions.where((v) => v != _latestVersion)) {
+    test('v$from のスキーマから移行すると v$_latestVersion の定義と一致する', () async {
+      // データを入れずスキーマの形だけを見る。手書き DDL の方式では
+      // categories / members が最初から最新だったため検証できていなかった部分。
+      //
+      // startAt() ではなく schemaAt() を使う。startAt() は InitializedSchema を
+      // 捨てるので、生の in-memory DB を dispose する手段が無くなる。
+      final schema = await verifier.schemaAt(from);
+      addTearDown(schema.close);
+
+      final db = AppDatabase.forTesting(schema.newConnection());
+      addTearDown(db.close);
+
+      await verifier.migrateAndValidate(db, _latestVersion,
+          options: _validation);
+    });
+  }
 
   test('v1 に 0 以下の取引が残っていても移行できる', () async {
     final (db, ids) = await migrateFromV1([1500, -2000, 0, -0.5, 800]);
