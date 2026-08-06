@@ -18,12 +18,6 @@ class AddTransactionScreen extends StatefulWidget {
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
 }
 
-/// 金額をテキスト欄の初期値にする。
-///
-/// DB の CHECK 制約と v3 の移行によって amount は必ず整数なので、
-/// 小数部を出さずに「1000」と見せる。
-String _formatAmount(double amount) => amount.toStringAsFixed(0);
-
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _amountCtrl = TextEditingController();
@@ -39,7 +33,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     super.initState();
     final ex = widget.existing;
     if (ex != null) {
-      _amountCtrl.text = _formatAmount(ex.amount);
+      // DB の CHECK 制約と v3 の移行によって amount は必ず整数なので、
+      // 小数部を出さずに「1000」と見せる（整形はフィルターシートと共有）
+      _amountCtrl.text = formatAmountForInput(ex.amount);
       _memoCtrl.text = ex.memo ?? '';
       _spentAt = ex.spentAt;
       _selectedCategoryId = ex.categoryId;

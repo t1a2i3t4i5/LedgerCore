@@ -51,6 +51,7 @@ flutter test
 - `test/widgets/category_pie_chart_test.dart` — カテゴリ別ドーナツグラフ（ウィジェットテスト）
 - `test/widgets/summary_screen_chart_test.dart` — サマリー画面へのグラフ組み込み（インメモリDB + Provider）
 - `test/widgets/add_transaction_amount_test.dart` — 取引追加・編集画面の金額バリデーション
+- `test/widgets/transaction_filter_sheet_test.dart` — フィルターシートの金額欄（全角正規化・記号除去・桁数制限・桁あふれの拒否）
 - `test/widgets/transactions_screen_test.dart` — 取引一覧の削除フロー（長押し → 確認ダイアログ）
 - `test/widgets/summary_reflects_delete_test.dart` — 削除がタブをまたいでサマリーに反映されること
 
@@ -74,7 +75,7 @@ lib/
 │   ├── transaction_provider.dart
 │   └── summary_provider.dart
 ├── screens/                   # 各画面（サマリー / 取引 / カテゴリ / 割り勘 / メンバー管理）
-└── widgets/                   # 画面から切り離した再利用ウィジェット
+└── widgets/                   # 画面から切り離した再利用部品（グラフ・色・入力フォーマッタ）
     ├── chart_palette.dart     # グラフの色パレット（カテゴリ ID から決定的に決まる）
     └── category_pie_chart.dart# カテゴリ別構成比のドーナツグラフ
 ```

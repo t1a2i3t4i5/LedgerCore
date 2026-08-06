@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/transaction.dart';
 import '../providers/category_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/transaction_provider.dart';
@@ -32,12 +33,12 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
     _sortOrder = p.sortOrder;
     _categoryIds = {...p.filterCategoryIds};
     _userIds = {...p.filterUserIds};
-    // 入力欄が整数しか受け付けないので toStringAsFixed(0) で往復しても値は変わらない
+    // 入力欄が整数しか受け付けないので、整形して往復しても値は変わらない
     if (p.filterMinAmount != null) {
-      _minAmountCtrl.text = p.filterMinAmount!.toStringAsFixed(0);
+      _minAmountCtrl.text = formatAmountForInput(p.filterMinAmount!);
     }
     if (p.filterMaxAmount != null) {
-      _maxAmountCtrl.text = p.filterMaxAmount!.toStringAsFixed(0);
+      _maxAmountCtrl.text = formatAmountForInput(p.filterMaxAmount!);
     }
     _memoCtrl.text = p.filterMemoQuery;
   }
@@ -50,15 +51,31 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
     super.dispose();
   }
 
+  /// 金額欄の値として受け入れてよいか。
+  ///
+  /// 空欄は「条件なし」なので許す。値がある場合は、取引の追加・編集画面の
+  /// validator と同じく有限で上限以下であることまで見る（下限は 0 より大きい
+  /// 必要はない。フィルタの 0 円は「下限なし」と同じ意味で害がない）。
+  bool _isAcceptable(String raw, double? parsed) {
+    if (raw.trim().isEmpty) return true;
+    if (parsed == null) return false;
+    return parsed.isFinite && parsed >= 0 && parsed <= kMaxAmount;
+  }
+
   void _apply() {
     // 金額範囲のバリデーション
     final min = double.tryParse(_minAmountCtrl.text.trim());
     final max = double.tryParse(_maxAmountCtrl.text.trim());
-    if (_minAmountCtrl.text.trim().isNotEmpty && min == null) {
+    // フォーマッタは composing 中（IME の変換確定前）を素通しするため、
+    // 桁数制限を抜けた値がコントローラに残ることがある。400 桁は tryParse が
+    // Infinity として解釈するので、null チェックだけでは素通りする。
+    // Infinity を入れると全件が除外されたうえ、開き直しても欄に 'Infinity' が
+    // 復元されて再適用が効かず、リセットするまで戻らない。
+    if (!_isAcceptable(_minAmountCtrl.text, min)) {
       _showError('最小金額が不正な値です');
       return;
     }
-    if (_maxAmountCtrl.text.trim().isNotEmpty && max == null) {
+    if (!_isAcceptable(_maxAmountCtrl.text, max)) {
       _showError('最大金額が不正な値です');
       return;
     }

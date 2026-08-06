@@ -9,7 +9,16 @@ import '../models/transaction.dart';
 /// 桁数は [kMaxAmount] から導出する。リテラルで持つと、上限を変えたときに
 /// ここだけ取り残されて「上限まで打てない」か「打てるのに保存で落ちる」に
 /// なる（値の上限と入力欄の桁数は必ず同じ源から採る）。
-final _maxAmountLength = kMaxAmount.toStringAsFixed(0).length;
+///
+/// テストやヒント文言もこの値を参照できるよう公開する。
+final maxAmountInputLength = kMaxAmount.toStringAsFixed(0).length;
+
+/// 保持している金額を入力欄の初期値にする。
+///
+/// [AmountInputFormatter] が受け付けるのは整数だけなので、小数部は出さない。
+/// 入力の受け付け方だけを共有して復元の整形を各画面に散らすと、片方だけ桁区切りを
+/// 付けるといったズレが起きるので、対で同じ場所に置く。
+String formatAmountForInput(double amount) => amount.toStringAsFixed(0);
 
 /// 金額欄の入力フォーマッタ。
 ///
@@ -46,7 +55,7 @@ class AmountInputFormatter extends TextInputFormatter {
     }),
     // 小数点・マイナス記号・その他の記号は入力自体を受け付けない
     FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
-    LengthLimitingTextInputFormatter(_maxAmountLength),
+    LengthLimitingTextInputFormatter(maxAmountInputLength),
   ];
 
   @override
