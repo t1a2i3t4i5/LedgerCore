@@ -5,7 +5,7 @@ LedgerCore のデータはすべて [drift](https://drift.simonbinder.eu/)（SQL
 3 テーブルがアプリの持つデータのすべて。
 
 - **定義元** — [`lib/db/database.dart`](../lib/db/database.dart)。`database.g.dart` は `build_runner` の生成物
-- **`schemaVersion`** — 現在 `2`（v1 → v2 で `transactions.amount` に `CHECK (amount > 0)` を追加）
+- **`schemaVersion`** — 現在 `3`（`transactions.amount` の CHECK 制約を段階的に強めてきた。[マイグレーション履歴](#マイグレーション履歴)を参照）
 - このドキュメントと実装が食い違った場合は `database.dart` が正。スキーマを変更したらこのファイルも更新する
 
 Dart 側の識別子は camelCase だが、drift が実際の SQL 名を **snake_case** に変換する
@@ -93,7 +93,8 @@ CREATE TABLE "transactions" (
   "id"          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   "member_id"   INTEGER NOT NULL REFERENCES members (id),
   "category_id" INTEGER NOT NULL REFERENCES categories (id),
-  "amount"      REAL NOT NULL CHECK ("amount" > 0.0),
+  "amount"      REAL NOT NULL CHECK (("amount" > 0.0 AND "amount" <= 999999999999.0)
+                                     AND (amount = CAST(amount AS INTEGER))),
   "spent_at"    INTEGER NOT NULL,
   "memo"        TEXT NULL,
   "created_at"  INTEGER NOT NULL,
@@ -106,7 +107,7 @@ CREATE TABLE "transactions" (
 | `id` | `id` | INTEGER | PK / AUTOINCREMENT | |
 | `member_id` | `memberId` | INTEGER | NOT NULL / FK → `members.id` | 支払ったメンバー |
 | `category_id` | `categoryId` | INTEGER | NOT NULL / FK → `categories.id` | |
-| `amount` | `amount` | REAL | NOT NULL / CHECK `> 0` | 金額。整数ではなく `double`。支出額なので 0 と負の値は DB が弾く |
+| `amount` | `amount` | REAL | NOT NULL / CHECK `0 < amount <= 999999999999` かつ整数 | 金額。0 と負の値・上限超過（`Infinity` を含む）・小数はすべて DB が弾く。**型は REAL のまま**（下記） |
 | `spent_at` | `spentAt` | INTEGER | NOT NULL | 支出日。Unix 秒（UTC） |
 | `memo` | `memo` | TEXT | NULL 可 | |
 | `created_at` | `createdAt` | INTEGER | NOT NULL | 作成日時。`clientDefault` |
@@ -124,6 +125,16 @@ NOT NULL 違反になる。`updated_at` を更新するのは `updateTransaction
 `name` の `withLength(min: 1, max: 50)` は **drift による Dart 側のバリデーション**で、
 CREATE TABLE に `CHECK` 制約は生成されない。違反すると SQLite ではなく drift が
 `InvalidDataException` を投げる。SQLite を直接触って 51 文字を書き込めば、DB 側は素通しする。
+
+### `amount` は整数しか入らないが型は REAL
+
+CHECK に `amount = CAST(amount AS INTEGER)` があるので、v3 以降の `amount` は必ず整数。
+それでも `IntColumn` にしていないのは、表示用モデル・集計・グラフまで `int` が波及する一方で、
+割り勘の `fairShare`（`合計 ÷ メンバー数`）は本質的に小数として残るため。
+`double` と `int` が混ざるより、入力値も導出値も `double` で揃っている方が扱いやすい。
+
+`Infinity` は `> 0` を満たすので、上限が無いと CHECK を素通りする。上限はそのための制約でもある。
+`NaN` は SQLite が NULL として保存するため、CHECK ではなく NOT NULL に弾かれる。
 
 ### DateTime は INTEGER（Unix 秒・UTC）
 
@@ -203,36 +214,59 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | --- | --- |
 | 1 | 初版（`categories` / `members` / `transactions`） |
 | 2 | `transactions.amount` に `CHECK (amount > 0)` を追加 |
+| 3 | `transactions.amount` に上限（`<= 999999999999`）と整数条件を追加 |
 
-SQLite は既存カラムへの CHECK 追加をサポートしないため、v2 の `onUpgrade` は
+SQLite は既存カラムへの CHECK 追加をサポートしないため、`onUpgrade` は
 drift の `TableMigration` で `transactions` を作り直している。作り直しは新テーブルへの
 コピーを伴うので、制約違反の行が残っていると移行そのものが失敗する。そのため
 コピー前に既存データを整えている。
 
+v1 からの移行:
+
 - 負の金額 → マイナス記号の打ち間違いとみなして**絶対値に補正**（行は残るが、元の金額は残らない）
 - 0 円 → 集計上意味を持たないので**行ごと削除**
+
+v2 からの移行（v1 からの場合は上記に続けて実行される）:
+
+- 上限超過（`Infinity` を含む）→ 誤入力とみなして**行ごと削除**
+- 四捨五入すると 0 になる金額（`0 < amount < 0.5`）→ v2 の 0 円と同じ扱いで**行ごと削除**
+- 残った小数 → **四捨五入**。SQLite の `ROUND` は half away from zero で、表示側の `NumberFormat('#,###')` と同じ丸め方なので、**行ごとの表示額は変わらない**（`1234.5` はどちらも `1,235`）
+
+ただし**合計は変わりうる**。「和を丸めた値」と「丸めた値の和」は別物なので、`100.6` が 2 件あると移行前の合計表示 `¥201` が移行後は `¥202` になる。上で削除される行（`0 < amount < 0.5`）が寄与していた分も合計から減る。
 
 **この書き換えは不可逆で、バックアップも取っていない。** 元の値を復元する手段はなく、
 補正された行の分だけ月次合計が変わる（`-2000` が `+2000` になれば合計は 4000 円ずれる）。
 移行後にユーザーへ通知する仕組みも無い。
 
+順序には意味がある。**四捨五入で 0 になる行の削除は、四捨五入より先に実行する。**
+v2 のテーブルには `CHECK (amount > 0.0)` が付いており、テーブルを作り直す前の
+`UPDATE ... SET amount = ROUND(amount)` で 0 を書き込むと、その時点の制約に弾かれて
+移行が失敗する。v1 のテーブルには CHECK が無いので、逆順にすると **v2 起点の移行だけが落ちる**。
+
+同じ理由で、**データ整形をすべて済ませてから最後に一度だけ `alterTable` を呼ぶ**。
+`TableMigration` は「そのとき Dart 側に書かれている最新の定義」でテーブルを作るため、
+v1 用のブロックの中で呼ぶと、v1 の端末では小数を持ったまま v3 の CHECK を持つテーブルへ
+コピーすることになり、v1 → v3 の直行だけが失敗する。
+
 `onUpgrade` 全体は `transaction()` で包んである。drift は `onUpgrade` を
 トランザクションで包まないため、包まないと「クリーンアップだけコミット済み・
-`alterTable` は失敗してスキーマは v1 のまま・`user_version` も 1 のまま」という
+`alterTable` は失敗してスキーマは旧版のまま・`user_version` も旧版のまま」という
 中間状態で固定されうる（`alterTable` はテーブル全体をコピーするので、
 容量不足で失敗する余地が現実にある）。
 
 検証は [`test/database_migration_test.dart`](../test/database_migration_test.dart)。
-起点の DB は `drift_schemas/` に固定した各バージョンの記録から drift の `SchemaVerifier` に
+起点の DB は `drift_schemas/*.json` に固定した各バージョンの記録から drift の `SchemaVerifier` に
 組み立てさせる（インメモリのまま、同じ生の接続を使い回すのでデータは消えない）。
+最新版以外のすべてのバージョンを起点にして最新版まで通し、移行後のスキーマが
+最新の定義と一致することも検証する。
 移行後に主キー `id` が保たれること・外部キー制約が引き継がれることも併せて確認している
 （どちらもテーブル再作成で壊れうるが、壊れても金額のアサーションだけでは気付けないため）。
 
 検証の対象バージョンはテストにリテラルで書かず、`GeneratedHelper.versions`（生成物）から採る。
-`migrateAndValidate(db, 2)` のようにリテラルで書くと、drift は `AppDatabase.schemaVersion` では
-なく引数の値まで移行するため、`schemaVersion` を 3 に上げてもテストは v1 → v2 だけを見たまま
+`migrateAndValidate(db, 3)` のようにリテラルで書くと、drift は `AppDatabase.schemaVersion` では
+なく引数の値まで移行するため、`schemaVersion` を 4 に上げてもテストは v1 → v3 だけを見たまま
 グリーンになる。あわせて「`schemaVersion` と固定スキーマの最新版が一致すること」と
 「新規作成時（`onCreate`）のスキーマが最新の固定スキーマと一致すること」も検証している。
 後者が無いと、移行で作り直されない `categories` / `members` の定義変更を取りこぼす
-（移行のテストは「ヘルパ v1 が作った形」対「ヘルパ v2 の形」の比較で、
+（移行のテストは「ヘルパ旧版が作った形」対「ヘルパ新版の形」の比較で、
 `lib/db/database.dart` の定義が一度も登場しないため）。

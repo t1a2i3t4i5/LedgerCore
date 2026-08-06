@@ -112,7 +112,8 @@ class Transactions extends Table with TableInfo {
       'amount', aliasedName, false,
       type: DriftSqlType.double,
       requiredDuringInsert: true,
-      $customConstraints: 'NOT NULL CHECK (amount > 0.0)');
+      $customConstraints:
+          'NOT NULL CHECK ((amount > 0.0 AND amount <= 999999999999.0)AND(amount = CAST(amount AS INTEGER)))');
   late final GeneratedColumn<int> spentAt = GeneratedColumn<int>(
       'spent_at', aliasedName, false,
       type: DriftSqlType.int,
@@ -157,8 +158,8 @@ class Transactions extends Table with TableInfo {
   bool get dontWriteConstraints => true;
 }
 
-class DatabaseAtV2 extends GeneratedDatabase {
-  DatabaseAtV2(QueryExecutor e) : super(e);
+class DatabaseAtV3 extends GeneratedDatabase {
+  DatabaseAtV3(QueryExecutor e) : super(e);
   late final Categories categories = Categories(this);
   late final Members members = Members(this);
   late final Transactions transactions = Transactions(this);
@@ -169,5 +170,5 @@ class DatabaseAtV2 extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities =>
       [categories, members, transactions];
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 }

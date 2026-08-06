@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 // migrations.dart は非推奨。テストは常にネイティブの sqlite3 上で動くので
 // ネイティブ版を直接読む（web 版は wasm 用で、このアプリでは使わない）
@@ -8,33 +7,45 @@ import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
 
 import 'generated_migrations/schema.dart';
-import 'generated_migrations/schema_v1.dart' as v1;
 import 'matchers.dart';
 
-/// マイグレーションの検証。
+/// マイグレーションの検証。実端末で起こりうる経路は「旧バージョン → 最新」だけなので、
+/// 固定してある過去バージョンのそれぞれから最新版への移行を通す。
 ///
-/// v1 では amount に CHECK 制約が無く 0 以下の金額を保存できたため、
-/// 既にそういうデータが入った端末でも移行が失敗しないことを確かめる。
-///
-/// 起点のスキーマは `drift_schemas/` に固定したものを使い、drift の
-/// [SchemaVerifier] に組み立てさせる。手書き DDL で transactions だけ
-/// v1 相当に差し替える方式だと、検証しているのは「v1 の DB」ではなく
+/// 起点のスキーマは `drift_schemas/*.json` に固定したものを使い、
+/// drift の [SchemaVerifier] に組み立てさせる。手書き DDL で transactions だけ
+/// 旧版に差し替える方式だと、検証しているのは「v1 の DB」ではなく
 /// 「ほかのテーブルは最新・transactions だけ v1」という実在しない状態になる。
-/// 今は偶然一致していても、v3 で categories に列を足した瞬間に、
-/// TableMigration による作り直しが成功してしまい、実端末で必要な v1 → v3 の経路を
-/// 一度も通さないままグリーンになる。
+/// 変更していないテーブルの移行漏れを、作り直しが成功することで見逃す。
 ///
 /// 固定スキーマと移行ヘルパの再生成手順は CLAUDE.md の
 /// 「スキーマ検証用の生成物」を参照（コマンドの正本はそちら）。
 ///
 /// このファイルは対象バージョンをリテラルで持たない。起点は
 /// [GeneratedHelper.versions]（生成物）を回し、終点は常にその最新版にする。
-/// `migrateAndValidate(db, 2)` のようにリテラルで書くと、drift は
+/// `migrateAndValidate(db, 3)` のようにリテラルで書くと、drift は
 /// `AppDatabase.schemaVersion` ではなく引数の値まで移行するため、
-/// schemaVersion を 3 に上げてもテストは v1 → v2 だけを見たままグリーンになる。
+/// schemaVersion を 4 に上げてもテストは v1 → v3 だけを見たままグリーンになる。
 
 /// 固定スキーマの最新版。移行の終点であり、参照スキーマの出どころでもある。
 final _latestVersion = GeneratedHelper.versions.last;
+
+/// 移行の起点になりうるバージョン（最新版以外のすべて）。
+final _oldVersions =
+    GeneratedHelper.versions.where((v) => v != _latestVersion).toList();
+
+/// amount に CHECK（正・整数・上限）が入ったバージョン。
+///
+/// これ以降を起点にすると、汚いデータの seed そのものが CHECK 違反で落ちる。
+const _amountCheckVersion = 3;
+
+/// 小数・上限超過を保存できた起点バージョン。
+///
+/// リテラルの `[1, 2]` を置かない。`schemaVersion` が上がると `_oldVersions`
+/// に新しい版が加わるが、その版は CHECK 済みなので掃除の検証には使えない。
+/// 生成物から導出しておけば、人手でこのリストを追従させる必要がない。
+final _versionsWithDirtyAmount =
+    _oldVersions.where((v) => v < _amountCheckVersion).toList();
 
 /// 検証を厳しめにする。既定では `validateDropped: false` で
 /// 「参照に無いのに実在するテーブル」を見ないため、移行が中間テーブルを
@@ -53,42 +64,41 @@ void main() {
 
   setUpAll(() => verifier = SchemaVerifier(GeneratedHelper()));
 
-  /// v1 の DB に指定した金額の取引を入れ、`AppDatabase` で開いて最新版へ移行する。
+  /// [from] のスキーマで DB を作って取引を入れ、`AppDatabase` で開いて
+  /// 最新バージョンへ移行する。
+  ///
+  /// 取引の投入は生の SQL で行う。transactions の列構成は v1 から変わっておらず、
+  /// 変わったのは CHECK 制約だけなので、バージョンごとに型付きの seed を
+  /// 用意すると同じ INSERT がバージョンの数だけ並ぶ。
   ///
   /// メモには `金額 <値>` を入れ、移行後に元の行を追えるようにする。
   /// 戻り値は移行後の DB と「金額 → その行の id」。
   /// id は移行で振り直されないことの検証に使う。
-  Future<(AppDatabase, Map<double, int>)> migrateFromV1(
+  Future<(AppDatabase, Map<double, int>)> migrateFrom(
+    int from,
     List<double> amounts,
   ) async {
-    final schema = await verifier.schemaAt(1);
+    final schema = await verifier.schemaAt(from);
     addTearDown(schema.close);
 
-    final oldDb = v1.DatabaseAtV1(schema.newConnection());
-    final categoryId = await oldDb
-        .into(oldDb.categories)
-        .insert(v1.CategoriesCompanion.insert(name: _categoryName));
-    final memberId = await oldDb
-        .into(oldDb.members)
-        .insert(v1.MembersCompanion.insert(name: _memberName));
+    final raw = schema.rawDatabase;
+    raw.execute('INSERT INTO categories (name) VALUES (?)', [_categoryName]);
+    final categoryId = raw.lastInsertRowId;
+    raw.execute('INSERT INTO members (name) VALUES (?)', [_memberName]);
+    final memberId = raw.lastInsertRowId;
     // drift は DateTime を unix 秒（int）で保存する
     final at = DateTime(2026, 7, 10).millisecondsSinceEpoch ~/ 1000;
 
     final ids = <double, int>{};
     for (final amount in amounts) {
-      ids[amount] = await oldDb.into(oldDb.transactions).insert(
-            v1.TransactionsCompanion.insert(
-              memberId: memberId,
-              categoryId: categoryId,
-              amount: amount,
-              spentAt: at,
-              memo: Value('金額 $amount'),
-              createdAt: at,
-              updatedAt: at,
-            ),
-          );
+      raw.execute(
+        'INSERT INTO transactions '
+        '(member_id, category_id, amount, spent_at, memo, created_at, updated_at) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [memberId, categoryId, amount, at, '金額 $amount', at, at],
+      );
+      ids[amount] = raw.lastInsertRowId;
     }
-    await oldDb.close();
 
     final db = AppDatabase.forTesting(schema.newConnection());
     addTearDown(db.close);
@@ -116,7 +126,7 @@ void main() {
     // 「lib/db/database.dart の定義」と「固定スキーマ」を直接突き合わせる。
     //
     // 移行のテストだけでは足りない。移行が作り直すのは transactions だけで、
-    // categories / members は「ヘルパ v1 が作った形」対「ヘルパ v2 の形」の
+    // categories / members は「ヘルパ旧版が作った形」対「ヘルパ新版の形」の
     // 比較になり、アプリ本体の定義が一度も登場しないため。
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
@@ -124,8 +134,7 @@ void main() {
     await verifier.migrateAndValidate(db, _latestVersion, options: _validation);
   });
 
-  for (final from
-      in GeneratedHelper.versions.where((v) => v != _latestVersion)) {
+  for (final from in _oldVersions) {
     test('v$from のスキーマから移行すると v$_latestVersion の定義と一致する', () async {
       // データを入れずスキーマの形だけを見る。手書き DDL の方式では
       // categories / members が最初から最新だったため検証できていなかった部分。
@@ -144,13 +153,15 @@ void main() {
   }
 
   test('v1 に 0 以下の取引が残っていても移行できる', () async {
-    final (db, ids) = await migrateFromV1([1500, -2000, 0, -0.5, 800]);
+    // v1 は amount に CHECK 制約が無く、0 以下の金額を保存できた
+    final (db, ids) = await migrateFrom(1, [1500, -2000, 0, -0.5, 800]);
 
     final txns = await db.getAllTransactions();
-    // 負の値は絶対値に補正、0 は削除される
+    // 負の値は絶対値に補正、0 は削除される。
+    // -0.5 は 0.5 に補正されたあと v3 の四捨五入で 1 になる
     expect(
       txns.map((t) => t.amount).toList()..sort(),
-      [0.5, 800.0, 1500.0, 2000.0],
+      [1.0, 800.0, 1500.0, 2000.0],
     );
     // 金額以外の列は移行後も保持される
     final refund = txns.firstWhere((t) => t.amount == 2000);
@@ -169,9 +180,41 @@ void main() {
     );
   });
 
+  // 起点は `_oldVersions` 全部ではない。小数や上限超過を保存できたのは CHECK が
+  // 整数と上限を強制する前の版だけで、v3 以降を起点にすると seed の INSERT 自体が
+  // CHECK 違反で落ちる。「小数を持ちうる古い版」であって「最新版以外」ではない。
+  //
+  // この一覧が空になると、掃除の検証も順序依存（DELETE を UPDATE より先に置く）の
+  // 守りも黙って消える。導出が壊れていないことを 1 本のテストで押さえておく。
+  test('小数を持ちうる起点バージョンが存在する', () {
+    expect(_versionsWithDirtyAmount, isNotEmpty);
+    // 掃除の検証に使えない版が混ざっていないこと
+    expect(
+      _versionsWithDirtyAmount.every((v) => v < _amountCheckVersion),
+      isTrue,
+    );
+  });
+
+  for (final from in _versionsWithDirtyAmount) {
+    test('v$from の小数は四捨五入され、上限超過は削除される', () async {
+      final (db, ids) = await migrateFrom(from, [
+        1234.5, // 四捨五入して 1235
+        0.4, // 四捨五入すると 0 になるので消える
+        kMaxAmount + 1, // 上限超過なので消える
+        double.infinity, // 桁を打ち続けて飽和した値も上限超過として消える
+        800, // そのまま残る
+      ]);
+
+      final txns = await db.getAllTransactions();
+      expect(txns.map((t) => t.amount).toList()..sort(), [800.0, 1235.0]);
+      // 四捨五入した行も id は保たれる
+      expect(txns.firstWhere((t) => t.amount == 1235).id, ids[1234.5]);
+    });
+  }
+
   test('汚いデータを掃除したあとでも CHECK 制約が付く', () async {
     // 掃除（UPDATE/DELETE）と制約付与（alterTable）が両方走る組み合わせを通す
-    final (db, _) = await migrateFromV1([1500, -2000, 0]);
+    final (db, _) = await migrateFrom(1, [1500, -2000, 0]);
 
     expect((await db.getAllTransactions()).length, 2);
 
@@ -188,16 +231,19 @@ void main() {
 
     await expectLater(insert(-1), throwsAmountCheckViolation);
     await expectLater(insert(0), throwsAmountCheckViolation);
-    // 正側の境界は通る
-    await insert(0.01);
-    expect((await db.getAllTransactions()).length, 3);
+    await expectLater(insert(0.5), throwsAmountCheckViolation);
+    await expectLater(insert(kMaxAmount + 1), throwsAmountCheckViolation);
+    // 境界は通る
+    await insert(1);
+    await insert(kMaxAmount);
+    expect((await db.getAllTransactions()).length, 4);
   });
 
   test('移行後も外部キー制約が効いている', () async {
     // alterTable はテーブルを作り直すので、REFERENCES が新テーブルに
     // 引き継がれたかを直接確かめる。落ちると移行済み端末だけ
     // 参照先の無い取引を作れてしまい、innerJoin で一覧から消える
-    final (db, _) = await migrateFromV1([1000]);
+    final (db, _) = await migrateFrom(1, [1000]);
 
     final memberId = (await db.getMembers()).first.id;
     await expectLater(
@@ -211,8 +257,8 @@ void main() {
     );
   });
 
-  test('0 以下の取引が無い v1 でも移行できる', () async {
-    final (db, _) = await migrateFromV1([1000, 2000]);
+  test('掃除の必要が無い v1 でも移行できる', () async {
+    final (db, _) = await migrateFrom(1, [1000, 2000]);
 
     final txns = await db.getAllTransactions();
     expect(txns.map((t) => t.amount).toList()..sort(), [1000.0, 2000.0]);

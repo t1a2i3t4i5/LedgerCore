@@ -200,7 +200,7 @@ void main() {
     expect(yearly.byMonth.last.total, 100); // 12/31 23:59:59
   });
 
-  test('0 以下の金額は insert できない', () async {
+  test('0 以下・小数・上限超過の金額は insert できない', () async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
 
@@ -213,18 +213,51 @@ void main() {
           ),
         );
 
-    // CHECK (amount > 0) に弾かれる
+    // CHECK (amount > 0 AND amount <= kMaxAmount AND 整数) に弾かれる
     await expectLater(insert(-500), throwsAmountCheckViolation);
     await expectLater(insert(0), throwsAmountCheckViolation);
+    // 小数は画面のどこにも表示されないので DB でも受け付けない。
+    // 0.4 を 3 件入れると一覧は 3 行とも「¥0」・合計は「¥1」になる
+    await expectLater(insert(0.4), throwsAmountCheckViolation);
+    await expectLater(insert(1234.5), throwsAmountCheckViolation);
+    await expectLater(insert(kMaxAmount + 1), throwsAmountCheckViolation);
+    // Infinity は `> 0` を満たすので、上限が無いと通ってしまう
+    await expectLater(insert(double.infinity), throwsAmountCheckViolation);
 
     expect(await db.getAllTransactions(), isEmpty);
 
-    // 正の値は通る
+    // 正の整数は通る。上限そのものも通る（境界は含む）
     await insert(500);
-    expect((await db.getAllTransactions()).single.amount, 500);
+    await insert(kMaxAmount);
+    expect(
+      (await db.getAllTransactions()).map((t) => t.amount).toList()..sort(),
+      [500.0, kMaxAmount],
+    );
   });
 
-  test('0 以下の金額には update できない', () async {
+  test('NaN の金額は NOT NULL に弾かれる', () async {
+    // SQLite は NaN を NULL として保存するため、CHECK ではなく NOT NULL で
+    // 落ちる。マイグレーションで NaN を掃除しなくてよい根拠がこれ
+    final cats = await db.getCategories();
+    final members = await db.getMembers();
+
+    await expectLater(
+      db.insertTransaction(TransactionRequest(
+        userId: members.first.id,
+        categoryId: cats.first.id,
+        amount: double.nan,
+        spentAt: DateTime(2026, 7, 10),
+      )),
+      throwsA(isA<Exception>().having(
+        (e) => e.toString(),
+        'メッセージ',
+        contains('NOT NULL constraint failed'),
+      )),
+    );
+    expect(await db.getAllTransactions(), isEmpty);
+  });
+
+  test('0 以下・小数・上限超過の金額には update できない', () async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
     await db.insertTransaction(TransactionRequest(
@@ -246,6 +279,8 @@ void main() {
 
     await expectLater(updateTo(-1), throwsAmountCheckViolation);
     await expectLater(updateTo(0), throwsAmountCheckViolation);
+    await expectLater(updateTo(750.5), throwsAmountCheckViolation);
+    await expectLater(updateTo(kMaxAmount + 1), throwsAmountCheckViolation);
 
     // 元の値のまま残る
     expect((await db.getAllTransactions()).single.amount, 500);

@@ -21,14 +21,11 @@ class AddTransactionScreen extends StatefulWidget {
 /// 金額欄に入力できる最大文字数。
 ///
 /// 上限が無いと桁を打ち続けるだけで `double` が `Infinity` に飽和する。
-/// `Infinity` は `> 0` を満たすので validator も DB の CHECK もすり抜け、
-/// 円グラフの構成比が `Inf / Inf = NaN` になってグラフ全体が壊れる。
-/// 12 文字なら 999,999,999,999 円まで入力でき、家計簿の用途には十分。
-const _maxAmountLength = 12;
-
-/// 金額として認める上限。`_maxAmountLength` を超える値が
-/// コントローラへ直接代入された場合の保険（フォーマッタは代入経路を通らない）。
-const _maxAmount = 999999999999.0;
+///
+/// 桁数は [kMaxAmount] から導出する。リテラルで持つと、上限を変えたときに
+/// ここだけ取り残されて「上限まで打てない」か「打てるのに保存で落ちる」に
+/// なる（値の上限と入力欄の桁数は必ず同じ源から採る）。
+final _maxAmountLength = kMaxAmount.toStringAsFixed(0).length;
 
 /// 金額欄の入力フォーマッタ。
 ///
@@ -38,9 +35,13 @@ const _maxAmount = 999999999999.0;
 /// 二重入力や巻き戻りを起こす。実際、確定前に「１２３」を送ると本文だけ
 /// 「123」に書き換わり composing 範囲は残ったままになる。
 ///
-/// 確定後の値は「全角→半角の正規化 → 数字と小数点以外の除去 → 桁数制限」の
+/// 確定後の値は「全角→半角の正規化 → 数字以外の除去 → 桁数制限」の
 /// 順で整える。正規化を先に置くのは、単に全角を落とすだけだと日本語 IME で
 /// 全角のまま打ったときに文字が消えて理由が分からないため。
+///
+/// 小数点は受け付けない。金額の表示は全画面 `NumberFormat('#,###')` で
+/// 小数部を出さないため、小数を許すと「保存されるが見えず合計だけ合わない」
+/// 状態になる（DB 側の CHECK 制約と揃えている）。
 class _AmountInputFormatter extends TextInputFormatter {
   const _AmountInputFormatter();
 
@@ -48,15 +49,15 @@ class _AmountInputFormatter extends TextInputFormatter {
     TextInputFormatter.withFunction((oldValue, newValue) {
       // 全角→半角は 1 文字 1 文字の置換なので、文字数もカーソル位置も変わらない
       final normalized = newValue.text.replaceAllMapped(
-        RegExp(r'[０-９．]'),
+        RegExp(r'[０-９]'),
         (m) => String.fromCharCode(m.group(0)!.codeUnitAt(0) - 0xFEE0),
       );
       return normalized == newValue.text
           ? newValue
           : newValue.copyWith(text: normalized);
     }),
-    // マイナス記号やその他の記号は入力自体を受け付けない
-    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+    // 小数点・マイナス記号・その他の記号は入力自体を受け付けない
+    FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
     LengthLimitingTextInputFormatter(_maxAmountLength),
   ];
 
@@ -76,10 +77,9 @@ class _AmountInputFormatter extends TextInputFormatter {
 
 /// 金額をテキスト欄の初期値にする。
 ///
-/// 整数なら小数部を出さず「1000」と見せる。`toStringAsFixed(0)` で丸めてしまうと、
-/// 小数を含む取引を編集画面で開いて保存し直しただけで値が変わってしまう。
-String _formatAmount(double amount) =>
-    amount == amount.roundToDouble() ? amount.toStringAsFixed(0) : '$amount';
+/// DB の CHECK 制約と v3 の移行によって amount は必ず整数なので、
+/// 小数部を出さずに「1000」と見せる。
+String _formatAmount(double amount) => amount.toStringAsFixed(0);
 
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -217,8 +217,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 // 金額
                 TextFormField(
                   controller: _amountCtrl,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  // 小数を受け付けないので小数点キーの要らない number に戻す
+                  keyboardType: TextInputType.number,
                   inputFormatters: const [_AmountInputFormatter()],
                   decoration: const InputDecoration(
                     labelText: '金額',
@@ -231,10 +231,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     if (amount == null) return '有効な数値を入力してください';
                     // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
                     if (amount <= 0) return '金額は 0 より大きい値を入力してください';
-                    // Infinity は `> 0` を満たすため CHECK 制約では止まらない。
-                    // ここで弾かないと合計と円グラフが NaN になって復旧できない
-                    if (!amount.isFinite || amount > _maxAmount) {
+                    // Infinity は `> 0` を満たすため上限の比較で止める。
+                    // 弾かないと合計と円グラフが NaN になって復旧できない
+                    if (!amount.isFinite || amount > kMaxAmount) {
                       return '金額が大きすぎます';
+                    }
+                    // フォーマッタが小数点を通さないので実質到達しないが、
+                    // コントローラへの直接代入も含めて DB の CHECK と揃える
+                    if (amount != amount.roundToDouble()) {
+                      return '金額は整数で入力してください';
                     }
                     return null;
                   },

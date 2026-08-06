@@ -68,8 +68,7 @@ flutter analyze                 # 静的解析
 
 ```bash
 dart run drift_dev schema dump lib/db/database.dart drift_schemas/
-dart run drift_dev schema generate --data-classes --companions \
-    drift_schemas/ test/generated_migrations/
+dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 ```
 
 `dump` は現在のコードから新しいバージョンの JSON を 1 つ足すだけ。**過去バージョンの JSON は書き換えない** — 書き換えると「そのバージョンの DB がどんな形だったか」の記録が失われ、移行テストが自分の変更に追従してグリーンのままになる。
@@ -78,7 +77,7 @@ dart run drift_dev schema generate --data-classes --companions \
 
 テーブル定義・ER 図・表示用モデルとの対応は [docs/db-schema.md](docs/db-schema.md) にまとめてある。スキーマを変更したらこのドキュメントも同じコミットで更新すること。
 
-`AppDatabase.schemaVersion` は現在 `2`。テーブルやカラムを変更する場合は:
+`AppDatabase.schemaVersion` は現在 `3`。テーブルやカラムを変更する場合は:
 
 1. `schemaVersion` をインクリメントする
 2. `MigrationStrategy` に `onUpgrade` を追加して移行処理を書く
@@ -94,6 +93,9 @@ dart run drift_dev schema generate --data-classes --companions \
 - **Provider は `AppDatabase` を注入で受け取る** — 内部で生成しない。状態更新後は `notifyListeners()` を呼ぶ
 - **命名の名残に注意** — `TransactionResponse` / `userId` / `userName` は派生元の REST API の名前がそのまま残っているもので、実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスではない
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）
+- **金額は正の整数のみ** — 入力側（`add_transaction_screen.dart` の `_AmountInputFormatter` と validator）と DB の CHECK 制約の二重で守る。上限は `models/transaction.dart` の `kMaxAmount` を両方が参照し、入力欄の桁数制限も同じ値から導出しているので、変えるときはそこだけを直す。片方にしか無い条件を足すと「画面では通るのに保存で落ちる」か、その逆になる。ただし割り勘の `fairShare` は `合計 ÷ 人数` の導出値なので小数のまま
+  - **`kMaxAmount` はスキーマ定義値でもある** — CHECK 制約にリテラルとして焼き込まれるため、値を変えるだけでは済まない。`schemaVersion` のインクリメントと移行、固定スキーマの再生成まで必要（下記「DB スキーマ変更時の注意」）
+  - **金額を描くウィジェットテストには `kMaxAmount` を使ったケースを置く** — `¥999,999,999,999` は実機幅の 1/3 以上を占める。短い金額しか描かないと overflow を見逃す（実際、合計パネルが 9.3px はみ出していた）
 - **グラフウィジェットは `AppDatabase` も Provider も参照しない** — 表示データはすべて引数で受け取る。DB なしでウィジェットテストできる状態を保つ
 - **グラフの色は `widgets/chart_palette.dart` に集約する** — `categoryColor(categoryId)` はカテゴリ ID から決定的に色を選ぶので、同じカテゴリはグラフ・凡例・リストで常に同じ色になる。新しいグラフを追加するときもここを使い、ウィジェット内で色を直書きしない
 
@@ -102,7 +104,7 @@ dart run drift_dev schema generate --data-classes --companions \
 - 集計・割り勘のロジックは純関数として `summary_calculator.dart` に置き、DB なしでテストする（`test/summary_calculator_test.dart`）
 - DB を伴うテストは `AppDatabase.forTesting(NativeDatabase.memory())` でインメモリ DB を使い、実端末のファイルに触らない（`test/database_test.dart`）
 - マイグレーションテストは drift の `SchemaVerifier` を使い、`drift_schemas/` に固定した過去バージョンから起こす（`test/database_migration_test.dart`）。手書き DDL で一部のテーブルだけ旧版に差し替える書き方はしない — 検証対象が「実在しない中間状態」になり、変更していないテーブルの移行漏れを見逃す
-- **マイグレーションテストに対象バージョンをリテラルで書かない** — 起点は `GeneratedHelper.versions`（生成物）を回し、終点はその最新版にする。`migrateAndValidate(db, 2)` と書くと、drift は `AppDatabase.schemaVersion` ではなく引数の値まで移行するため、`schemaVersion` を 3 に上げてもテストは v1 → v2 だけを見たままグリーンになる
+- **マイグレーションテストに対象バージョンをリテラルで書かない** — 起点は `GeneratedHelper.versions`（生成物）を回し、終点はその最新版にする。`migrateAndValidate(db, 3)` と書くと、drift は `AppDatabase.schemaVersion` ではなく引数の値まで移行するため、`schemaVersion` を 4 に上げてもテストは v1 → v3 だけを見たままグリーンになる
 - **新規作成時（`onCreate`）のスキーマが固定スキーマと一致することも検証する** — 移行のテストだけでは足りない。移行が作り直すのは一部のテーブルだけで、それ以外は「ヘルパ旧版が作った形」対「ヘルパ新版の形」の比較になり、`lib/db/database.dart` の定義が一度も登場しない。素の `AppDatabase.forTesting(NativeDatabase.memory())` に対して `verifier.migrateAndValidate` を呼ぶ。`db.validateDatabaseSchema()` は使わない — 参照スキーマを同じ生成コードから採るので同語反復になり、常にグリーンになる
 - ウィジェットテストは `test/widgets/` に置く。fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.text()` では拾えない。検証は凡例など通常のウィジェットに対して行う
 - ウィジェットテストの画面サイズは `tester.view.physicalSize` でスマホ幅（360x690）に設定する。既定の 800x600 は実機より広く overflow を見逃す

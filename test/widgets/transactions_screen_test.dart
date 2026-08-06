@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/category_provider.dart';
@@ -152,5 +153,34 @@ void main() {
     expect(find.text('0件'), findsOneWidget);
     // NumberFormat('#,###') は 0 を空文字にせず '0' を返す
     expect(find.text('合計 ¥0'), findsOneWidget);
+  });
+
+  // kMaxAmount は「保存できる値」として DB の CHECK が認めている。
+  // 短い金額しか描かないと、実機幅で最大金額が overflow するのを見逃す。
+  // 金額はリテラルで持たず kMaxAmount から採る（上限を変えたら追随させる）。
+  testWidgets('上限いっぱいの金額でも一覧と合計パネルが overflow しない',
+      (tester) async {
+    await seedTransaction(amount: kMaxAmount);
+    await pumpScreen(tester);
+
+    // 一覧の行と合計パネルの両方に最大金額が出る状態にする
+    final formatted = NumberFormat('#,###', 'ja_JP').format(kMaxAmount);
+    expect(find.text('¥$formatted'), findsOneWidget);
+    expect(find.text('合計 ¥$formatted'), findsOneWidget);
+    // overflow は例外として記録されるので、握りつぶさず明示的に見る
+    expect(tester.takeException(), isNull);
+  });
+
+  // 合計は 1 件あたりの上限より長くなる。上限額の行を並べるほど桁が増えるので、
+  // 「1 件だけ最大」より合計パネルが厳しくなる
+  testWidgets('上限いっぱいの取引が複数あっても合計パネルが overflow しない',
+      (tester) async {
+    await seedTransaction(amount: kMaxAmount);
+    await seedTransaction(amount: kMaxAmount, day: 6, categoryIndex: 1);
+    await pumpScreen(tester);
+
+    final total = NumberFormat('#,###', 'ja_JP').format(kMaxAmount * 2);
+    expect(find.text('合計 ¥$total'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

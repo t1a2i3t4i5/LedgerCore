@@ -177,11 +177,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const Spacer(),
-                    Text(
-                      '合計 ¥${_fmt.format(provider.filteredTotal)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    // 合計は件数ぶん膨らむ（上限額 × 件数）。金額を省略すると
+                    // 桁を読み違えるので、縮小して収める
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '合計 ¥${_fmt.format(provider.filteredTotal)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
                     ),
                   ],
