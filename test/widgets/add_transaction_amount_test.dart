@@ -200,7 +200,8 @@ void main() {
     await selectFirstCategory(tester);
 
     // フォーマッタを通らない経路（コントローラへの直接代入）の保険を確かめる
-    setAmountDirectly(tester, '1000000000000'); // 1 兆（上限の 1 つ上）
+    // 期待値はリテラルで持たない（上限を変えたら追随させる）
+    setAmountDirectly(tester, (kMaxAmount + 1).toStringAsFixed(0));
     await tester.pump();
 
     await tester.tap(find.text('保存'));

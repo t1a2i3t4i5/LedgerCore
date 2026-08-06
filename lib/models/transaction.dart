@@ -5,10 +5,13 @@
 /// DB の CHECK もすり抜け、円グラフの構成比が `Inf / Inf = NaN` になって
 /// グラフ全体が壊れる。
 ///
-/// 入力欄（`add_transaction_screen.dart`）と DB の CHECK 制約
-/// （`database.dart`）の両方がこの値を参照する。片方だけ変えると
-/// 「画面では通るのに保存で落ちる」状態になるので、必ずここを直す。
-/// 入力欄の桁数制限もこの値から導出しているので、リテラルの追従は要らない。
+/// 参照するのは次の 3 か所。片方だけ変えると「画面では通るのに保存で落ちる」
+/// 状態になるので、必ずここを直す。
+///
+/// - 入力の桁数制限（`widgets/amount_input_formatter.dart`。この値から導出）
+/// - 入力の validator（`screens/add_transaction_screen.dart`）と
+///   フィルターの範囲チェック（`screens/transaction_filter_sheet.dart`）
+/// - DB の CHECK 制約（`db/database.dart`）
 ///
 /// **これはスキーマ定義値でもある。** `CREATE TABLE` の CHECK 制約に
 /// リテラルとして焼き込まれる（`drift_schemas/drift_schema_v3.json` にも
