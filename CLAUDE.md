@@ -62,6 +62,18 @@ flutter analyze                 # 静的解析
 - `database.dart` のテーブル定義や `@DriftDatabase` を変更したら、必ず `dart run build_runner build` を実行し、`database.g.dart` も同じコミットに含める
 - `database.g.dart` を直接編集しない
 
+### スキーマ検証用の生成物
+
+マイグレーションテストは `drift_schemas/*.json`（各バージョンの正しい形の記録）と `test/generated_migrations/*.dart`（そこから起こした移行ヘルパ）を使う。**どちらも生成物だが git 管理対象**。`schemaVersion` を上げたら次を実行して同じコミットに含める。
+
+```bash
+dart run drift_dev schema dump lib/db/database.dart drift_schemas/
+dart run drift_dev schema generate --data-classes --companions \
+    drift_schemas/ test/generated_migrations/
+```
+
+`dump` は現在のコードから新しいバージョンの JSON を 1 つ足すだけ。**過去バージョンの JSON は書き換えない** — 書き換えると「そのバージョンの DB がどんな形だったか」の記録が失われ、移行テストが自分の変更に追従してグリーンのままになる。
+
 ## DB スキーマ変更時の注意
 
 テーブル定義・ER 図・表示用モデルとの対応は [docs/db-schema.md](docs/db-schema.md) にまとめてある。スキーマを変更したらこのドキュメントも同じコミットで更新すること。
@@ -70,6 +82,7 @@ flutter analyze                 # 静的解析
 
 1. `schemaVersion` をインクリメントする
 2. `MigrationStrategy` に `onUpgrade` を追加して移行処理を書く
+3. 固定スキーマと移行ヘルパを再生成する（上記「スキーマ検証用の生成物」）
 
 これを怠ると、既にアプリを起動したことのある端末の DB と食い違って実行時エラーになる。
 
@@ -88,6 +101,9 @@ flutter analyze                 # 静的解析
 
 - 集計・割り勘のロジックは純関数として `summary_calculator.dart` に置き、DB なしでテストする（`test/summary_calculator_test.dart`）
 - DB を伴うテストは `AppDatabase.forTesting(NativeDatabase.memory())` でインメモリ DB を使い、実端末のファイルに触らない（`test/database_test.dart`）
+- マイグレーションテストは drift の `SchemaVerifier` を使い、`drift_schemas/` に固定した過去バージョンから起こす（`test/database_migration_test.dart`）。手書き DDL で一部のテーブルだけ旧版に差し替える書き方はしない — 検証対象が「実在しない中間状態」になり、変更していないテーブルの移行漏れを見逃す
+- **マイグレーションテストに対象バージョンをリテラルで書かない** — 起点は `GeneratedHelper.versions`（生成物）を回し、終点はその最新版にする。`migrateAndValidate(db, 2)` と書くと、drift は `AppDatabase.schemaVersion` ではなく引数の値まで移行するため、`schemaVersion` を 3 に上げてもテストは v1 → v2 だけを見たままグリーンになる
+- **新規作成時（`onCreate`）のスキーマが固定スキーマと一致することも検証する** — 移行のテストだけでは足りない。移行が作り直すのは一部のテーブルだけで、それ以外は「ヘルパ旧版が作った形」対「ヘルパ新版の形」の比較になり、`lib/db/database.dart` の定義が一度も登場しない。素の `AppDatabase.forTesting(NativeDatabase.memory())` に対して `verifier.migrateAndValidate` を呼ぶ。`db.validateDatabaseSchema()` は使わない — 参照スキーマを同じ生成コードから採るので同語反復になり、常にグリーンになる
 - ウィジェットテストは `test/widgets/` に置く。fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.text()` では拾えない。検証は凡例など通常のウィジェットに対して行う
 - ウィジェットテストの画面サイズは `tester.view.physicalSize` でスマホ幅（360x690）に設定する。既定の 800x600 は実機より広く overflow を見逃す
 

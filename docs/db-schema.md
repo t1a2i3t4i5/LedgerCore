@@ -186,13 +186,16 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 
 ## スキーマを変更するとき
 
-1. `lib/db/database.dart` のテーブル定義を変更する
-2. `AppDatabase.schemaVersion` をインクリメントし、`MigrationStrategy` に `onUpgrade` を追加する
-3. `dart run build_runner build` を実行し、`lib/db/database.g.dart` も同じコミットに含める
-4. このドキュメントを更新する
+手順の正本は [CLAUDE.md](../CLAUDE.md) の「DB スキーマ変更時の注意」。
+コード生成物（`lib/db/database.g.dart` / `drift_schemas/` / `test/generated_migrations/`）を
+どう再生成するかもそちらに書いてある。**このドキュメントに手順を書き写さないこと** —
+二重管理になり、片方だけ更新されて食い違う。
+
+このドキュメント側でやることは 1 つだけ。**上のテーブル定義・ER 図・マイグレーション履歴を、
+スキーマ変更と同じコミットで更新する。**
 
 既にアプリを起動したことのある端末には旧スキーマの DB ファイルが残っているので、
-`onUpgrade` を書かないと実行時エラーになる。詳細は [CLAUDE.md](../CLAUDE.md) を参照。
+`onUpgrade` を書かないと実行時エラーになる。
 
 ### マイグレーション履歴
 
@@ -220,6 +223,16 @@ drift の `TableMigration` で `transactions` を作り直している。作り�
 容量不足で失敗する余地が現実にある）。
 
 検証は [`test/database_migration_test.dart`](../test/database_migration_test.dart)。
-インメモリ DB は接続を閉じると消えてしまうため、このテストだけテンポラリのファイル DB を使う。
+起点の DB は `drift_schemas/` に固定した各バージョンの記録から drift の `SchemaVerifier` に
+組み立てさせる（インメモリのまま、同じ生の接続を使い回すのでデータは消えない）。
 移行後に主キー `id` が保たれること・外部キー制約が引き継がれることも併せて確認している
 （どちらもテーブル再作成で壊れうるが、壊れても金額のアサーションだけでは気付けないため）。
+
+検証の対象バージョンはテストにリテラルで書かず、`GeneratedHelper.versions`（生成物）から採る。
+`migrateAndValidate(db, 2)` のようにリテラルで書くと、drift は `AppDatabase.schemaVersion` では
+なく引数の値まで移行するため、`schemaVersion` を 3 に上げてもテストは v1 → v2 だけを見たまま
+グリーンになる。あわせて「`schemaVersion` と固定スキーマの最新版が一致すること」と
+「新規作成時（`onCreate`）のスキーマが最新の固定スキーマと一致すること」も検証している。
+後者が無いと、移行で作り直されない `categories` / `members` の定義変更を取りこぼす
+（移行のテストは「ヘルパ v1 が作った形」対「ヘルパ v2 の形」の比較で、
+`lib/db/database.dart` の定義が一度も登場しないため）。
