@@ -3,8 +3,9 @@ import 'package:flutter/foundation.dart';
 import '../db/database.dart';
 import '../models/summary.dart';
 import '../models/split.dart';
+import 'month_scoped_provider.dart';
 
-class SummaryProvider extends ChangeNotifier {
+class SummaryProvider extends MonthScopedProvider {
   final AppDatabase _db;
 
   MonthlySummaryResponse? _summary;
@@ -12,32 +13,23 @@ class SummaryProvider extends ChangeNotifier {
   bool _loading = false;
   String? _error;
 
-  int _year = DateTime.now().year;
-  int _month = DateTime.now().month;
+  SummaryProvider(this._db, {super.clock});
 
-  SummaryProvider(this._db);
-
+  // year / month は MonthScopedProvider が持つ
   MonthlySummaryResponse? get summary => _summary;
   SplitResponse? get split => _split;
   bool get loading => _loading;
   String? get error => _error;
-  int get year => _year;
-  int get month => _month;
-
-  void setYearMonth(int year, int month) {
-    _year = year;
-    _month = month;
-    notifyListeners();
-  }
 
   /// 月次サマリーと割り勘情報を端末内DBから計算する
+  @override
   Future<void> fetch() async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      _summary = await _db.getMonthlySummary(_year, _month);
-      _split = await _db.getSplit(_year, _month);
+      _summary = await _db.getMonthlySummary(year, month);
+      _split = await _db.getSplit(year, month);
     } catch (e) {
       _error = e.toString();
       debugPrint('SummaryProvider.fetch エラー: $e');

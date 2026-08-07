@@ -23,7 +23,8 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    final now = DateTime.now();
+    // 画面が表示する月を実時刻から切り離す（seed と表示で月がずれないように）
+    final fixedNow = DateTime(2026, 7, 15);
     final cats = await db.getCategories();
     await db.insertMember('パートナー');
     final members = await db.getMembers();
@@ -39,13 +40,13 @@ void main() {
           userId: userId,
           categoryId: cats[categoryIndex].id,
           amount: amount,
-          spentAt: DateTime(now.year, now.month, 5),
+          spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
         ));
     await seed(me, 0, 1200); // 食費
     await seed(partner, 1, 3500); // 日用品
     await seed(me, 2, 300); // 交通費
 
-    await tester.pumpWidget(LedgerApp(db: db));
+    await tester.pumpWidget(LedgerApp(db: db, clock: () => fixedNow));
     await tester.pumpAndSettle();
 
     // 初期表示はサマリータブ

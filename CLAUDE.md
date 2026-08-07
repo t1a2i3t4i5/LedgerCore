@@ -93,6 +93,9 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 - **Provider は `AppDatabase` を注入で受け取る** — 内部で生成しない。状態更新後は `notifyListeners()` を呼ぶ
 - **命名の名残に注意** — `TransactionResponse` / `userId` / `userName` は派生元の REST API の名前がそのまま残っているもので、実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスではない
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）
+- **表示月の状態は `providers/month_scoped_provider.dart` の `MonthScopedProvider` に集約する** — 画面ウィジェットから `DateTime.now()` を読まない。初期表示月・`isCurrentMonth`・`changeMonth`・`goToCurrentMonth` はすべて、Provider に注入された `clock`（既定 `DateTime.now`）1 つから導かれる。画面側で now を読み直すと判断材料が 2 層に分かれ、画面テストが実時刻に依存して月末に落ちる
+  - **月をまたぐ操作は Provider 側で `fetch()` まで済ませる** — `changeMonth` / `goToCurrentMonth` は表示月を変えたうえで再取得する。画面に `setYearMonth` と再取得を並べると、取引・サマリー・割り勘の 3 画面で同じ 2 行を書くことになり、片方だけ書き忘れると「月を送ったのに中身が前の月のまま」になる
+  - **画面テストは `clock` を注入して固定年月で書く** — テストデータを「今月」に置く書き方は、seed 時点の now と Provider 構築時点の now がずれると落ちる。`LedgerApp` にも `clock` を通してあるのでアプリ全体を組み立てるテストでも固定できる
 - **金額は正の整数のみ** — 入力側（`add_transaction_screen.dart` の validator）と DB の CHECK 制約の二重で守る。上限は `models/transaction.dart` の `kMaxAmount` を両方が参照し、入力欄の桁数制限も同じ値から導出しているので、変えるときはそこだけを直す。片方にしか無い条件を足すと「画面では通るのに保存で落ちる」か、その逆になる。ただし割り勘の `fairShare` は `合計 ÷ 人数` の導出値なので小数のまま
   - **`kMaxAmount` はスキーマ定義値でもある** — CHECK 制約にリテラルとして焼き込まれるため、値を変えるだけでは済まない。`schemaVersion` のインクリメントと移行、固定スキーマの再生成まで必要（下記「DB スキーマ変更時の注意」）
   - **金額を描くウィジェットテストには `kMaxAmount` を使ったケースを置く** — `¥999,999,999,999` は実機幅の 1/3 以上を占める。短い金額しか描かないと overflow を見逃す（実際、合計パネルが 9.3px はみ出していた）

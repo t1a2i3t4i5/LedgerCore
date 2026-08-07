@@ -25,34 +25,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
     await context.read<SummaryProvider>().fetch();
   }
 
-  void _changeMonth(int delta) {
-    final provider = context.read<SummaryProvider>();
-    var year = provider.year;
-    var month = provider.month + delta;
-    if (month > 12) {
-      month = 1;
-      year++;
-    } else if (month < 1) {
-      month = 12;
-      year--;
-    }
-    provider.setYearMonth(year, month);
-    _fetch();
-  }
-
-  void _goToCurrentMonth() {
-    final now = DateTime.now();
-    final provider = context.read<SummaryProvider>();
-    provider.setYearMonth(now.year, now.month);
-    _fetch();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<SummaryProvider>(
       builder: (context, provider, _) {
-        final now = DateTime.now();
-        final isCurrentMonth = provider.year == now.year && provider.month == now.month;
         return RefreshIndicator(
           onRefresh: _fetch,
           child: ListView(
@@ -64,7 +40,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.chevron_left),
-                    onPressed: () => _changeMonth(-1),
+                    onPressed: () => provider.changeMonth(-1),
                   ),
                   Text(
                     '${provider.year}年${provider.month}月',
@@ -75,12 +51,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.chevron_right),
-                        onPressed: () => _changeMonth(1),
+                        onPressed: () => provider.changeMonth(1),
                       ),
                       IconButton(
                         icon: const Icon(Icons.today),
                         tooltip: '今月に戻る',
-                        onPressed: isCurrentMonth ? null : _goToCurrentMonth,
+                        onPressed: provider.isCurrentMonth
+                            ? null
+                            : provider.goToCurrentMonth,
                       ),
                     ],
                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../db/database.dart';
 import '../models/transaction.dart';
+import 'month_scoped_provider.dart';
 
 // ソート対象
 enum TransactionSortField { spentAt, amount }
@@ -9,15 +10,12 @@ enum TransactionSortField { spentAt, amount }
 // ソート順
 enum SortOrder { asc, desc }
 
-class TransactionProvider extends ChangeNotifier {
+class TransactionProvider extends MonthScopedProvider {
   final AppDatabase _db;
 
   List<TransactionResponse> _transactions = [];
   bool _loading = false;
   String? _error;
-
-  int _year = DateTime.now().year;
-  int _month = DateTime.now().month;
 
   // ---- ソート状態 ----
   TransactionSortField _sortField = TransactionSortField.spentAt;
@@ -30,14 +28,12 @@ class TransactionProvider extends ChangeNotifier {
   double? _filterMaxAmount;
   String _filterMemoQuery = '';
 
-  TransactionProvider(this._db);
+  TransactionProvider(this._db, {super.clock});
 
-  // ---- 基本 getter ----
+  // ---- 基本 getter ----（year / month は MonthScopedProvider が持つ）
   List<TransactionResponse> get transactions => _transactions;
   bool get loading => _loading;
   String? get error => _error;
-  int get year => _year;
-  int get month => _month;
 
   // ---- ソート・フィルター getter ----
   TransactionSortField get sortField => _sortField;
@@ -98,12 +94,6 @@ class TransactionProvider extends ChangeNotifier {
   double get filteredTotal =>
       filteredTransactions.fold(0.0, (sum, t) => sum + t.amount);
 
-  void setYearMonth(int year, int month) {
-    _year = year;
-    _month = month;
-    notifyListeners();
-  }
-
   /// ソート条件を設定する
   void setSort(TransactionSortField field, SortOrder order) {
     _sortField = field;
@@ -138,12 +128,13 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   /// 取引一覧を取得する
+  @override
   Future<void> fetch() async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      _transactions = await _db.getTransactionsByMonth(_year, _month);
+      _transactions = await _db.getTransactionsByMonth(year, month);
     } catch (e) {
       _error = e.toString();
       debugPrint('TransactionProvider.fetch エラー: $e');
