@@ -32,10 +32,19 @@ abstract class MonthScopedProvider extends ChangeNotifier {
     return _year == now.year && _month == now.month;
   }
 
-  /// 表示月を設定する。再取得は呼び出し側に任せる
+  /// 表示月を設定する。再取得しないので、production からは使わない
+  /// （[changeMonth] / [goToCurrentMonth] を使うこと）。
+  ///
+  /// 再取得を伴わない setter を公開したままにすると、月ジャンプ機能を足す人が
+  /// 素直にこれを選び、「月を変えたのに中身が前の月のまま」の経路が復活する。
+  /// 範囲外の月は [DateTime] の正規化で 1〜12 に丸める — 生の値を通すと
+  /// `getTransactionsByMonth(2026, 13)` が 2027 年 1 月のデータを返しつつ
+  /// ヘッダだけ「2026年13月」になる
+  @visibleForTesting
   void setYearMonth(int year, int month) {
-    _year = year;
-    _month = month;
+    final normalized = DateTime(year, month);
+    _year = normalized.year;
+    _month = normalized.month;
     notifyListeners();
   }
 

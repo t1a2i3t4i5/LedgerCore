@@ -8,12 +8,16 @@ import 'package:ledger_app/providers/month_scoped_provider.dart';
 class _FakeMonthScopedProvider extends MonthScopedProvider {
   _FakeMonthScopedProvider({super.clock});
 
-  int fetchCount = 0;
+  /// fetch が走った時点の表示月。回数だけでなく「どの月で読んだか」を残す。
+  ///
+  /// 回数しか数えないと、表示月を変える前に fetch する実装（＝古い月の
+  /// データを読んでから月表示だけ進む）を素通ししてしまう
+  final List<DateTime> fetchedMonths = [];
   int notifyCount = 0;
 
   @override
   Future<void> fetch() async {
-    fetchCount++;
+    fetchedMonths.add(DateTime(year, month));
   }
 
   @override
@@ -84,15 +88,34 @@ void main() {
       expect(provider.month, 12);
     });
 
-    test('月を変えると再取得まで走る', () async {
+    test('1 か月より大きく送っても正しい月に着く', () async {
+      final provider = providerAt(DateTime(2026, 7, 15));
+
+      await provider.changeMonth(-9);
+
+      expect(provider.year, 2025);
+      expect(provider.month, 10);
+    });
+
+    test('再取得は「送った先の月」で走る', () async {
       // 画面側が fetch を呼び忘れる経路を残さないための約束。
-      // changeMonth が状態だけ変えて戻ると、月を送っても一覧が古いままになる
+      // 回数だけ見ると、表示月を変える前に fetch する実装（＝古い月を
+      // 読んでから月表示だけ進む）を見逃す。CLAUDE.md が防ぐと書いている
+      // 「月を送ったのに中身が前の月のまま」がまさにこれ
       final provider = providerAt(DateTime(2026, 7, 15));
 
       await provider.changeMonth(1);
 
-      expect(provider.fetchCount, 1);
-      expect(provider.notifyCount, greaterThanOrEqualTo(1));
+      expect(provider.fetchedMonths, [DateTime(2026, 8)]);
+    });
+
+    test('月をまたぐ通知はちょうど 1 回', () async {
+      // 緩い matcher にすると通知の重複発火（＝余計なリビルド）を見逃す
+      final provider = providerAt(DateTime(2026, 7, 15));
+
+      await provider.changeMonth(1);
+
+      expect(provider.notifyCount, 1);
     });
   });
 
@@ -113,7 +136,7 @@ void main() {
       expect(provider.isCurrentMonth, isFalse);
     });
 
-    test('goToCurrentMonth で clock の月に戻り、再取得まで走る', () async {
+    test('goToCurrentMonth で clock の月に戻り、その月で再取得する', () async {
       final provider = providerAt(DateTime(2026, 7, 15));
       await provider.changeMonth(-3);
       expect(provider.month, 4);
@@ -123,8 +146,24 @@ void main() {
       expect(provider.year, 2026);
       expect(provider.month, 7);
       expect(provider.isCurrentMonth, isTrue);
-      // changeMonth の 1 回 + goToCurrentMonth の 1 回
-      expect(provider.fetchCount, 2);
+      expect(provider.fetchedMonths, [DateTime(2026, 4), DateTime(2026, 7)]);
+    });
+
+    test('clock は呼ぶたびに評価される（起動時の値を握らない）', () async {
+      // Clock を関数型にしてある理由。コンストラクタで 1 回読んでキャッシュ
+      // すると、アプリを開いたまま日付が変わった端末で「今月に戻る」が
+      // 押せない／押しても前の月に戻る、という静かな壊れ方をする
+      var now = DateTime(2026, 7, 31, 23, 59);
+      final provider = _FakeMonthScopedProvider(clock: () => now);
+      expect(provider.isCurrentMonth, isTrue);
+
+      // 日付をまたぐ
+      now = DateTime(2026, 8, 1, 0, 1);
+
+      expect(provider.isCurrentMonth, isFalse);
+      await provider.goToCurrentMonth();
+      expect(provider.year, 2026);
+      expect(provider.month, 8);
     });
   });
 
@@ -138,8 +177,22 @@ void main() {
 
       expect(provider.year, 2025);
       expect(provider.month, 3);
-      expect(provider.fetchCount, 0);
+      expect(provider.fetchedMonths, isEmpty);
       expect(provider.notifyCount, 1);
+    });
+
+    test('範囲外の月は繰り上げ・繰り下げして正規化する', () async {
+      // 正規化しないと getTransactionsByMonth(2026, 13) が 2027 年 1 月の
+      // データを返し、ヘッダだけ「2026年13月」になる
+      final provider = providerAt(DateTime(2026, 7, 15));
+
+      provider.setYearMonth(2026, 13);
+      expect(provider.year, 2027);
+      expect(provider.month, 1);
+
+      provider.setYearMonth(2026, 0);
+      expect(provider.year, 2025);
+      expect(provider.month, 12);
     });
   });
 }

@@ -47,6 +47,7 @@ flutter test
 - `test/database_test.dart` — drift DAO（インメモリDBで月レンジ・集計・CRUD・外部キー制約を検証）
 - `test/database_migration_test.dart` — マイグレーション（`drift_schemas/` に固定した過去バージョンから起こし、移行後のスキーマと新規作成時のスキーマを検証）
 - `test/transaction_provider_test.dart` — 取引 Provider の状態遷移（削除が一覧・合計・フィルター結果に波及するか）
+- `test/month_scoped_provider_test.dart` — 表示月の状態遷移（clock 注入・月の繰り上げ／繰り下げ・送った先の月で再取得すること）
 - `test/widgets/chart_palette_test.dart` — グラフの色パレット（決定性・WCAG コントラスト）
 - `test/widgets/category_pie_chart_test.dart` — カテゴリ別ドーナツグラフ（ウィジェットテスト）
 - `test/widgets/summary_screen_chart_test.dart` — サマリー画面へのグラフ組み込み（インメモリDB + Provider）
@@ -54,6 +55,7 @@ flutter test
 - `test/widgets/transaction_filter_sheet_test.dart` — フィルターシートの金額欄（全角正規化・記号除去・桁数制限・桁あふれの拒否）
 - `test/widgets/transactions_screen_test.dart` — 取引一覧の削除フロー（長押し → 確認ダイアログ）
 - `test/widgets/summary_reflects_delete_test.dart` — 削除がタブをまたいでサマリーに反映されること
+- `test/widgets/month_navigation_test.dart` — 取引・サマリー・割り勘の 3 画面の月送り（矢印・「今月に戻る」を実際にタップし、ヘッダと中身の両方を検証）
 
 ## 構成
 
@@ -70,6 +72,7 @@ lib/
 │   └── summary_calculator.dart# 月次サマリー・割り勘の計算（純関数）
 ├── models/                    # 表示用モデル
 ├── providers/                 # 状態管理（provider / ChangeNotifier）
+│   ├── month_scoped_provider.dart # 表示月の共通基底（clock 注入・月送り・今月判定）
 │   ├── member_provider.dart
 │   ├── category_provider.dart
 │   ├── transaction_provider.dart

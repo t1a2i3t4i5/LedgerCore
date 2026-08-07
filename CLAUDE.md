@@ -93,9 +93,10 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 - **Provider は `AppDatabase` を注入で受け取る** — 内部で生成しない。状態更新後は `notifyListeners()` を呼ぶ
 - **命名の名残に注意** — `TransactionResponse` / `userId` / `userName` は派生元の REST API の名前がそのまま残っているもので、実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスではない
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）
-- **表示月の状態は `providers/month_scoped_provider.dart` の `MonthScopedProvider` に集約する** — 画面ウィジェットから `DateTime.now()` を読まない。初期表示月・`isCurrentMonth`・`changeMonth`・`goToCurrentMonth` はすべて、Provider に注入された `clock`（既定 `DateTime.now`）1 つから導かれる。画面側で now を読み直すと判断材料が 2 層に分かれ、画面テストが実時刻に依存して月末に落ちる
-  - **月をまたぐ操作は Provider 側で `fetch()` まで済ませる** — `changeMonth` / `goToCurrentMonth` は表示月を変えたうえで再取得する。画面に `setYearMonth` と再取得を並べると、取引・サマリー・割り勘の 3 画面で同じ 2 行を書くことになり、片方だけ書き忘れると「月を送ったのに中身が前の月のまま」になる
-  - **画面テストは `clock` を注入して固定年月で書く** — テストデータを「今月」に置く書き方は、seed 時点の now と Provider 構築時点の now がずれると落ちる。`LedgerApp` にも `clock` を通してあるのでアプリ全体を組み立てるテストでも固定できる
+- **表示月の判断に画面から `DateTime.now()` を読まない** — 表示月の状態は `providers/month_scoped_provider.dart` の `MonthScopedProvider` に集約する。初期表示月・`isCurrentMonth`・`changeMonth`・`goToCurrentMonth` はすべて、Provider に注入された `clock`（既定 `DateTime.now`）1 つから導かれる。画面側で now を読み直すと判断材料が 2 層に分かれ、画面テストが実時刻に依存して月末に落ちる
+  - **取引追加画面の既定日付（`add_transaction_screen.dart` の `_spentAt`）はこの規則の対象外** — 意図的に実時刻を使う。表示中の月ではなく「今日」を既定にするのは、過去月を見返している最中に思い出した今日の出費を、徴候なく過去月へ沈めないため。表示月に寄せると「月しか選べない UI から日を捏造する」ことにもなる（`spentAt` の日は一覧のアバターとソートに効く）。表示月と違う月に保存されたときは一覧から消えて見えるが、データは正しく入っており「今月に戻る」で復帰できる
+  - **月をまたぐ操作は Provider 側で `fetch()` まで済ませる** — `changeMonth` / `goToCurrentMonth` は表示月を変えたうえで再取得する。画面に `setYearMonth` と再取得を並べると、取引・サマリー・割り勘の 3 画面で同じ 2 行を書くことになり、片方だけ書き忘れると「月を送ったのに中身が前の月のまま」になる。`setYearMonth` は `@visibleForTesting` で閉じてあるので production からは使わない
+  - **画面テストは `clock` を注入して固定年月で書く** — 詳細は下記「テストの書き方」を参照
 - **金額は正の整数のみ** — 入力側（`add_transaction_screen.dart` の validator）と DB の CHECK 制約の二重で守る。上限は `models/transaction.dart` の `kMaxAmount` を両方が参照し、入力欄の桁数制限も同じ値から導出しているので、変えるときはそこだけを直す。片方にしか無い条件を足すと「画面では通るのに保存で落ちる」か、その逆になる。ただし割り勘の `fairShare` は `合計 ÷ 人数` の導出値なので小数のまま
   - **`kMaxAmount` はスキーマ定義値でもある** — CHECK 制約にリテラルとして焼き込まれるため、値を変えるだけでは済まない。`schemaVersion` のインクリメントと移行、固定スキーマの再生成まで必要（下記「DB スキーマ変更時の注意」）
   - **金額を描くウィジェットテストには `kMaxAmount` を使ったケースを置く** — `¥999,999,999,999` は実機幅の 1/3 以上を占める。短い金額しか描かないと overflow を見逃す（実際、合計パネルが 9.3px はみ出していた）
@@ -112,6 +113,10 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 - **新規作成時（`onCreate`）のスキーマが固定スキーマと一致することも検証する** — 移行のテストだけでは足りない。移行が作り直すのは一部のテーブルだけで、それ以外は「ヘルパ旧版が作った形」対「ヘルパ新版の形」の比較になり、`lib/db/database.dart` の定義が一度も登場しない。素の `AppDatabase.forTesting(NativeDatabase.memory())` に対して `verifier.migrateAndValidate` を呼ぶ。`db.validateDatabaseSchema()` は使わない — 参照スキーマを同じ生成コードから採るので同語反復になり、常にグリーンになる
 - ウィジェットテストは `test/widgets/` に置く。fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.text()` では拾えない。検証は凡例など通常のウィジェットに対して行う
 - ウィジェットテストの画面サイズは `tester.view.physicalSize` でスマホ幅（360x690）に設定する。既定の 800x600 は実機より広く overflow を見逃す
+- **月を扱うテストは `clock` を注入して固定年月で書く** — テストデータを「今月」に置く書き方はしない。seed 時点の `DateTime.now()` と Provider 構築時点の `DateTime.now()` の間で月が変わると落ちるので、月末 23:59 台の CI で不可解に赤くなる。`TransactionProvider(db, clock: () => DateTime(2026, 7, 15))` のように渡し、アプリ全体を組み立てるときは `LedgerApp(db: db, clock: ...)` を使う
+- **月送りのテストは、ヘッダの年月だけでなく中身の値も見る** — ヘッダだけだと「月表示は動いたが再取得していない」を見逃す。月ごとに違う金額を seed して、送った先の金額が出ることまで確認する（`test/widgets/month_navigation_test.dart`）
+- **画面の配線は Provider のテストでは代替できない** — 取引・サマリー・割り勘の 3 画面は同じ月選択 Row を手で複製している。実際、左右の矢印を入れ替えても Provider 側のテストは全部通る。矢印と「今月に戻る」は `tester.tap` で実際に押す
+- **`clock` は「呼ぶたびに評価される」ことまで固定する** — `Clock` を関数型にしてあるのは、アプリを開いたまま日付が変わっても正しく判定するため。固定値を返す clock だけでテストすると、コンストラクタで 1 回読んでキャッシュする実装を素通しする。値を書き換えられる変数を閉じ込めた clock（`var now = ...; () => now`）で 1 本書く
 
 ## git 運用
 
