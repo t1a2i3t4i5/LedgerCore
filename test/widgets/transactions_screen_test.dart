@@ -18,26 +18,27 @@ import 'package:provider/provider.dart';
 void main() {
   late AppDatabase db;
 
+  // 画面が表示する月を実時刻から切り離す。TransactionProvider には
+  // この時刻を返す clock を注入するので、seed とテストの間で
+  // 月が変わっても（月末 23:59 台の CI など）結果は変わらない
+  final fixedNow = DateTime(2026, 7, 15);
+
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
-  /// 今月の [day] 日に [amount] の取引を入れる。
-  ///
-  /// 画面は DateTime.now() の年月を初期表示するので、
-  /// テストデータは必ず今月に置く。
+  /// 表示対象月（fixedNow の月）の [day] 日に [amount] の取引を入れる
   Future<String> seedTransaction({
     required double amount,
     int day = 5,
     int categoryIndex = 0,
   }) async {
-    final now = DateTime.now();
     final cats = await db.getCategories();
     final members = await db.getMembers();
     await db.insertTransaction(TransactionRequest(
       userId: members.first.id,
       categoryId: cats[categoryIndex].id,
       amount: amount,
-      spentAt: DateTime(now.year, now.month, day),
+      spentAt: DateTime(fixedNow.year, fixedNow.month, day),
     ));
     return cats[categoryIndex].name;
   }
@@ -52,7 +53,9 @@ void main() {
         providers: [
           ChangeNotifierProvider(create: (_) => CategoryProvider(db)),
           ChangeNotifierProvider(create: (_) => MemberProvider(db)),
-          ChangeNotifierProvider(create: (_) => TransactionProvider(db)),
+          ChangeNotifierProvider(
+            create: (_) => TransactionProvider(db, clock: () => fixedNow),
+          ),
         ],
         // TransactionsScreen は自前で Scaffold を返す
         child: const MaterialApp(home: TransactionsScreen()),

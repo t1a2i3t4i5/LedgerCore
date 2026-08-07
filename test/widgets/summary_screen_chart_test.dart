@@ -14,6 +14,9 @@ import 'package:provider/provider.dart';
 void main() {
   late AppDatabase db;
 
+  // 画面が表示する月を実時刻から切り離す（seed と表示で月がずれないように）
+  final fixedNow = DateTime(2026, 7, 15);
+
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
@@ -24,7 +27,7 @@ void main() {
 
     await tester.pumpWidget(
       ChangeNotifierProvider(
-        create: (_) => SummaryProvider(db),
+        create: (_) => SummaryProvider(db, clock: () => fixedNow),
         child: const MaterialApp(home: Scaffold(body: SummaryScreen())),
       ),
     );
@@ -36,14 +39,13 @@ void main() {
       (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
-    final now = DateTime.now();
 
     for (final (i, cat) in cats.take(3).indexed) {
       await db.insertTransaction(TransactionRequest(
         userId: memberId,
         categoryId: cat.id,
         amount: (i + 1) * 1000,
-        spentAt: DateTime(now.year, now.month, 5),
+        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
       ));
     }
 
