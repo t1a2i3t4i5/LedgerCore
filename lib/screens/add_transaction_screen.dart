@@ -93,27 +93,45 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
 
     setState(() => _loading = true);
+    // pop したあとに使うので、context に触る参照は先に取っておく。
+    // ScaffoldMessenger は MaterialApp 側にあるので、この画面が閉じても生きている
+    final provider = context.read<TransactionProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    // 保存先の月が表示中の月と違うと、保存が成功しても一覧にも合計にも
+    // 何も現れない。比較のため保存前の表示月を控える
+    final shownYear = provider.year;
+    final shownMonth = provider.month;
     try {
       final memo = _memoCtrl.text.trim();
+      final savedAt = _spentAt;
       final request = TransactionRequest(
         userId: _selectedUserId!,
         categoryId: _selectedCategoryId!,
         amount: double.parse(_amountCtrl.text.trim()),
-        spentAt: _spentAt,
+        spentAt: savedAt,
         memo: memo.isEmpty ? null : memo,
       );
 
-      final provider = context.read<TransactionProvider>();
       if (widget.existing != null) {
         await provider.update(widget.existing!.id, request);
       } else {
         await provider.create(request);
       }
 
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        navigator.pop();
+        _showSavedFeedback(
+          messenger: messenger,
+          provider: provider,
+          savedAt: savedAt,
+          shownYear: shownYear,
+          shownMonth: shownMonth,
+        );
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(content: Text('保存失敗: $e')),
         );
       }
@@ -122,9 +140,49 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
   }
 
+  /// 保存が成功したことを SnackBar で知らせる。
+  ///
+  /// 保存先の月が表示中の月と違うと、一覧にも合計にも何も現れないので
+  /// 「保存に失敗した」ようにしか見えない。保存先の月を名指ししたうえで、
+  /// その月へ移る導線を添える。自動で移さないのは、閲覧中の月を無断で
+  /// 動かさないため（どちらを見続けるかはユーザーが決める）
+  void _showSavedFeedback({
+    required ScaffoldMessengerState messenger,
+    required TransactionProvider provider,
+    required DateTime savedAt,
+    required int shownYear,
+    required int shownMonth,
+  }) {
+    final inShownMonth =
+        savedAt.year == shownYear && savedAt.month == shownMonth;
+    // 続けて保存したとき古い SnackBar が残ると、どの保存の結果か分からなくなる
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          inShownMonth ? '保存しました' : '${savedAt.year}年${savedAt.month}月に保存しました',
+        ),
+        action: inShownMonth
+            ? null
+            : SnackBarAction(
+                label: 'その月を表示',
+                onPressed: () => provider.goToMonth(savedAt.year, savedAt.month),
+              ),
+        // アクションを押す間が要るぶん、別月のときは長めに出す
+        duration: Duration(seconds: inShownMonth ? 2 : 6),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
+    // 既定の日付は「今日」で、一覧が表示している月とは独立している
+    // （CLAUDE.md の「追加画面の既定日付は表示月に寄せない」）。
+    // ずれたまま保存すると一覧から消えて見えるので、保存前に気づける位置で伝える
+    final shown = context.watch<TransactionProvider>();
+    final savingToOtherMonth =
+        _spentAt.year != shown.year || _spentAt.month != shown.month;
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? '取引を編集' : '取引を追加'),
@@ -288,10 +346,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 InkWell(
                   onTap: _pickDate,
                   child: InputDecorator(
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: '日付',
-                      prefixIcon: Icon(Icons.calendar_today),
-                      border: OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.calendar_today),
+                      border: const OutlineInputBorder(),
+                      helperText: savingToOtherMonth
+                          ? '表示中の${shown.year}年${shown.month}月とは別の月です'
+                          : null,
+                      helperMaxLines: 2,
                     ),
                     child: Text(
                       DateFormat('yyyy年MM月dd日').format(_spentAt),
