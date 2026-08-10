@@ -99,6 +99,8 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
     - 保存前: 日付欄の `helperText` に「表示中の 2026年7月 とは別の月です」を出す（事前に気づける）
     - 保存後: 成功時は必ず SnackBar を出す。同じ月なら「保存しました」、別の月なら保存先を名指しした「2026年8月に保存しました」＋ `その月を表示` で移動できるようにする
     - **保存後に表示月を自動で切り替えない** — 結果は必ず見えるようになるが、ユーザーの閲覧文脈を無断で移すことになる。移るかどうかは `その月を表示` を押すかで本人が決める
+  - **アクション付きの SnackBar は `floating` にして FAB を避ける** — SnackBar が出るのは `MainScreen` の Scaffold（ルートの `ScaffoldMessenger`）だが、FAB を持っているのは `TransactionsScreen` の入れ子の Scaffold なので、既定の `fixed` では FAB が押し上げられない。実測で `その月を表示` は FAB にぴたりと重なっており、続けてもう 1 件追加しようとしたタップがそのまま月移動になっていた。`behavior: SnackBarBehavior.floating` と下 88px の `margin` で FAB の上へ逃がす
+  - **タブを移ったら `hideCurrentSnackBar()` を呼ぶ**（`main_screen.dart` の `onDestinationSelected`）— SnackBar はルートに出るのでタブを移っても残る。サマリータブで `その月を表示` を押せてしまうと、画面は何も変わらないまま取引一覧の表示月だけが裏で動く
   - **月をまたぐ操作は Provider 側で `fetch()` まで済ませる** — `changeMonth` / `goToCurrentMonth` / `goToMonth` は表示月を変えたうえで再取得する。画面に `setYearMonth` と再取得を並べると、取引・サマリー・割り勘の 3 画面で同じ 2 行を書くことになり、片方だけ書き忘れると「月を送ったのに中身が前の月のまま」になる。`setYearMonth` は `@visibleForTesting` で閉じてあるので production からは使わない
     - 相対移動でない月ジャンプ（保存後の `その月を表示` など）は `goToMonth(year, month)` を使う。`changeMonth` に差分を計算して渡す書き方はしない — 呼ぶ側が年またぎの計算を持つことになる
   - **画面テストは `clock` を注入して固定年月で書く** — 詳細は下記「テストの書き方」を参照

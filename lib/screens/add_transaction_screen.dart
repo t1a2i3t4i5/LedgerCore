@@ -168,6 +168,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 label: 'その月を表示',
                 onPressed: () => provider.goToMonth(savedAt.year, savedAt.month),
               ),
+        // 取引一覧の FAB は内側の Scaffold にあり、ルートの ScaffoldMessenger が
+        // 出す SnackBar では押し上げられない。既定の fixed のままだと
+        // 「その月を表示」が FAB にぴたりと重なり、続けてもう 1 件追加しようと
+        // した指が月移動を押すことになる。浮かせて FAB の上へ逃がす
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 88),
         // アクションを押す間が要るぶん、別月のときは長めに出す
         duration: Duration(seconds: inShownMonth ? 2 : 6),
       ),

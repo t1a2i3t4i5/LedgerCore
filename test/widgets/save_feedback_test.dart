@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/main.dart';
 import 'package:provider/provider.dart';
@@ -251,6 +252,68 @@ void main() {
     await tester.tap(find.byIcon(Icons.today));
     await tester.pumpAndSettle();
     expect(find.text('2026年7月'), findsOneWidget);
+  });
+
+  testWidgets('案内が出ている間も FAB で次の取引を追加できる', (tester) async {
+    // SnackBar は MainScreen 側（ルートの ScaffoldMessenger）に出るので、
+    // 取引一覧の FAB は押し上げられない。既定の fixed のままだと
+    // 「その月を表示」が FAB にぴたりと重なり、続けて 1 件追加しようとした
+    // タップが月移動になる（実測: FAB の座標でヒットするのは SnackBarAction）
+    await pumpApp(tester);
+    await openAddScreen(tester);
+    await pickDate(tester, DateTime(2026, 8, 7));
+    await fillAndSave(tester, '1500');
+    expect(find.text('その月を表示'), findsOneWidget);
+
+    // 案内が出ている間に FAB を押す
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+
+    // 追加画面が開く。月が動いていない（＝アクションを踏んでいない）
+    expect(find.text('取引を追加'), findsOneWidget);
+    expect(find.text('2026年8月'), findsNothing);
+  });
+
+  testWidgets('別のタブへ移ると案内は消える', (tester) async {
+    // 残ったまま押せてしまうと、画面は何も変わらないのに取引一覧の表示月
+    // だけが裏で動く。閲覧文脈が変わった以上、案内も一緒に引き取る
+    await pumpApp(tester);
+    final provider = Provider.of<TransactionProvider>(
+      tester.element(find.byType(FloatingActionButton)),
+      listen: false,
+    );
+    await openAddScreen(tester);
+    await pickDate(tester, DateTime(2026, 8, 7));
+    await fillAndSave(tester, '1500');
+    expect(find.text('その月を表示'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.bar_chart_outlined));
+    await tester.pumpAndSettle();
+
+    expect(find.text('その月を表示'), findsNothing);
+    expect(find.text('2026年8月に保存しました'), findsNothing);
+    // 取引タブへ戻っても、勝手に月が動いていない
+    expect(provider.month, 7);
+  });
+
+  testWidgets('追加画面の既定日付は表示月ではなく「今日」', (tester) async {
+    // この機能は「既定日付が表示月と独立している」ことの上に成り立つ。
+    // 表示月へ寄せる実装に変わると、過去月を見返している最中に思い出した
+    // 今日の出費が徴候なくその月へ沈む（CLAUDE.md の約束）。
+    // 寄せられてもこのファイルの他のテストは pickDate で日付を打ち直すため
+    // 全部緑のまま通ってしまうので、既定値そのものをここで固定する
+    final fmt = DateFormat('yyyy年MM月dd日');
+    // now を 2 回読む間に日付が変わりうるので、前後どちらかに出ていれば良しとする
+    final before = fmt.format(DateTime.now());
+    await pumpApp(tester);
+    await openAddScreen(tester);
+    final after = fmt.format(DateTime.now());
+
+    expect(
+      {before, after}.any((t) => find.text(t).evaluate().isNotEmpty),
+      isTrue,
+      reason: '既定日付が実時刻の「今日」になっていない（表示月に寄せられた可能性）',
+    );
   });
 
   testWidgets('Provider の表示月は保存の前後で変わらない', (tester) async {
