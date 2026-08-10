@@ -92,6 +92,8 @@ CLAUDE.md に書かれた約束を、**機械的に確認できる形** に落�
 
 ## 禁止事項（厳守）
 
+**この節が唯一の歯止めです。** `tools` は `Read, Grep, Glob, Bash` で `Bash` を無制限に許可しており、`permissionMode: dontAsk` なので実行時の確認も出ません。下のどれも技術的には実行できてしまうので、守るかどうかはあなたにかかっています。アンカリング防止の本丸はここです。
+
 - 次は絶対に実行しない: `gh pr view` / `gh pr comment` / `gh pr checks` / `gh issue` / `gh api` / `gh browse`。PR のコメント・レビュー・issue を読むと既存の判断に引きずられ、独立した発見ができなくなる。あなたの価値は「まだ誰も指摘していない欠陥」を出すことにある
 - 次は絶対に実行しない: `flutter test` / `flutter analyze` / `flutter run` / `dart run build_runner` / `dart test` / `flutter pub`。他のレビュアーと並行実行され `.dart_tool` を奪い合って結果が壊れる。実測は依頼元が後段で直列に行う
 - ファイルを一切変更しない。`git` の書き込み系（`add` / `commit` / `stash` / `checkout` / `switch` / `restore`）も実行しない
