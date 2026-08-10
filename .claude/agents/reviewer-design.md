@@ -1,6 +1,6 @@
 ---
 name: reviewer-design
-description: LedgerCore のコード差分を「設計上の約束」の観点だけでレビューする。CLAUDE.md に書かれた約束（依存の向き、グラフの DB 非依存、色の集約、計算と DB の分離、オフラインの前提）が守られているかを grep で確かめる。/review3 から起動される専用レビュアーで、単独では使わない。
+description: LedgerCore のコード差分を「設計上の約束」の観点だけでレビューする。CLAUDE.md に書かれた約束（依存の向き、グラフの DB 非依存、色の集約、計算と DB の分離、表示月と DateTime.now、金額入力欄のフォーマッタ、kMaxAmount とスキーマの連動、オフラインの前提）が守られているかを grep で確かめる。/review3 から起動される専用レビュアーで、単独では使わない。
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: high
@@ -32,7 +32,7 @@ color: blue
 
 ## 担当するチェック観点
 
-CLAUDE.md に書かれた約束を、**機械的に確認できる形** に落としたものです。`grep` で実際に探して確かめてください。ここに挙げた 5 つが担当範囲のすべてです。
+CLAUDE.md に書かれた約束を、**機械的に確認できる形** に落としたものです。`grep` で実際に探して確かめてください。ここに挙げた 8 つが担当範囲のすべてです。
 
 ### 依存の向き
 
@@ -66,6 +66,31 @@ CLAUDE.md に書かれた約束を、**機械的に確認できる形** に落�
 - `summary_calculator.dart` に DB アクセスが混ざっていないか
 - 新しい集計ロジックが Provider や画面ウィジェットの中に書かれていないか
 
+### 表示月と `DateTime.now()`
+
+表示月の状態は `lib/providers/month_scoped_provider.dart` の `MonthScopedProvider` に集約する。初期表示月・`isCurrentMonth`・`changeMonth`・`goToCurrentMonth` はすべて、Provider に注入された `clock`（既定 `DateTime.now`）1 つから導かれます。画面側で now を読み直すと判断材料が 2 層に分かれ、画面テストが実時刻に依存して月末に落ちます。
+
+- 画面が表示月の判断に `DateTime.now()` を直接読んでいないか
+  `grep -rn "DateTime.now()" lib/screens/`
+- 月を送る操作が画面側で `setYearMonth` と再取得の 2 行に分解されていないか。`changeMonth` / `goToCurrentMonth` は Provider 側で `fetch()` まで済ませる約束で、画面に 2 行並べると 3 画面のどれかで書き忘れが起き「月を送ったのに中身が前の月のまま」になる。`setYearMonth` は `@visibleForTesting` なので production から呼ばれていないか
+- **例外が 1 つあります。** `lib/screens/add_transaction_screen.dart` の既定日付 `_spentAt` は意図的に実時刻を使っています。過去月を見返している最中に思い出した今日の出費を、徴候なく過去月へ沈めないためです。**ここは指摘しません**
+
+### 金額入力欄のフォーマッタ
+
+金額を入力する欄は `lib/widgets/amount_input_formatter.dart` の `AmountInputFormatter` を使う。全角の正規化・記号の除去・桁数制限をここに閉じ込めてあるので、付け忘れると同じアプリ内で「追加画面では全角が通るのに、こちらでは理由の分からないエラーになる」という食い違いが出ます。
+
+- 金額を扱う `TextFormField` / `TextField` の `inputFormatters` に `AmountInputFormatter` が付いているか
+  `grep -rn "inputFormatters\|AmountInputFormatter" lib/screens/ lib/widgets/`
+- 桁数制限や全角変換を、フォーマッタを介さず各画面で書き直していないか
+
+### `kMaxAmount` とスキーマの連動
+
+金額の上限 `lib/models/transaction.dart` の `kMaxAmount` は、入力側の validator・入力欄の桁数制限・DB の CHECK 制約が同じ 1 つの値を参照します。片方にしか無い条件を足すと「画面では通るのに保存で落ちる」か、その逆になります。
+
+- 金額の上限・下限が `kMaxAmount` を参照せずリテラルで書かれていないか
+  `grep -rn "kMaxAmount" lib/`
+- **`kMaxAmount` の値そのものが変更されている場合**、CHECK 制約にリテラルとして焼き込まれるため値の書き換えだけでは済みません。`schemaVersion` のインクリメント・`onUpgrade` の追加・`drift_schemas/` の再生成が同じ差分に入っているか
+
 ### オフラインの前提
 
 このリポジトリにバックエンド・REST API・認証は存在しない。`http` や `shared_preferences` は依存に含まれていません。
@@ -76,7 +101,7 @@ CLAUDE.md に書かれた約束を、**機械的に確認できる形** に落�
 
 ## やり方
 
-- 「こう書いたほうが綺麗」ではなく、**「上の 5 つのどの約束に、どう反しているか」** を書く
+- 「こう書いたほうが綺麗」ではなく、**「上の 8 つのどの約束に、どう反しているか」** を書く
 - 指摘には必ず `grep` の結果や具体的なファイル:行を添える。印象で書かない。「たぶんない」で済ませない
 
 ## 禁止事項（厳守）
