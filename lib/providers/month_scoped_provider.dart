@@ -48,21 +48,28 @@ abstract class MonthScopedProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 表示月を [year] 年 [month] 月へ移し、その月のデータを読み直す。
+  ///
+  /// 相対移動でない月ジャンプの唯一の入口。[setYearMonth] と違って再取得まで
+  /// 面倒を見るので、production から表示月を動かすときはこれを使う。
+  Future<void> goToMonth(int year, int month) async {
+    setYearMonth(year, month);
+    await fetch();
+  }
+
   /// 表示月を [delta] か月ぶん送り、その月のデータを読み直す。
   /// 12 月 → 翌年 1 月、1 月 → 前年 12 月の繰り上げ・繰り下げを含む
   Future<void> changeMonth(int delta) async {
     // DateTime は月の桁あふれを正規化するので、繰り上げ・繰り下げを自前で
     // 書かずに済む（13 月 → 翌年 1 月、0 月 → 前年 12 月）
     final shifted = DateTime(_year, _month + delta);
-    setYearMonth(shifted.year, shifted.month);
-    await fetch();
+    await goToMonth(shifted.year, shifted.month);
   }
 
   /// 今月へ戻り、その月のデータを読み直す
   Future<void> goToCurrentMonth() async {
     final now = _clock();
-    setYearMonth(now.year, now.month);
-    await fetch();
+    await goToMonth(now.year, now.month);
   }
 
   /// 表示月ぶんのデータを読み直す。サブクラスが実装する

@@ -45,8 +45,15 @@ class _MainScreenState extends State<MainScreen> {
       body: _screens[_currentIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) =>
-            setState(() => _currentIndex = index),
+        onDestinationSelected: (index) {
+          // 別のタブへ移ったら、前のタブ向けの案内は消す。
+          // SnackBar はこの Scaffold（ルートの ScaffoldMessenger）に出るので、
+          // 放っておくとタブを移っても残る。取引の保存後に出る
+          // 「その月を表示」をサマリータブで押すと、画面は何も変わらないまま
+          // 取引一覧の表示月だけが裏で動く
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          setState(() => _currentIndex = index);
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),

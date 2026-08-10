@@ -119,6 +119,40 @@ void main() {
     });
   });
 
+  group('goToMonth', () {
+    test('指定した年月へ移り、その月で再取得する', () async {
+      // 保存先の月へ飛ぶ導線（取引追加後の「その月を表示」）が通る経路。
+      // 表示月だけ変えて再取得しない実装だと、飛んだ先の一覧が空のままになる
+      final provider = providerAt(DateTime(2026, 7, 15));
+
+      await provider.goToMonth(2025, 11);
+
+      expect(provider.year, 2025);
+      expect(provider.month, 11);
+      expect(provider.fetchedMonths, [DateTime(2025, 11)]);
+    });
+
+    test('範囲外の月は繰り上げ・繰り下げして正規化する', () async {
+      final provider = providerAt(DateTime(2026, 7, 15));
+
+      await provider.goToMonth(2026, 13);
+
+      expect(provider.year, 2027);
+      expect(provider.month, 1);
+      expect(provider.fetchedMonths, [DateTime(2027, 1)]);
+    });
+
+    test('同じ月を指定しても再取得する', () async {
+      // 「その月を表示」を押した先が今の表示月と同じでも、押した以上は
+      // 最新の状態を見せる。黙って何もしないと壊れているように見える
+      final provider = providerAt(DateTime(2026, 7, 15));
+
+      await provider.goToMonth(2026, 7);
+
+      expect(provider.fetchedMonths, [DateTime(2026, 7)]);
+    });
+  });
+
   group('isCurrentMonth / goToCurrentMonth', () {
     test('clock の月では true、送った先では false', () async {
       final provider = providerAt(DateTime(2026, 7, 15));
