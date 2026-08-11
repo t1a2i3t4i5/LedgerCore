@@ -84,7 +84,7 @@ CREATE TABLE "members" (
 
 `mail` は DAO `insertMember(name, {mail})` が引数として受け取るものの、
 `lib/screens/members_screen.dart` にメールアドレスの入力欄がないため、UI 経由では常に NULL になる。
-派生元 `Ledger` のユーザーテーブルの名残で、現時点で読み出して使っている画面もない。
+現時点で読み出して使っている画面もない。
 
 ### transactions — 取引
 
@@ -168,8 +168,8 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 ## 表示用モデルとの対応
 
 `lib/models/` のクラスは DB の行そのものではなく、JOIN 結果や計算結果を保持する表示用モデル。
-`Response` / `Request` という接尾辞は派生元 `Ledger`（Spring Boot）の REST API 名の名残で、
-**このアプリに HTTP は一切介在しない**。
+`Response` / `Request` という接尾辞は付いているが、
+**このアプリに HTTP は一切介在しない**。読み出し用（`Response`）と書き込み用（`Request`）の区別でしかない。
 
 | 表示用モデル | 対応するテーブル | 備考 |
 | --- | --- | --- |

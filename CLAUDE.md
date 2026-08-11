@@ -8,7 +8,7 @@
 
 **LedgerCore** はサーバ不要・モバイル端末内だけで完結するオフライン家計簿アプリ（Flutter 単体）。
 
-派生元の `Ledger`（Flutter + Spring Boot + PostgreSQL）からバックエンドと DB 依存を撤廃したもので、**このリポジトリにバックエンド・REST API・認証は存在しない**。データはすべて drift（SQLite）で端末内に保存され、集計・割り勘の計算も端末側で行う。
+**このリポジトリにバックエンド・REST API・認証は存在しない**。データはすべて drift（SQLite）で端末内に保存され、集計・割り勘の計算も端末側で行う。
 
 ## 技術スタック
 
@@ -58,7 +58,7 @@ screens → providers → AppDatabase（drift） → SQLite
 
 - **集計ロジックは純関数に置く** — `summary_calculator.dart` の `buildMonthlySummary` / `buildSplit` は DB に触らず、取引リストを受け取って結果を返す。DB アクセスと計算を混ぜないことでテストしやすさを保つ
 - **Provider は `AppDatabase` を注入で受け取る** — 内部で生成しない。状態更新後は `notifyListeners()` を呼ぶ
-- **命名の名残に注意** — `TransactionResponse` / `userId` / `userName` は派生元の REST API の名前がそのまま残っているもので、実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスではない
+- **命名に注意** — `TransactionResponse` / `userId` / `userName` が実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスでもユーザーアカウントでもない。名前に引きずられて認証やネットワークの層を想定しないこと
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）
 - **表示月の判断に画面から `DateTime.now()` を読まない** — 表示月の状態は `providers/month_scoped_provider.dart` の `MonthScopedProvider` に集約する。初期表示月・`isCurrentMonth`・`changeMonth`・`goToCurrentMonth` はすべて、Provider に注入された `clock`（既定 `DateTime.now`）1 つから導かれる。画面側で now を読み直すと判断材料が 2 層に分かれ、画面テストが実時刻に依存して月末に落ちる
   - **取引追加画面の既定日付（`add_transaction_screen.dart` の `_spentAt`）はこの規則の対象外** — 意図的に実時刻を使う。表示中の月ではなく「今日」を既定にするのは、過去月を見返している最中に思い出した今日の出費を、徴候なく過去月へ沈めないため。表示月に寄せると「月しか選べない UI から日を捏造する」ことにもなる（`spentAt` の日は一覧のアバターとソートに効く）。**このずれは残す前提で、フィードバック側で誤認を潰す**（次項）
