@@ -2,8 +2,7 @@
 
 サーバ不要・**モバイル端末内だけで完結するオフライン家計簿アプリ**（Flutter）。
 
-`Ledger`（Flutter + Spring Boot + PostgreSQL）から派生し、バックエンドと DB 依存を撤廃。
-データは [drift](https://drift.simonbinder.eu/)（SQLite）で端末内に保存する。
+バックエンド・REST API・認証は持たない。データは [drift](https://drift.simonbinder.eu/)（SQLite）で端末内に保存し、集計・割り勘の計算も端末側で行う。
 
 ## 特徴
 
