@@ -124,5 +124,7 @@ flutter analyze
 ## ドキュメント
 
 - [docs/db-schema.md](docs/db-schema.md) — テーブル定義・ER 図・表示用モデルとの対応
+- [docs/design-notes.md](docs/design-notes.md) — 設計上の約束の根拠と、過去に実際に起きた事故
+- [docs/testing.md](docs/testing.md) — テストの書き方の根拠と、過去に実際に見逃した事故
 - [docs/git-workflow.md](docs/git-workflow.md) — ブランチ命名・PR 運用・マージ方式
-- [CLAUDE.md](CLAUDE.md) — 設計上の約束とテストの書き方（コードを読んだだけでは分かりにくい運用ルール）
+- [CLAUDE.md](CLAUDE.md) — 上記のルール一覧（コードを読んだだけでは分かりにくい運用ルールの索引）
