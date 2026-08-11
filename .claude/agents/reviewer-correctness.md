@@ -28,7 +28,7 @@ color: red
 
 ## 特に疑うもの
 
-プロジェクトの約束は CLAUDE.md にあります。それとは別に、**過去にこのリポジトリで実際に事故った**のが次です。
+プロジェクトの約束は `docs/design-notes.md` にあります（`CLAUDE.md` の「設計上の約束」はそこへのリンク付き要約なので、判断材料が要るときは本文のほうを読みます）。それとは別に、**過去にこのリポジトリで実際に事故った**のが次です。
 
 - **`> 0` のバリデーションは `Infinity` を素通しする。** `Infinity > 0` は `true`。`NaN` はどの比較演算子でも `false` を返すので `if (v <= 0) return エラー` 形式のガードも通り抜ける。`amount` は SQLite の `REAL`（Dart の `double`）なので、`double.parse` の結果がこの経路に乗る
 - **drift は `onUpgrade` をトランザクションで包まない。** `customStatement` の `UPDATE` / `DELETE` は個別に autocommit され、そのあとの `alterTable`（内部で独自のトランザクションを張る）が失敗すると「データは書き換え済み・スキーマは旧版・`user_version` も旧版」で固定される。次回起動で同じ移行が再実行され二重適用にもなる。移行処理が `transaction()` で包まれているか必ず確認する

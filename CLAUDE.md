@@ -75,7 +75,7 @@ screens → providers → AppDatabase（drift） → SQLite
 
 ## テストの書き方
 
-根拠と過去に見逃した事故は [docs/testing.md](docs/testing.md) にある。守るべきことだけをここに並べる。
+根拠・過去に見逃した事故・書くときの具体的な手順は [docs/testing.md](docs/testing.md) にある。守るべきことだけをここに並べる。
 
 - 集計・割り勘は純関数として DB なしでテストする
 - DB を伴うテストは `AppDatabase.forTesting(NativeDatabase.memory())` を使う
