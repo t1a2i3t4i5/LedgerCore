@@ -12,51 +12,23 @@
 
 ## 技術スタック
 
-| 項目       | 内容                                                    |
-| ---------- | ------------------------------------------------------- |
-| 言語・SDK  | Dart `>=3.0.0 <4.0.0`（必要な Flutter バージョンは README.md） |
-| 状態管理   | `provider`（`ChangeNotifier`）                          |
-| 永続化     | `drift` + `drift_flutter`（端末内 `ledgercore.sqlite`） |
-| 日付整形   | `intl`                                                  |
-| グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし）    |
-| コード生成 | `drift_dev` + `build_runner`                            |
-| Lint       | `flutter_lints`（`analysis_options.yaml`）              |
+使っているライブラリの一覧は [README.md](README.md) の「技術スタック」を参照すること。
 
 `http` や `shared_preferences` は依存に含まれていない。ネットワーク通信を伴う実装を追加しないこと。
 
 ## アーキテクチャ
 
-```
-lib/
-├── main.dart      # AppDatabase を生成し MultiProvider で配布、MainScreen へ直行（認証なし）
-├── db/            # drift のテーブル定義・DAO（database.dart）と集計の純関数（summary_calculator.dart）
-├── models/        # 表示用モデル（DB の JOIN 結果や入力値を保持する単純なクラス）
-├── providers/     # 状態管理。AppDatabase をコンストラクタ注入で受け取る
-├── screens/       # 画面ウィジェット
-└── widgets/       # 画面から切り離した再利用部品（グラフ・色パレット・入力フォーマッタ。ウィジェットとは限らない）
-```
-
-データの流れは一方向:
+ディレクトリ構成は [README.md](README.md) の「構成」を参照すること。データの流れは一方向:
 
 ```
 screens → providers → AppDatabase（drift） → SQLite
 ```
 
-画面から直接 `AppDatabase` を触らず、必ず Provider を経由する。
-
-## 主要コマンド
-
-```bash
-flutter pub get                 # 依存取得
-dart run build_runner build     # drift のコード生成（*.g.dart）
-flutter run                     # 実行
-flutter test                    # テスト
-flutter analyze                 # 静的解析
-```
-
-`build_runner` が既存の生成物と衝突する場合は `dart run build_runner build --delete-conflicting-outputs` を使う。
+画面から直接 `AppDatabase` を触らず、必ず Provider を経由する。`providers/` は `AppDatabase` をコンストラクタ注入で受け取る。
 
 ## drift のコード生成
+
+コマンドそのものは [README.md](README.md) の「開発コマンド」にある。ここには守るべき条件だけを書く。
 
 - `lib/db/database.g.dart` は生成物だが **git 管理対象**。`.gitignore` されていない
 - `database.dart` のテーブル定義や `@DriftDatabase` を変更したら、必ず `dart run build_runner build` を実行し、`database.g.dart` も同じコミットに含める
@@ -64,12 +36,7 @@ flutter analyze                 # 静的解析
 
 ### スキーマ検証用の生成物
 
-マイグレーションテストは `drift_schemas/*.json`（各バージョンの正しい形の記録）と `test/generated_migrations/*.dart`（そこから起こした移行ヘルパ）を使う。**どちらも生成物だが git 管理対象**。`schemaVersion` を上げたら次を実行して同じコミットに含める。
-
-```bash
-dart run drift_dev schema dump lib/db/database.dart drift_schemas/
-dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
-```
+マイグレーションテストは `drift_schemas/*.json`（各バージョンの正しい形の記録）と `test/generated_migrations/*.dart`（そこから起こした移行ヘルパ）を使う。**どちらも生成物だが git 管理対象**。`schemaVersion` を上げたら README の再生成コマンド（`drift_dev schema dump` / `generate`）を実行し、同じコミットに含める。
 
 `dump` は現在のコードから新しいバージョンの JSON を 1 つ足すだけ。**過去バージョンの JSON は書き換えない** — 書き換えると「そのバージョンの DB がどんな形だったか」の記録が失われ、移行テストが自分の変更に追従してグリーンのままになる。
 
