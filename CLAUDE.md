@@ -8,55 +8,27 @@
 
 **LedgerCore** はサーバ不要・モバイル端末内だけで完結するオフライン家計簿アプリ（Flutter 単体）。
 
-派生元の `Ledger`（Flutter + Spring Boot + PostgreSQL）からバックエンドと DB 依存を撤廃したもので、**このリポジトリにバックエンド・REST API・認証は存在しない**。データはすべて drift（SQLite）で端末内に保存され、集計・割り勘の計算も端末側で行う。
+**このリポジトリにバックエンド・REST API・認証は存在しない**。データはすべて drift（SQLite）で端末内に保存され、集計・割り勘の計算も端末側で行う。
 
 ## 技術スタック
 
-| 項目       | 内容                                                    |
-| ---------- | ------------------------------------------------------- |
-| 言語・SDK  | Dart `>=3.0.0 <4.0.0`（必要な Flutter バージョンは README.md） |
-| 状態管理   | `provider`（`ChangeNotifier`）                          |
-| 永続化     | `drift` + `drift_flutter`（端末内 `ledgercore.sqlite`） |
-| 日付整形   | `intl`                                                  |
-| グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし）    |
-| コード生成 | `drift_dev` + `build_runner`                            |
-| Lint       | `flutter_lints`（`analysis_options.yaml`）              |
+使っているライブラリの一覧は [README.md](README.md) の「技術スタック」を参照すること。
 
 `http` や `shared_preferences` は依存に含まれていない。ネットワーク通信を伴う実装を追加しないこと。
 
 ## アーキテクチャ
 
-```
-lib/
-├── main.dart      # AppDatabase を生成し MultiProvider で配布、MainScreen へ直行（認証なし）
-├── db/            # drift のテーブル定義・DAO（database.dart）と集計の純関数（summary_calculator.dart）
-├── models/        # 表示用モデル（DB の JOIN 結果や入力値を保持する単純なクラス）
-├── providers/     # 状態管理。AppDatabase をコンストラクタ注入で受け取る
-├── screens/       # 画面ウィジェット
-└── widgets/       # 画面から切り離した再利用部品（グラフ・色パレット・入力フォーマッタ。ウィジェットとは限らない）
-```
-
-データの流れは一方向:
+ディレクトリ構成は [README.md](README.md) の「構成」を参照すること。データの流れは一方向:
 
 ```
 screens → providers → AppDatabase（drift） → SQLite
 ```
 
-画面から直接 `AppDatabase` を触らず、必ず Provider を経由する。
-
-## 主要コマンド
-
-```bash
-flutter pub get                 # 依存取得
-dart run build_runner build     # drift のコード生成（*.g.dart）
-flutter run                     # 実行
-flutter test                    # テスト
-flutter analyze                 # 静的解析
-```
-
-`build_runner` が既存の生成物と衝突する場合は `dart run build_runner build --delete-conflicting-outputs` を使う。
+画面から直接 `AppDatabase` を触らず、必ず Provider を経由する。`providers/` は `AppDatabase` をコンストラクタ注入で受け取る。
 
 ## drift のコード生成
+
+コマンドそのものは [README.md](README.md) の「開発コマンド」にある。ここには守るべき条件だけを書く。
 
 - `lib/db/database.g.dart` は生成物だが **git 管理対象**。`.gitignore` されていない
 - `database.dart` のテーブル定義や `@DriftDatabase` を変更したら、必ず `dart run build_runner build` を実行し、`database.g.dart` も同じコミットに含める
@@ -64,12 +36,7 @@ flutter analyze                 # 静的解析
 
 ### スキーマ検証用の生成物
 
-マイグレーションテストは `drift_schemas/*.json`（各バージョンの正しい形の記録）と `test/generated_migrations/*.dart`（そこから起こした移行ヘルパ）を使う。**どちらも生成物だが git 管理対象**。`schemaVersion` を上げたら次を実行して同じコミットに含める。
-
-```bash
-dart run drift_dev schema dump lib/db/database.dart drift_schemas/
-dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
-```
+マイグレーションテストは `drift_schemas/*.json`（各バージョンの正しい形の記録）と `test/generated_migrations/*.dart`（そこから起こした移行ヘルパ）を使う。**どちらも生成物だが git 管理対象**。`schemaVersion` を上げたら README の再生成コマンド（`drift_dev schema dump` / `generate`）を実行し、同じコミットに含める。
 
 `dump` は現在のコードから新しいバージョンの JSON を 1 つ足すだけ。**過去バージョンの JSON は書き換えない** — 書き換えると「そのバージョンの DB がどんな形だったか」の記録が失われ、移行テストが自分の変更に追従してグリーンのままになる。
 
@@ -91,7 +58,7 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 
 - **集計ロジックは純関数に置く** — `summary_calculator.dart` の `buildMonthlySummary` / `buildSplit` は DB に触らず、取引リストを受け取って結果を返す。DB アクセスと計算を混ぜないことでテストしやすさを保つ
 - **Provider は `AppDatabase` を注入で受け取る** — 内部で生成しない。状態更新後は `notifyListeners()` を呼ぶ
-- **命名の名残に注意** — `TransactionResponse` / `userId` / `userName` は派生元の REST API の名前がそのまま残っているもので、実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスではない
+- **命名に注意** — `TransactionResponse` / `userId` / `userName` が実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスでもユーザーアカウントでもない。名前に引きずられて認証やネットワークの層を想定しないこと
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）
 - **表示月の判断に画面から `DateTime.now()` を読まない** — 表示月の状態は `providers/month_scoped_provider.dart` の `MonthScopedProvider` に集約する。初期表示月・`isCurrentMonth`・`changeMonth`・`goToCurrentMonth` はすべて、Provider に注入された `clock`（既定 `DateTime.now`）1 つから導かれる。画面側で now を読み直すと判断材料が 2 層に分かれ、画面テストが実時刻に依存して月末に落ちる
   - **取引追加画面の既定日付（`add_transaction_screen.dart` の `_spentAt`）はこの規則の対象外** — 意図的に実時刻を使う。表示中の月ではなく「今日」を既定にするのは、過去月を見返している最中に思い出した今日の出費を、徴候なく過去月へ沈めないため。表示月に寄せると「月しか選べない UI から日を捏造する」ことにもなる（`spentAt` の日は一覧のアバターとソートに効く）。**このずれは残す前提で、フィードバック側で誤認を潰す**（次項）

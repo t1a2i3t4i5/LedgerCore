@@ -2,8 +2,7 @@
 
 サーバ不要・**モバイル端末内だけで完結するオフライン家計簿アプリ**（Flutter）。
 
-`Ledger`（Flutter + Spring Boot + PostgreSQL）から派生し、バックエンドと DB 依存を撤廃。
-データは [drift](https://drift.simonbinder.eu/)（SQLite）で端末内に保存する。
+バックエンド・REST API・認証は持たない。データは [drift](https://drift.simonbinder.eu/)（SQLite）で端末内に保存し、集計・割り勘の計算も端末側で行う。
 
 ## 特徴
 
@@ -11,6 +10,7 @@
 - **取引管理** — 収支の追加・編集・削除、月切り替え、カテゴリ/登録者/金額/メモでのフィルタ・ソート
   - 金額は **1 円以上 999,999,999,999 円以下の整数**のみ（小数は入力欄で受け付けず、DB の CHECK 制約でも弾く）
   - 以前のバージョンで小数や上限超過の金額を保存していた場合、**初回起動時の移行で四捨五入・削除される**（元の値は復元できない。詳細は [docs/db-schema.md](docs/db-schema.md)）
+- **保存先の月の明示** — 表示中の月と違う月の取引を入力しているときは日付欄で警告し、保存後は保存先の月を名指しした通知を出す（`その月を表示` でその月へ移動できる）
 - **カテゴリ管理** — 初回起動時に既定カテゴリ（食費・日用品ほか）を自動投入
 - **メンバー管理** — 端末内でメンバーを登録し、割り勘の対象にする
 - **月次サマリー** — カテゴリ別・メンバー別の集計と、カテゴリ別構成比のドーナツグラフ
@@ -18,48 +18,47 @@
 
 ## 必要環境
 
-- [Flutter](https://docs.flutter.dev/get-started/install) 3.41 以上
+- [Flutter](https://docs.flutter.dev/get-started/install) 3.41 以上（Dart SDK `>=3.0.0 <4.0.0`）
 - iOS/macOS で動かす場合は Xcode（初回のみ `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` が必要なことがある）
 
-## セットアップ
+### 対応プラットフォーム
+
+`android/ ios/ macos/ linux/ windows/ web/` のビルド設定は `flutter create` が生成したものが揃っているが、**動作確認済みと言えるプラットフォームはまだ無い**。
+
+`web` は対象外。`drift_flutter` を web で動かすには `sqlite3.wasm` と `drift_worker.js` を `web/` に置く必要があるが、現状置いていない。
+
+## 開発コマンド
 
 ```bash
-flutter pub get
-# drift のコード生成（*.g.dart）
-dart run build_runner build
+flutter pub get                 # 依存取得
+dart run build_runner build     # drift のコード生成（*.g.dart）
+flutter run                     # 実行
+flutter test                    # テスト
+flutter analyze                 # 静的解析
 ```
 
-## 実行
+- 既存の生成物と衝突する場合は `dart run build_runner build --delete-conflicting-outputs`
+- 初回起動で既定カテゴリと既定メンバー「自分」が投入され、すぐに入力を始められる
+
+`AppDatabase.schemaVersion` を上げたときは、固定スキーマと移行ヘルパを再生成して同じコミットに含める（理由と注意点は [CLAUDE.md](CLAUDE.md)）。
 
 ```bash
-flutter run
+dart run drift_dev schema dump lib/db/database.dart drift_schemas/
+dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 ```
 
-初回起動で既定カテゴリと既定メンバー「自分」が投入され、すぐに入力を始められる。
+## 技術スタック
 
-## テスト
-
-```bash
-flutter test
-```
-
-- `test/summary_calculator_test.dart` — 月次集計・割り勘計算（純関数）
-- `test/database_test.dart` — drift DAO（インメモリDBで月レンジ・集計・CRUD・外部キー制約を検証）
-- `test/database_migration_test.dart` — マイグレーション（`drift_schemas/` に固定した過去バージョンから起こし、移行後のスキーマと新規作成時のスキーマを検証）
-- `test/transaction_provider_test.dart` — 取引 Provider の状態遷移（削除が一覧・合計・フィルター結果に波及するか）
-- `test/month_scoped_provider_test.dart` — 表示月の状態遷移（clock 注入・月の繰り上げ／繰り下げ・送った先の月で再取得すること）
-- `test/widgets/chart_palette_test.dart` — グラフの色パレット（決定性・WCAG コントラスト）
-- `test/widgets/category_pie_chart_test.dart` — カテゴリ別ドーナツグラフ（ウィジェットテスト）
-- `test/widgets/summary_screen_chart_test.dart` — サマリー画面へのグラフ組み込み（インメモリDB + Provider）
-- `test/widgets/add_transaction_amount_test.dart` — 取引追加・編集画面の金額バリデーション
-- `test/widgets/transaction_filter_sheet_test.dart` — フィルターシートの金額欄（全角正規化・記号除去・桁数制限・桁あふれの拒否）
-- `test/widgets/transactions_screen_test.dart` — 取引一覧の削除フロー（長押し → 確認ダイアログ）
-- `test/widgets/summary_reflects_delete_test.dart` — 削除がタブをまたいでサマリーに反映されること
-- `test/widgets/month_navigation_test.dart` — 取引・サマリー・割り勘の 3 画面の月送り（矢印・「今月に戻る」を実際にタップし、ヘッダと中身の両方を検証）
+| 項目       | 内容                                                    |
+| ---------- | ------------------------------------------------------- |
+| 状態管理   | `provider`（`ChangeNotifier`）                          |
+| 永続化     | `drift` + `drift_flutter`（端末内 `ledgercore.sqlite`） |
+| 日付整形   | `intl`                                                  |
+| グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし）    |
+| コード生成 | `drift_dev` + `build_runner`                            |
+| Lint       | `flutter_lints`（`analysis_options.yaml`）              |
 
 ## 構成
-
-テーブル定義・ER 図・表示用モデルとの対応は [docs/db-schema.md](docs/db-schema.md) を参照。
 
 ```
 drift_schemas/                 # 各スキーマバージョンの固定記録（生成物・git 管理）
@@ -70,19 +69,60 @@ lib/
 │   ├── database.dart          # drift のテーブル定義・DAO・集計クエリ
 │   ├── database.g.dart        # 生成コード（build_runner）
 │   └── summary_calculator.dart# 月次サマリー・割り勘の計算（純関数）
-├── models/                    # 表示用モデル
+├── models/                    # 表示用モデル（DB の JOIN 結果や入力値を保持する単純なクラス）
+│   ├── transaction.dart       # 取引と金額の上限 kMaxAmount
+│   ├── category.dart
+│   ├── household_member.dart
+│   ├── summary.dart           # 月次サマリー（カテゴリ別・メンバー別）
+│   └── split.dart             # 割り勘の結果（各自の過不足・精算方法）
 ├── providers/                 # 状態管理（provider / ChangeNotifier）
 │   ├── month_scoped_provider.dart # 表示月の共通基底（clock 注入・月送り・今月判定）
 │   ├── member_provider.dart
 │   ├── category_provider.dart
 │   ├── transaction_provider.dart
 │   └── summary_provider.dart
-├── screens/                   # 各画面（サマリー / 取引 / カテゴリ / 割り勘 / メンバー管理）
-└── widgets/                   # 画面から切り離した再利用部品（グラフ・色・入力フォーマッタ）
+├── screens/
+│   ├── main_screen.dart       # ボトムナビゲーションと 5 タブの束ね
+│   ├── transactions_screen.dart   # 取引一覧
+│   ├── add_transaction_screen.dart# 取引の追加・編集
+│   ├── transaction_filter_sheet.dart # 一覧のソート・フィルター設定
+│   ├── summary_screen.dart    # 月次サマリー
+│   ├── split_screen.dart      # 割り勘
+│   ├── categories_screen.dart # カテゴリ管理
+│   └── members_screen.dart    # メンバー管理
+└── widgets/                   # 画面から切り離した再利用部品（ウィジェットとは限らない）
     ├── chart_palette.dart     # グラフの色パレット（カテゴリ ID から決定的に決まる）
-    └── category_pie_chart.dart# カテゴリ別構成比のドーナツグラフ
+    ├── category_pie_chart.dart# カテゴリ別構成比のドーナツグラフ
+    └── amount_input_formatter.dart # 金額入力欄の全角正規化・記号除去・桁数制限
 ```
 
-- 状態管理: `provider`（ChangeNotifier）
-- 永続化: `drift` + `sqlite3`（端末内 `ledgercore.sqlite`）
-- グラフ描画: `fl_chart`（純 Dart 実装。ネイティブ依存・ネットワーク通信なし）
+データの流れは一方向。
+
+```
+screens → providers → AppDatabase（drift） → SQLite
+```
+
+画面から直接 `AppDatabase` を触らず、必ず Provider を経由する。
+
+テーブル定義・ER 図・表示用モデルとの対応は [docs/db-schema.md](docs/db-schema.md) を参照。
+
+## テスト
+
+```bash
+flutter test
+flutter analyze
+```
+
+`test/` の構成は検証したい層ごとに分かれている。
+
+- **純関数** — 月次集計・割り勘は DB に触らない純関数として `lib/db/summary_calculator.dart` に置き、DB なしで検証する
+- **DB** — インメモリ DB（`AppDatabase.forTesting`）で DAO・月レンジ・外部キー制約・CHECK 制約を検証する。実端末のファイルには触らない
+- **マイグレーション** — `drift_schemas/` に固定した過去バージョンから起こし、移行後と新規作成時の両方のスキーマを検証する
+- **Provider** — 状態遷移（削除の波及、表示月の繰り上げ／繰り下げ）を検証する。表示月は `clock` を注入して固定年月で書く
+- **ウィジェット（`test/widgets/`）** — 画面の配線を実際にタップして検証する。矢印を入れ替えても Provider のテストは全部通るため、画面側は Provider のテストで代替できない。画面サイズは実機に合わせて 360x690 にする
+
+## ドキュメント
+
+- [docs/db-schema.md](docs/db-schema.md) — テーブル定義・ER 図・表示用モデルとの対応
+- [docs/git-workflow.md](docs/git-workflow.md) — ブランチ命名・PR 運用・マージ方式
+- [CLAUDE.md](CLAUDE.md) — 設計上の約束とテストの書き方（コードを読んだだけでは分かりにくい運用ルール）
