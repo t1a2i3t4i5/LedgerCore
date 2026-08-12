@@ -221,7 +221,7 @@ void main() {
     final categoryId = (await db.getCategories()).first.id;
     final memberId = (await db.getMembers()).first.id;
     Future<void> insert(double amount) => db.insertTransaction(
-          TransactionRequest(
+          TransactionInput(
             userId: memberId,
             categoryId: categoryId,
             amount: amount,
@@ -247,7 +247,7 @@ void main() {
 
     final memberId = (await db.getMembers()).first.id;
     await expectLater(
-      db.insertTransaction(TransactionRequest(
+      db.insertTransaction(TransactionInput(
         userId: memberId,
         categoryId: 9999, // 存在しないカテゴリ
         amount: 100,

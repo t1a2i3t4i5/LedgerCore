@@ -27,18 +27,18 @@ void main() {
     final catId = cats.first.id;
     final memberId = members.first.id;
 
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
         userId: memberId,
         categoryId: catId,
         amount: 1000,
         spentAt: DateTime(2026, 7, 1)));
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
         userId: memberId,
         categoryId: catId,
         amount: 2000,
         spentAt: DateTime(2026, 7, 31, 23, 59)));
     // 8/1 00:00 は 7月に含まれない（半開区間の上限）
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
         userId: memberId,
         categoryId: catId,
         amount: 9999,
@@ -55,7 +55,7 @@ void main() {
   test('取引の更新と削除', () async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
         userId: members.first.id,
         categoryId: cats.first.id,
         amount: 500,
@@ -67,7 +67,7 @@ void main() {
 
     await db.updateTransaction(
         id,
-        TransactionRequest(
+        TransactionInput(
             userId: members.first.id,
             categoryId: cats.first.id,
             amount: 750,
@@ -88,7 +88,7 @@ void main() {
     final m1 = members.first.id;
     final m2 = allMembers.firstWhere((m) => m.name == 'パートナー').id;
 
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
         userId: m1,
         categoryId: cats.first.id,
         amount: 1000,
@@ -116,7 +116,7 @@ void main() {
       DateTime(2026, 5, 31, 23, 59),
       DateTime(2026, 6, 1),
     ]) {
-      await db.insertTransaction(TransactionRequest(
+      await db.insertTransaction(TransactionInput(
           userId: memberId, categoryId: catId, amount: 100, spentAt: d));
     }
 
@@ -139,17 +139,17 @@ void main() {
     final food = cats.firstWhere((c) => c.name == '食費').id;
     final transport = cats.firstWhere((c) => c.name == '交通費').id;
 
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
         userId: memberId,
         categoryId: food,
         amount: 1000,
         spentAt: DateTime(2026, 4, 10)));
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
         userId: memberId,
         categoryId: transport,
         amount: 300,
         spentAt: DateTime(2026, 4, 20)));
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
         userId: memberId,
         categoryId: food,
         amount: 500,
@@ -181,7 +181,7 @@ void main() {
       DateTime(2026, 12, 31, 23, 59, 59),
       DateTime(2027, 1, 1),
     ]) {
-      await db.insertTransaction(TransactionRequest(
+      await db.insertTransaction(TransactionInput(
           userId: memberId, categoryId: catId, amount: 100, spentAt: d));
     }
 
@@ -205,7 +205,7 @@ void main() {
     final members = await db.getMembers();
 
     Future<void> insert(double amount) => db.insertTransaction(
-          TransactionRequest(
+          TransactionInput(
             userId: members.first.id,
             categoryId: cats.first.id,
             amount: amount,
@@ -242,7 +242,7 @@ void main() {
     final members = await db.getMembers();
 
     await expectLater(
-      db.insertTransaction(TransactionRequest(
+      db.insertTransaction(TransactionInput(
         userId: members.first.id,
         categoryId: cats.first.id,
         amount: double.nan,
@@ -260,7 +260,7 @@ void main() {
   test('0 以下・小数・上限超過の金額には update できない', () async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
         userId: members.first.id,
         categoryId: cats.first.id,
         amount: 500,
@@ -269,7 +269,7 @@ void main() {
 
     Future<void> updateTo(double amount) => db.updateTransaction(
           id,
-          TransactionRequest(
+          TransactionInput(
             userId: members.first.id,
             categoryId: cats.first.id,
             amount: amount,
@@ -307,7 +307,7 @@ void main() {
     final target =
         (await db.getCategories()).firstWhere((c) => c.name == '臨時費');
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
       userId: members.first.id,
       categoryId: target.id,
       amount: 500,
@@ -332,7 +332,7 @@ void main() {
     final target =
         (await db.getMembers()).firstWhere((m) => m.name == 'パートナー');
     final cats = await db.getCategories();
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
       userId: target.id,
       categoryId: cats.first.id,
       amount: 500,

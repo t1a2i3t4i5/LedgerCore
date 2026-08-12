@@ -21,7 +21,7 @@ void main() {
   /// [existing] を渡すと編集モードで開く
   Future<void> pumpScreen(
     WidgetTester tester, {
-    TransactionResponse? existing,
+    TransactionView? existing,
   }) async {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1.0;
@@ -127,7 +127,7 @@ void main() {
   testWidgets('取引を編集して保存し直しても金額が変わらない', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
       userId: memberId,
       categoryId: cats.first.id,
       amount: 1234,
@@ -153,7 +153,7 @@ void main() {
   testWidgets('整数の取引は編集画面で小数部を出さない', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
       userId: memberId,
       categoryId: cats.first.id,
       amount: 1000,

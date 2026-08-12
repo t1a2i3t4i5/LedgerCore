@@ -5,10 +5,10 @@ import '../models/split.dart';
 
 /// 取引リストから月次サマリー（カテゴリ別・メンバー別）を組み立てる。
 /// カテゴリ別は合計金額の降順（サーバの SUM(amount) DESC を踏襲）。
-MonthlySummaryResponse buildMonthlySummary(
+MonthlySummary buildMonthlySummary(
   int year,
   int month,
-  List<TransactionResponse> txns,
+  List<TransactionView> txns,
 ) {
   final userTotals = <int, double>{};
   final userNames = <int, String>{};
@@ -30,7 +30,7 @@ MonthlySummaryResponse buildMonthlySummary(
 
   final total = byCategory.fold<double>(0, (s, i) => s + i.total);
 
-  return MonthlySummaryResponse(
+  return MonthlySummary(
     year: year,
     month: month,
     total: total,
@@ -42,9 +42,9 @@ MonthlySummaryResponse buildMonthlySummary(
 /// 指定年の年次サマリーを組み立てる。
 /// 月別合計は取引の無い月も 0 で埋めた 12 件を返す（グラフの X 軸を欠けさせないため）。
 /// txns に他の年の取引が混ざっていても、指定年のものだけを集計する。
-YearlySummaryResponse buildYearlySummary(
+YearlySummary buildYearlySummary(
   int year,
-  List<TransactionResponse> txns,
+  List<TransactionView> txns,
 ) {
   final inYear = txns.where((t) => t.spentAt.year == year).toList();
 
@@ -62,7 +62,7 @@ YearlySummaryResponse buildYearlySummary(
     ),
   );
 
-  return YearlySummaryResponse(
+  return YearlySummary(
     year: year,
     total: monthTotals.fold<double>(0, (s, v) => s + v),
     byMonth: byMonth,
@@ -71,7 +71,7 @@ YearlySummaryResponse buildYearlySummary(
 }
 
 /// 年別の合計金額を求める。取引のある年だけを年の昇順で返す。
-List<PeriodTotal> buildYearlyTotals(List<TransactionResponse> txns) {
+List<PeriodTotal> buildYearlyTotals(List<TransactionView> txns) {
   final yearTotals = <int, double>{};
   for (final t in txns) {
     yearTotals[t.spentAt.year] = (yearTotals[t.spentAt.year] ?? 0) + t.amount;
@@ -84,7 +84,7 @@ List<PeriodTotal> buildYearlyTotals(List<TransactionResponse> txns) {
 }
 
 /// カテゴリ別の合計を金額の降順で組み立てる（サーバの SUM(amount) DESC を踏襲）。
-List<CategorySummaryItem> _buildCategoryItems(List<TransactionResponse> txns) {
+List<CategorySummaryItem> _buildCategoryItems(List<TransactionView> txns) {
   final catTotals = <int, double>{};
   final catNames = <int, String>{};
 
@@ -105,10 +105,10 @@ List<CategorySummaryItem> _buildCategoryItems(List<TransactionResponse> txns) {
 
 /// 割り勘を計算する。全メンバーで均等割りし、各自の過不足と精算文を求める。
 /// サーバの SummaryService.getSplit を端末側に移植したもの。
-SplitResponse buildSplit(
+SplitResult buildSplit(
   int year,
   int month,
-  List<TransactionResponse> txns,
+  List<TransactionView> txns,
   List<HouseholdMember> members,
 ) {
   final paidByUser = <int, double>{};
@@ -132,7 +132,7 @@ SplitResponse buildSplit(
       })
       .toList();
 
-  return SplitResponse(
+  return SplitResult(
     year: year,
     month: month,
     total: total,

@@ -37,7 +37,7 @@ color: blue
 
 `docs/design-notes.md` から読み取りにくく、しかし過去に問題になったのが 1 点あります。
 
-- `TransactionResponse` / `userId` / `userName` は派生元 `Ledger`（Flutter + Spring Boot）の REST API の名前が残っているだけで、実際に指しているのは `Members` テーブル（端末内のメンバー）です。この名前を真に受けた実装 — サーバとの通信を想定した構造、`userId` を認証済みユーザーの ID として扱うコード、レスポンスのパース処理 — が入っていないか。**名前そのものの良し悪しは指摘しません**
+- `TransactionView` / `userId` / `userName` の `userId` / `userName` は派生元 `Ledger`（Flutter + Spring Boot）の REST API の名前が残っているだけで、実際に指しているのは `Members` テーブル（端末内のメンバー）です。この名前を真に受けた実装 — サーバとの通信を想定した構造、`userId` を認証済みユーザーの ID として扱うコード、レスポンスのパース処理 — が入っていないか。**名前そのものの良し悪しは指摘しません**
 
 ## 禁止事項（厳守）
 

@@ -10,7 +10,7 @@ import '../widgets/amount_input_formatter.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   // 編集時は既存の取引を渡す
-  final TransactionResponse? existing;
+  final TransactionView? existing;
 
   const AddTransactionScreen({super.key, this.existing});
 
@@ -105,7 +105,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     try {
       final memo = _memoCtrl.text.trim();
       final savedAt = _spentAt;
-      final request = TransactionRequest(
+      final input = TransactionInput(
         userId: _selectedUserId!,
         categoryId: _selectedCategoryId!,
         amount: double.parse(_amountCtrl.text.trim()),
@@ -114,9 +114,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
 
       if (widget.existing != null) {
-        await provider.update(widget.existing!.id, request);
+        await provider.update(widget.existing!.id, input);
       } else {
-        await provider.create(request);
+        await provider.create(input);
       }
 
       if (mounted) {

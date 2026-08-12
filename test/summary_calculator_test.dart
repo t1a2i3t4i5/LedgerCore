@@ -3,7 +3,7 @@ import 'package:ledger_app/db/summary_calculator.dart';
 import 'package:ledger_app/models/household_member.dart';
 import 'package:ledger_app/models/transaction.dart';
 
-TransactionResponse _tx({
+TransactionView _tx({
   int id = 1,
   required int userId,
   required String userName,
@@ -12,7 +12,7 @@ TransactionResponse _tx({
   required double amount,
   DateTime? spentAt,
 }) {
-  return TransactionResponse(
+  return TransactionView(
     id: id,
     userId: userId,
     userName: userName,

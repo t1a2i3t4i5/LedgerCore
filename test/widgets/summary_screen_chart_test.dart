@@ -41,7 +41,7 @@ void main() {
     final memberId = (await db.getMembers()).first.id;
 
     for (final (i, cat) in cats.take(3).indexed) {
-      await db.insertTransaction(TransactionRequest(
+      await db.insertTransaction(TransactionInput(
         userId: memberId,
         categoryId: cat.id,
         amount: (i + 1) * 1000,
