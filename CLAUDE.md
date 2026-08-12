@@ -94,6 +94,8 @@ screens → providers → AppDatabase（drift） → SQLite
 
 ブランチ命名・PR 運用・マージ方式は [docs/git-workflow.md](docs/git-workflow.md) を参照すること。
 
+issue の書き方は [docs/issue-writing.md](docs/issue-writing.md) を参照すること。
+
 ## 言語設定
 
 - 常に日本語で会話する
