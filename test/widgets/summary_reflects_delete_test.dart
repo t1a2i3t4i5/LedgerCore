@@ -35,9 +35,9 @@ void main() {
     // 合計値が個別の金額と衝突しないように 3 件を 2 メンバーへ散らす。
     //   合計 5000 / カテゴリ別 1200・3500・300 / メンバー別 1500・3500
     //   削除後 3800 / カテゴリ別 3500・300 / メンバー別 300・3500
-    Future<void> seed(int userId, int categoryIndex, double amount) =>
+    Future<void> seed(int memberId, int categoryIndex, double amount) =>
         db.insertTransaction(TransactionInput(
-          userId: userId,
+          memberId: memberId,
           categoryId: cats[categoryIndex].id,
           amount: amount,
           spentAt: DateTime(fixedNow.year, fixedNow.month, 5),

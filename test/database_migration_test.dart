@@ -169,7 +169,7 @@ void main() {
     expect(refund.spentAt, DateTime(2026, 7, 10));
     // 名前が空でないだけでは、別カテゴリにすり替わっても気付けない
     expect(refund.categoryName, _categoryName);
-    expect(refund.userName, _memberName);
+    expect(refund.memberName, _memberName);
 
     // id が保たれること。id は updateTransaction / deleteTransaction のキーで、
     // 振り直されると移行直後に「編集したら別の行が書き換わる」ことになる
@@ -222,7 +222,7 @@ void main() {
     final memberId = (await db.getMembers()).first.id;
     Future<void> insert(double amount) => db.insertTransaction(
           TransactionInput(
-            userId: memberId,
+            memberId: memberId,
             categoryId: categoryId,
             amount: amount,
             spentAt: DateTime(2026, 7, 11),
@@ -248,7 +248,7 @@ void main() {
     final memberId = (await db.getMembers()).first.id;
     await expectLater(
       db.insertTransaction(TransactionInput(
-        userId: memberId,
+        memberId: memberId,
         categoryId: 9999, // 存在しないカテゴリ
         amount: 100,
         spentAt: DateTime(2026, 7, 11),

@@ -28,18 +28,18 @@ void main() {
     final memberId = members.first.id;
 
     await db.insertTransaction(TransactionInput(
-        userId: memberId,
+        memberId: memberId,
         categoryId: catId,
         amount: 1000,
         spentAt: DateTime(2026, 7, 1)));
     await db.insertTransaction(TransactionInput(
-        userId: memberId,
+        memberId: memberId,
         categoryId: catId,
         amount: 2000,
         spentAt: DateTime(2026, 7, 31, 23, 59)));
     // 8/1 00:00 は 7月に含まれない（半開区間の上限）
     await db.insertTransaction(TransactionInput(
-        userId: memberId,
+        memberId: memberId,
         categoryId: catId,
         amount: 9999,
         spentAt: DateTime(2026, 8, 1)));
@@ -49,14 +49,14 @@ void main() {
     expect(julyTxns.map((t) => t.amount), containsAll([1000.0, 2000.0]));
     // JOIN で名前が引ける
     expect(julyTxns.first.categoryName, isNotEmpty);
-    expect(julyTxns.first.userName, '自分');
+    expect(julyTxns.first.memberName, '自分');
   });
 
   test('取引の更新と削除', () async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
     await db.insertTransaction(TransactionInput(
-        userId: members.first.id,
+        memberId: members.first.id,
         categoryId: cats.first.id,
         amount: 500,
         spentAt: DateTime(2026, 7, 10)));
@@ -68,7 +68,7 @@ void main() {
     await db.updateTransaction(
         id,
         TransactionInput(
-            userId: members.first.id,
+            memberId: members.first.id,
             categoryId: cats.first.id,
             amount: 750,
             spentAt: DateTime(2026, 7, 10)));
@@ -89,7 +89,7 @@ void main() {
     final m2 = allMembers.firstWhere((m) => m.name == 'パートナー').id;
 
     await db.insertTransaction(TransactionInput(
-        userId: m1,
+        memberId: m1,
         categoryId: cats.first.id,
         amount: 1000,
         spentAt: DateTime(2026, 7, 5)));
@@ -99,8 +99,8 @@ void main() {
 
     final split = await db.getSplit(2026, 7);
     expect(split.fairShare, 500);
-    expect(split.users.length, 2);
-    final b = split.users.firstWhere((u) => u.userId == m2);
+    expect(split.members.length, 2);
+    final b = split.members.firstWhere((m) => m.memberId == m2);
     expect(b.balance, -500);
   });
 
@@ -117,7 +117,7 @@ void main() {
       DateTime(2026, 6, 1),
     ]) {
       await db.insertTransaction(TransactionInput(
-          userId: memberId, categoryId: catId, amount: 100, spentAt: d));
+          memberId: memberId, categoryId: catId, amount: 100, spentAt: d));
     }
 
     // [3/1, 6/1) → 3/1 と 5/31 23:59 の2件。2/28 と 6/1 は範囲外
@@ -140,17 +140,17 @@ void main() {
     final transport = cats.firstWhere((c) => c.name == '交通費').id;
 
     await db.insertTransaction(TransactionInput(
-        userId: memberId,
+        memberId: memberId,
         categoryId: food,
         amount: 1000,
         spentAt: DateTime(2026, 4, 10)));
     await db.insertTransaction(TransactionInput(
-        userId: memberId,
+        memberId: memberId,
         categoryId: transport,
         amount: 300,
         spentAt: DateTime(2026, 4, 20)));
     await db.insertTransaction(TransactionInput(
-        userId: memberId,
+        memberId: memberId,
         categoryId: food,
         amount: 500,
         spentAt: DateTime(2025, 11, 3)));
@@ -182,7 +182,7 @@ void main() {
       DateTime(2027, 1, 1),
     ]) {
       await db.insertTransaction(TransactionInput(
-          userId: memberId, categoryId: catId, amount: 100, spentAt: d));
+          memberId: memberId, categoryId: catId, amount: 100, spentAt: d));
     }
 
     // 純関数側の年フィルタに頼らず、DAO のレンジ指定そのものを検証する
@@ -206,7 +206,7 @@ void main() {
 
     Future<void> insert(double amount) => db.insertTransaction(
           TransactionInput(
-            userId: members.first.id,
+            memberId: members.first.id,
             categoryId: cats.first.id,
             amount: amount,
             spentAt: DateTime(2026, 7, 10),
@@ -243,7 +243,7 @@ void main() {
 
     await expectLater(
       db.insertTransaction(TransactionInput(
-        userId: members.first.id,
+        memberId: members.first.id,
         categoryId: cats.first.id,
         amount: double.nan,
         spentAt: DateTime(2026, 7, 10),
@@ -261,7 +261,7 @@ void main() {
     final cats = await db.getCategories();
     final members = await db.getMembers();
     await db.insertTransaction(TransactionInput(
-        userId: members.first.id,
+        memberId: members.first.id,
         categoryId: cats.first.id,
         amount: 500,
         spentAt: DateTime(2026, 7, 10)));
@@ -270,7 +270,7 @@ void main() {
     Future<void> updateTo(double amount) => db.updateTransaction(
           id,
           TransactionInput(
-            userId: members.first.id,
+            memberId: members.first.id,
             categoryId: cats.first.id,
             amount: amount,
             spentAt: DateTime(2026, 7, 10),
@@ -308,7 +308,7 @@ void main() {
         (await db.getCategories()).firstWhere((c) => c.name == '臨時費');
     final members = await db.getMembers();
     await db.insertTransaction(TransactionInput(
-      userId: members.first.id,
+      memberId: members.first.id,
       categoryId: target.id,
       amount: 500,
       spentAt: DateTime(2026, 7, 10),
@@ -333,7 +333,7 @@ void main() {
         (await db.getMembers()).firstWhere((m) => m.name == 'パートナー');
     final cats = await db.getCategories();
     await db.insertTransaction(TransactionInput(
-      userId: target.id,
+      memberId: target.id,
       categoryId: cats.first.id,
       amount: 500,
       spentAt: DateTime(2026, 7, 10),

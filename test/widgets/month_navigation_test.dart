@@ -32,7 +32,7 @@ void main() {
     final cats = await db.getCategories();
     final members = await db.getMembers();
     await db.insertTransaction(TransactionInput(
-      userId: members.first.id,
+      memberId: members.first.id,
       categoryId: cats.first.id,
       amount: amount,
       spentAt: DateTime(year, month, 5),

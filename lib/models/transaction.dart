@@ -24,8 +24,8 @@ const kMaxAmount = 999999999999.0;
 /// 取引の表示用モデル（端末内DBの JOIN 結果を保持する）
 class TransactionView {
   final int id;
-  final int userId;
-  final String userName;
+  final int memberId;
+  final String memberName;
   final int categoryId;
   final String categoryName;
   final double amount;
@@ -34,8 +34,8 @@ class TransactionView {
 
   const TransactionView({
     required this.id,
-    required this.userId,
-    required this.userName,
+    required this.memberId,
+    required this.memberName,
     required this.categoryId,
     required this.categoryName,
     required this.amount,
@@ -46,14 +46,14 @@ class TransactionView {
 
 /// 取引の作成・更新に使う入力モデル
 class TransactionInput {
-  final int userId;
+  final int memberId;
   final int categoryId;
   final double amount;
   final DateTime spentAt;
   final String? memo;
 
   const TransactionInput({
-    required this.userId,
+    required this.memberId,
     required this.categoryId,
     required this.amount,
     required this.spentAt,

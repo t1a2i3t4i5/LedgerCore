@@ -25,7 +25,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   DateTime _spentAt = DateTime.now();
   int? _selectedCategoryId;
-  int? _selectedUserId;
+  int? _selectedMemberId;
   bool _loading = false;
 
   @override
@@ -39,7 +39,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _memoCtrl.text = ex.memo ?? '';
       _spentAt = ex.spentAt;
       _selectedCategoryId = ex.categoryId;
-      _selectedUserId = ex.userId;
+      _selectedMemberId = ex.memberId;
     }
     // カテゴリ一覧とメンバー一覧を取得する
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -51,10 +51,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       ]);
       if (!mounted) return;
       // 新規登録時は先頭メンバーをデフォルト選択
-      if (widget.existing == null && _selectedUserId == null) {
+      if (widget.existing == null && _selectedMemberId == null) {
         final members = memberProvider.members;
         if (members.isNotEmpty) {
-          setState(() => _selectedUserId = members.first.id);
+          setState(() => _selectedMemberId = members.first.id);
         }
       }
     });
@@ -85,7 +85,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
       return;
     }
-    if (_selectedUserId == null) {
+    if (_selectedMemberId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('登録者を選択してください')),
       );
@@ -106,7 +106,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       final memo = _memoCtrl.text.trim();
       final savedAt = _spentAt;
       final input = TransactionInput(
-        userId: _selectedUserId!,
+        memberId: _selectedMemberId!,
         categoryId: _selectedCategoryId!,
         amount: double.parse(_amountCtrl.text.trim()),
         spentAt: savedAt,
@@ -280,8 +280,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   builder: (context, memberProvider, _) {
                     final members = memberProvider.members;
                     return FormField<int>(
-                      initialValue: _selectedUserId,
-                      validator: (_) => _selectedUserId == null
+                      initialValue: _selectedMemberId,
+                      validator: (_) => _selectedMemberId == null
                           ? '登録者を選択してください'
                           : null,
                       builder: (state) {
@@ -311,7 +311,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                   children: members.map((m) {
                                     return InkWell(
                                       onTap: () {
-                                        setState(() => _selectedUserId = m.id);
+                                        setState(
+                                            () => _selectedMemberId = m.id);
                                         state.didChange(m.id);
                                       },
                                       borderRadius: BorderRadius.circular(4),
@@ -321,11 +322,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                           Radio<int>(
                                             value: m.id,
                                             // ignore: deprecated_member_use
-                                            groupValue: _selectedUserId,
+                                            groupValue: _selectedMemberId,
                                             // ignore: deprecated_member_use
                                             onChanged: (v) {
                                               setState(
-                                                () => _selectedUserId = v,
+                                                () => _selectedMemberId = v,
                                               );
                                               state.didChange(v);
                                             },

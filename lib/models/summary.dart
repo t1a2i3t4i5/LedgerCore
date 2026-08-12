@@ -10,14 +10,14 @@ class CategorySummaryItem {
   });
 }
 
-class UserSummaryItem {
-  final int userId;
-  final String userName;
+class MemberSummaryItem {
+  final int memberId;
+  final String memberName;
   final double total;
 
-  const UserSummaryItem({
-    required this.userId,
-    required this.userName,
+  const MemberSummaryItem({
+    required this.memberId,
+    required this.memberName,
     required this.total,
   });
 }
@@ -43,14 +43,14 @@ class MonthlySummary {
   final int month;
   final double total;
   final List<CategorySummaryItem> byCategory;
-  final List<UserSummaryItem> byUser;
+  final List<MemberSummaryItem> byMember;
 
   const MonthlySummary({
     required this.year,
     required this.month,
     required this.total,
     required this.byCategory,
-    required this.byUser,
+    required this.byMember,
   });
 }
 

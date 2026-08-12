@@ -108,7 +108,7 @@ void main() {
   testWidgets('設定済みの条件が復元され、打ち替えた分だけ適用される', (tester) async {
     provider.setFilters(
       categoryIds: const {},
-      userIds: const {},
+      memberIds: const {},
       minAmount: 1234,
       maxAmount: 5678,
       memoQuery: '',

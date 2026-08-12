@@ -10,20 +10,20 @@ MonthlySummary buildMonthlySummary(
   int month,
   List<TransactionView> txns,
 ) {
-  final userTotals = <int, double>{};
-  final userNames = <int, String>{};
+  final memberTotals = <int, double>{};
+  final memberNames = <int, String>{};
 
   for (final t in txns) {
-    userTotals[t.userId] = (userTotals[t.userId] ?? 0) + t.amount;
-    userNames[t.userId] = t.userName;
+    memberTotals[t.memberId] = (memberTotals[t.memberId] ?? 0) + t.amount;
+    memberNames[t.memberId] = t.memberName;
   }
 
   final byCategory = _buildCategoryItems(txns);
 
-  final byUser = userTotals.entries
-      .map((e) => UserSummaryItem(
-            userId: e.key,
-            userName: userNames[e.key]!,
+  final byMember = memberTotals.entries
+      .map((e) => MemberSummaryItem(
+            memberId: e.key,
+            memberName: memberNames[e.key]!,
             total: e.value,
           ))
       .toList();
@@ -35,7 +35,7 @@ MonthlySummary buildMonthlySummary(
     month: month,
     total: total,
     byCategory: byCategory,
-    byUser: byUser,
+    byMember: byMember,
   );
 }
 
@@ -111,21 +111,21 @@ SplitResult buildSplit(
   List<TransactionView> txns,
   List<HouseholdMember> members,
 ) {
-  final paidByUser = <int, double>{};
+  final paidByMember = <int, double>{};
   for (final t in txns) {
-    paidByUser[t.userId] = (paidByUser[t.userId] ?? 0) + t.amount;
+    paidByMember[t.memberId] = (paidByMember[t.memberId] ?? 0) + t.amount;
   }
 
-  final total = paidByUser.values.fold<double>(0, (s, v) => s + v);
+  final total = paidByMember.values.fold<double>(0, (s, v) => s + v);
   final memberCount = members.isEmpty ? 1 : members.length;
   final fairShare = _roundHalfUp2(total / memberCount);
 
   final balances = members
       .map((m) {
-        final paid = paidByUser[m.id] ?? 0.0;
-        return UserBalance(
-          userId: m.id,
-          userName: m.name,
+        final paid = paidByMember[m.id] ?? 0.0;
+        return MemberBalance(
+          memberId: m.id,
+          memberName: m.name,
           paid: paid,
           balance: paid - fairShare,
         );
@@ -137,7 +137,7 @@ SplitResult buildSplit(
     month: month,
     total: total,
     fairShare: fairShare,
-    users: balances,
+    members: balances,
     settlement: _buildSettlement(balances),
   );
 }
@@ -147,7 +147,7 @@ double _roundHalfUp2(double v) => (v * 100).roundToDouble() / 100;
 
 /// 精算メッセージを生成する。
 /// 正の残高（払い過ぎ）＝受け取り側、負の残高（払い不足）＝支払い側。
-String _buildSettlement(List<UserBalance> balances) {
+String _buildSettlement(List<MemberBalance> balances) {
   final creditors = balances.where((b) => b.balance > 0).toList()
     ..sort((a, b) => b.balance.compareTo(a.balance));
   final debtors = balances.where((b) => b.balance < 0).toList()
@@ -161,13 +161,13 @@ String _buildSettlement(List<UserBalance> balances) {
   if (balances.length == 2 && creditors.length == 1 && debtors.length == 1) {
     final debtor = debtors.first;
     final creditor = creditors.first;
-    return '${debtor.userName} → ${creditor.userName} に ${_yen(debtor.balance.abs())} 円支払う';
+    return '${debtor.memberName} → ${creditor.memberName} に ${_yen(debtor.balance.abs())} 円支払う';
   }
 
   // 3人以上は一覧形式
   final sb = StringBuffer();
   for (final d in debtors) {
-    sb.writeln('${d.userName} は ${_yen(d.balance.abs())} 円の支払いが必要');
+    sb.writeln('${d.memberName} は ${_yen(d.balance.abs())} 円の支払いが必要');
   }
   return sb.toString().trim();
 }

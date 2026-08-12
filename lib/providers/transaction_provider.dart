@@ -23,7 +23,7 @@ class TransactionProvider extends MonthScopedProvider {
 
   // ---- フィルター状態 ----
   Set<int> _filterCategoryIds = {};
-  Set<int> _filterUserIds = {};
+  Set<int> _filterMemberIds = {};
   double? _filterMinAmount;
   double? _filterMaxAmount;
   String _filterMemoQuery = '';
@@ -39,7 +39,7 @@ class TransactionProvider extends MonthScopedProvider {
   TransactionSortField get sortField => _sortField;
   SortOrder get sortOrder => _sortOrder;
   Set<int> get filterCategoryIds => _filterCategoryIds;
-  Set<int> get filterUserIds => _filterUserIds;
+  Set<int> get filterMemberIds => _filterMemberIds;
   double? get filterMinAmount => _filterMinAmount;
   double? get filterMaxAmount => _filterMaxAmount;
   String get filterMemoQuery => _filterMemoQuery;
@@ -51,7 +51,8 @@ class TransactionProvider extends MonthScopedProvider {
           !_filterCategoryIds.contains(t.categoryId)) {
         return false;
       }
-      if (_filterUserIds.isNotEmpty && !_filterUserIds.contains(t.userId)) {
+      if (_filterMemberIds.isNotEmpty &&
+          !_filterMemberIds.contains(t.memberId)) {
         return false;
       }
       if (_filterMinAmount != null && t.amount < _filterMinAmount!) {
@@ -84,7 +85,7 @@ class TransactionProvider extends MonthScopedProvider {
   int get activeFilterCount {
     var n = 0;
     if (_filterCategoryIds.isNotEmpty) n++;
-    if (_filterUserIds.isNotEmpty) n++;
+    if (_filterMemberIds.isNotEmpty) n++;
     if (_filterMinAmount != null || _filterMaxAmount != null) n++;
     if (_filterMemoQuery.isNotEmpty) n++;
     return n;
@@ -104,13 +105,13 @@ class TransactionProvider extends MonthScopedProvider {
   /// フィルターを一括設定する
   void setFilters({
     Set<int>? categoryIds,
-    Set<int>? userIds,
+    Set<int>? memberIds,
     double? minAmount,
     double? maxAmount,
     String? memoQuery,
   }) {
     _filterCategoryIds = categoryIds ?? {};
-    _filterUserIds = userIds ?? {};
+    _filterMemberIds = memberIds ?? {};
     _filterMinAmount = minAmount;
     _filterMaxAmount = maxAmount;
     _filterMemoQuery = memoQuery ?? '';
@@ -120,7 +121,7 @@ class TransactionProvider extends MonthScopedProvider {
   /// フィルターを全てクリアする
   void resetFilters() {
     _filterCategoryIds = {};
-    _filterUserIds = {};
+    _filterMemberIds = {};
     _filterMinAmount = null;
     _filterMaxAmount = null;
     _filterMemoQuery = '';

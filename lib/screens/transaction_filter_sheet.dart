@@ -20,7 +20,7 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
   late TransactionSortField _sortField;
   late SortOrder _sortOrder;
   late Set<int> _categoryIds;
-  late Set<int> _userIds;
+  late Set<int> _memberIds;
   final _minAmountCtrl = TextEditingController();
   final _maxAmountCtrl = TextEditingController();
   final _memoCtrl = TextEditingController();
@@ -32,7 +32,7 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
     _sortField = p.sortField;
     _sortOrder = p.sortOrder;
     _categoryIds = {...p.filterCategoryIds};
-    _userIds = {...p.filterUserIds};
+    _memberIds = {...p.filterMemberIds};
     // 入力欄が整数しか受け付けないので、整形して往復しても値は変わらない
     if (p.filterMinAmount != null) {
       _minAmountCtrl.text = formatAmountForInput(p.filterMinAmount!);
@@ -88,7 +88,7 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
     p.setSort(_sortField, _sortOrder);
     p.setFilters(
       categoryIds: _categoryIds,
-      userIds: _userIds,
+      memberIds: _memberIds,
       minAmount: min,
       maxAmount: max,
       memoQuery: _memoCtrl.text.trim(),
@@ -218,15 +218,15 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                   spacing: 8,
                   runSpacing: 4,
                   children: members.map((m) {
-                    final selected = _userIds.contains(m.id);
+                    final selected = _memberIds.contains(m.id);
                     return FilterChip(
                       label: Text(m.name),
                       selected: selected,
                       onSelected: (v) => setState(() {
                         if (v) {
-                          _userIds.add(m.id);
+                          _memberIds.add(m.id);
                         } else {
-                          _userIds.remove(m.id);
+                          _memberIds.remove(m.id);
                         }
                       }),
                     );
