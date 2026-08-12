@@ -10,6 +10,14 @@
 
 内部で生成しない。状態更新後は `notifyListeners()` を呼ぶ。
 
+## 支払者は `Members`。表示層でも `memberId` / `memberName` と呼ぶ
+
+`Transactions.memberId` が参照するのは `Members` テーブルで、**`Users` テーブルは存在しない**。このアプリにアカウントも認証もサーバもないので、`user` という語が指すものが実在しない。
+
+表示層（`lib/models/` の `TransactionView` / `TransactionInput` / `MemberSummaryItem` / `MemberBalance`、集計、画面、Provider のフィルター）は長く `userId` / `userName` を使っていた。サーバ + REST API 構成から移植した名残で、名前が入れ替わる境目は `database.dart` の JOIN の詰め替え 1 か所だけだったので動作自体は正しかった。それでも「`userId` は認証済みユーザーの ID だ」と読める状態が残り、読む側が毎回「実際は members を指す」と読み替える必要があった。現在は `memberId` / `memberName` に揃えてある。
+
+`User` 系の名前を戻さないこと。名前を真に受けた実装 — サーバとの通信を想定した構造、`userId` を認証済みユーザーの ID として扱うコード、レスポンスのパース処理 — が入っていないかを差分ごとに確かめる。テーブルと表示用モデルの対応表は [db-schema.md](db-schema.md) にある。
+
 ## 月の範囲指定は半開区間
 
 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）。
