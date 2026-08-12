@@ -53,8 +53,6 @@ color: green
 
 追従漏れは **読んだ人が実際に間違える場合に限って** 報告します。テーブル定義や `schemaVersion` を変えたなら `docs/db-schema.md` と CLAUDE.md が同じ差分で追従しているか、`README.md` / `docs/git-workflow.md` の手順が実態とずれていないか。
 
-`docs/design-notes.md` と `docs/testing.md` も追従先です。この 2 つはテストのヘルパ名・ファイル名・画面の文言（`pickDate`、`save_feedback_test.dart`、SnackBar の文面など）を単独で抱えているので、実装側でリネームや文言変更があったときに置き去りにされやすいところです。
-
 ## 禁止事項（厳守）
 
 - 次は絶対に実行しない: `flutter test` / `flutter analyze` / `flutter run` / `dart run build_runner` / `dart test` / `flutter pub`。他のレビュアーと並行実行され `.dart_tool` を奪い合って結果が壊れる。実測は依頼元が後段で直列に行う
