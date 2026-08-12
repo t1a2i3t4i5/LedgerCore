@@ -204,7 +204,8 @@ gh pr diff <num>                 # PR の差分を表示
 
 gh issue list                    # Issue 一覧
 gh issue view <num>              # Issue 詳細
-gh issue create                  # Issue 作成
+gh issue create                  # Issue 作成(テンプレートを選ばせる)
+gh issue create --template issue.md  # 雛形付きでエディタを開く
 
 gh repo view --web               # リポジトリをブラウザで開く
 ```
