@@ -42,7 +42,7 @@ void main() {
 
     for (final (i, cat) in cats.take(3).indexed) {
       await db.insertTransaction(TransactionInput(
-        userId: memberId,
+        memberId: memberId,
         categoryId: cat.id,
         amount: (i + 1) * 1000,
         spentAt: DateTime(fixedNow.year, fixedNow.month, 5),

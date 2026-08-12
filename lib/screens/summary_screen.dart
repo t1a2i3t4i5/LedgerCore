@@ -137,12 +137,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 Text('メンバー別',
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                ...provider.summary!.byUser.map(
+                ...provider.summary!.byMember.map(
                   (item) => ListTile(
                     leading: CircleAvatar(
-                      child: Text(item.userName[0]),
+                      child: Text(item.memberName[0]),
                     ),
-                    title: Text(item.userName),
+                    title: Text(item.memberName),
                     trailing: Text('¥${_fmt.format(item.total)}'),
                     dense: true,
                   ),

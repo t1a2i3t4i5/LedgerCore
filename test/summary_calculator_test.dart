@@ -5,8 +5,8 @@ import 'package:ledger_app/models/transaction.dart';
 
 TransactionView _tx({
   int id = 1,
-  required int userId,
-  required String userName,
+  required int memberId,
+  required String memberName,
   int categoryId = 1,
   String categoryName = '食費',
   required double amount,
@@ -14,8 +14,8 @@ TransactionView _tx({
 }) {
   return TransactionView(
     id: id,
-    userId: userId,
-    userName: userName,
+    memberId: memberId,
+    memberName: memberName,
     categoryId: categoryId,
     categoryName: categoryName,
     amount: amount,
@@ -27,9 +27,9 @@ void main() {
   group('buildMonthlySummary', () {
     test('カテゴリ別は合計の降順、totalは総和', () {
       final txns = [
-        _tx(userId: 1, userName: 'A', categoryId: 1, categoryName: '食費', amount: 500),
-        _tx(userId: 1, userName: 'A', categoryId: 2, categoryName: '交通費', amount: 1500),
-        _tx(userId: 2, userName: 'B', categoryId: 1, categoryName: '食費', amount: 300),
+        _tx(memberId: 1, memberName: 'A', categoryId: 1, categoryName: '食費', amount: 500),
+        _tx(memberId: 1, memberName: 'A', categoryId: 2, categoryName: '交通費', amount: 1500),
+        _tx(memberId: 2, memberName: 'B', categoryId: 1, categoryName: '食費', amount: 300),
       ];
 
       final s = buildMonthlySummary(2026, 7, txns);
@@ -44,31 +44,31 @@ void main() {
 
     test('メンバー別に集計される', () {
       final txns = [
-        _tx(userId: 1, userName: 'A', amount: 500),
-        _tx(userId: 1, userName: 'A', amount: 500),
-        _tx(userId: 2, userName: 'B', amount: 300),
+        _tx(memberId: 1, memberName: 'A', amount: 500),
+        _tx(memberId: 1, memberName: 'A', amount: 500),
+        _tx(memberId: 2, memberName: 'B', amount: 300),
       ];
 
       final s = buildMonthlySummary(2026, 7, txns);
-      final byUser = {for (final u in s.byUser) u.userName: u.total};
-      expect(byUser['A'], 1000);
-      expect(byUser['B'], 300);
+      final byMember = {for (final u in s.byMember) u.memberName: u.total};
+      expect(byMember['A'], 1000);
+      expect(byMember['B'], 300);
     });
 
     test('取引が無ければ total は 0', () {
       final s = buildMonthlySummary(2026, 7, []);
       expect(s.total, 0);
       expect(s.byCategory, isEmpty);
-      expect(s.byUser, isEmpty);
+      expect(s.byMember, isEmpty);
     });
   });
 
   group('buildYearlySummary', () {
     test('取引の無い月も 0 で埋めた12件を返す', () {
       final txns = [
-        _tx(userId: 1, userName: 'A', amount: 1000, spentAt: DateTime(2026, 3, 5)),
-        _tx(userId: 1, userName: 'A', amount: 500, spentAt: DateTime(2026, 3, 20)),
-        _tx(userId: 1, userName: 'A', amount: 2000, spentAt: DateTime(2026, 12, 31)),
+        _tx(memberId: 1, memberName: 'A', amount: 1000, spentAt: DateTime(2026, 3, 5)),
+        _tx(memberId: 1, memberName: 'A', amount: 500, spentAt: DateTime(2026, 3, 20)),
+        _tx(memberId: 1, memberName: 'A', amount: 2000, spentAt: DateTime(2026, 12, 31)),
       ];
 
       final s = buildYearlySummary(2026, txns);
@@ -85,9 +85,9 @@ void main() {
 
     test('他の年の取引は集計に含めない', () {
       final txns = [
-        _tx(userId: 1, userName: 'A', amount: 1000, spentAt: DateTime(2025, 12, 31)),
-        _tx(userId: 1, userName: 'A', amount: 300, spentAt: DateTime(2026, 1, 1)),
-        _tx(userId: 1, userName: 'A', amount: 700, spentAt: DateTime(2027, 1, 1)),
+        _tx(memberId: 1, memberName: 'A', amount: 1000, spentAt: DateTime(2025, 12, 31)),
+        _tx(memberId: 1, memberName: 'A', amount: 300, spentAt: DateTime(2026, 1, 1)),
+        _tx(memberId: 1, memberName: 'A', amount: 700, spentAt: DateTime(2027, 1, 1)),
       ];
 
       final s = buildYearlySummary(2026, txns);
@@ -99,9 +99,9 @@ void main() {
 
     test('カテゴリ別は年合計の降順', () {
       final txns = [
-        _tx(userId: 1, userName: 'A', categoryId: 1, categoryName: '食費', amount: 400, spentAt: DateTime(2026, 2, 1)),
-        _tx(userId: 1, userName: 'A', categoryId: 1, categoryName: '食費', amount: 400, spentAt: DateTime(2026, 9, 1)),
-        _tx(userId: 1, userName: 'A', categoryId: 2, categoryName: '交通費', amount: 500, spentAt: DateTime(2026, 5, 1)),
+        _tx(memberId: 1, memberName: 'A', categoryId: 1, categoryName: '食費', amount: 400, spentAt: DateTime(2026, 2, 1)),
+        _tx(memberId: 1, memberName: 'A', categoryId: 1, categoryName: '食費', amount: 400, spentAt: DateTime(2026, 9, 1)),
+        _tx(memberId: 1, memberName: 'A', categoryId: 2, categoryName: '交通費', amount: 500, spentAt: DateTime(2026, 5, 1)),
       ];
 
       final s = buildYearlySummary(2026, txns);
@@ -122,9 +122,9 @@ void main() {
   group('buildYearlyTotals', () {
     test('取引のある年だけを昇順で返す', () {
       final txns = [
-        _tx(userId: 1, userName: 'A', amount: 100, spentAt: DateTime(2026, 5, 1)),
-        _tx(userId: 1, userName: 'A', amount: 200, spentAt: DateTime(2024, 8, 1)),
-        _tx(userId: 1, userName: 'A', amount: 300, spentAt: DateTime(2026, 1, 1)),
+        _tx(memberId: 1, memberName: 'A', amount: 100, spentAt: DateTime(2026, 5, 1)),
+        _tx(memberId: 1, memberName: 'A', amount: 200, spentAt: DateTime(2024, 8, 1)),
+        _tx(memberId: 1, memberName: 'A', amount: 300, spentAt: DateTime(2026, 1, 1)),
       ];
 
       final totals = buildYearlyTotals(txns);
@@ -148,13 +148,13 @@ void main() {
     ];
 
     test('2人: 片方が全額払ったら「支払う」文言', () {
-      final txns = [_tx(userId: 1, userName: 'A', amount: 1000)];
+      final txns = [_tx(memberId: 1, memberName: 'A', amount: 1000)];
       final split = buildSplit(2026, 7, txns, members2);
 
       expect(split.total, 1000);
       expect(split.fairShare, 500);
-      final a = split.users.firstWhere((u) => u.userId == 1);
-      final b = split.users.firstWhere((u) => u.userId == 2);
+      final a = split.members.firstWhere((m) => m.memberId == 1);
+      final b = split.members.firstWhere((m) => m.memberId == 2);
       expect(a.balance, 500);
       expect(b.balance, -500);
       expect(split.settlement, 'B → A に 500 円支払う');
@@ -162,8 +162,8 @@ void main() {
 
     test('均等に払っていれば精算不要', () {
       final txns = [
-        _tx(userId: 1, userName: 'A', amount: 500),
-        _tx(userId: 2, userName: 'B', amount: 500),
+        _tx(memberId: 1, memberName: 'A', amount: 500),
+        _tx(memberId: 2, memberName: 'B', amount: 500),
       ];
       final split = buildSplit(2026, 7, txns, members2);
       expect(split.settlement, '精算不要');
@@ -175,7 +175,7 @@ void main() {
         const HouseholdMember(id: 2, name: 'B'),
         const HouseholdMember(id: 3, name: 'C'),
       ];
-      final txns = [_tx(userId: 1, userName: 'A', amount: 3000)];
+      final txns = [_tx(memberId: 1, memberName: 'A', amount: 3000)];
       final split = buildSplit(2026, 7, txns, members3);
 
       expect(split.total, 3000);
@@ -187,11 +187,11 @@ void main() {
     });
 
     test('支出0のメンバーも均等割の対象になる', () {
-      final txns = [_tx(userId: 1, userName: 'A', amount: 900)];
+      final txns = [_tx(memberId: 1, memberName: 'A', amount: 900)];
       final split = buildSplit(2026, 7, txns, members2);
       // 900 / 2 = 450
       expect(split.fairShare, 450);
-      final b = split.users.firstWhere((u) => u.userId == 2);
+      final b = split.members.firstWhere((m) => m.memberId == 2);
       expect(b.paid, 0);
       expect(b.balance, -450);
     });
@@ -202,7 +202,7 @@ void main() {
         const HouseholdMember(id: 2, name: 'B'),
         const HouseholdMember(id: 3, name: 'C'),
       ];
-      final txns = [_tx(userId: 1, userName: 'A', amount: 100)];
+      final txns = [_tx(memberId: 1, memberName: 'A', amount: 100)];
       final split = buildSplit(2026, 7, txns, members3);
       // 100 / 3 = 33.333... -> 33.33
       expect(split.fairShare, 33.33);

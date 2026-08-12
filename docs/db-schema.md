@@ -178,25 +178,23 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | --- | --- | --- |
 | `CategoryView` | `categories` | `id` / `name` のみ |
 | `HouseholdMember` | `members` | `id` / `name` / `mail` |
-| `TransactionView` | `transactions` + `members` + `categories` の JOIN | 下記の命名の注意を参照 |
-| `TransactionInput` | 書き込み用の入力 | `userId` が `member_id` に入る |
-| `MonthlySummary` / `YearlySummary` / `CategorySummaryItem` / `UserSummaryItem` / `PeriodTotal` | なし | `summary_calculator.dart` が取引リストから計算する導出値。DB には保存されない |
-| `SplitResult` / `UserBalance` | なし | 同上（割り勘の計算結果） |
+| `TransactionView` | `transactions` + `members` + `categories` の JOIN | 下記のフィールド対応を参照 |
+| `TransactionInput` | 書き込み用の入力 | `memberId` が `member_id` に入る |
+| `MonthlySummary` / `YearlySummary` / `CategorySummaryItem` / `MemberSummaryItem` / `PeriodTotal` | なし | `summary_calculator.dart` が取引リストから計算する導出値。DB には保存されない |
+| `SplitResult` / `MemberBalance` | なし | 同上（割り勘の計算結果） |
 
-### `userId` / `userName` は members を指す
-
-`TransactionView` と `TransactionInput` は `userId` / `userName` という名前を使っているが、
-**`Users` テーブルは存在しない**。対応は次のとおり。
+### `TransactionView` のフィールド対応
 
 | モデルのフィールド | 実際の出どころ |
 | --- | --- |
-| `TransactionView.userId` | `members.id` |
-| `TransactionView.userName` | `members.name` |
+| `TransactionView.memberId` | `members.id` |
+| `TransactionView.memberName` | `members.name` |
 | `TransactionView.categoryId` | `categories.id` |
 | `TransactionView.categoryName` | `categories.name` |
-| `TransactionInput.userId` | `transactions.member_id` に書き込まれる |
+| `TransactionInput.memberId` | `transactions.member_id` に書き込まれる |
 
-`UserSummaryItem.userId` / `userName`、`UserBalance.userId` / `userName` も同じくメンバーを指す。
+`MemberSummaryItem` / `MemberBalance` の `memberId` / `memberName` も同じく `members` を指す。
+**`Users` テーブルは存在しない**ので、これらを `userId` / `userName` に戻さないこと。
 
 ## スキーマを変更するとき
 

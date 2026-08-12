@@ -157,22 +157,22 @@ class _SplitScreenState extends State<SplitScreen> {
                 Text('メンバー別支払い状況',
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                ...provider.split!.users.map((u) {
-                  final isOver = u.balance > 0;
-                  final isUnder = u.balance < 0;
+                ...provider.split!.members.map((m) {
+                  final isOver = m.balance > 0;
+                  final isUnder = m.balance < 0;
                   return Card(
                     child: ListTile(
-                      leading: CircleAvatar(child: Text(u.userName[0])),
-                      title: Text(u.userName),
-                      subtitle: Text('支払済み: ¥${_fmt.format(u.paid)}'),
+                      leading: CircleAvatar(child: Text(m.memberName[0])),
+                      title: Text(m.memberName),
+                      subtitle: Text('支払済み: ¥${_fmt.format(m.paid)}'),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
                             isOver
-                                ? '+¥${_fmt.format(u.balance)}'
-                                : '¥${_fmt.format(u.balance)}',
+                                ? '+¥${_fmt.format(m.balance)}'
+                                : '¥${_fmt.format(m.balance)}',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: isOver

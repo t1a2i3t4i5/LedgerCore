@@ -128,7 +128,7 @@ void main() {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
     await db.insertTransaction(TransactionInput(
-      userId: memberId,
+      memberId: memberId,
       categoryId: cats.first.id,
       amount: 1234,
       spentAt: DateTime(2026, 7, 10),
@@ -154,7 +154,7 @@ void main() {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
     await db.insertTransaction(TransactionInput(
-      userId: memberId,
+      memberId: memberId,
       categoryId: cats.first.id,
       amount: 1000,
       spentAt: DateTime(2026, 7, 10),

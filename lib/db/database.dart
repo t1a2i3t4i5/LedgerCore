@@ -29,7 +29,8 @@ class Categories extends Table {
   TextColumn get name => text().withLength(min: 1, max: 50)();
 }
 
-/// 割り勘の対象者（旧 User / HouseholdMember の代替）
+/// 支出を負担する世帯のメンバー。取引の支払者であり、割り勘の頭割りの分母。
+/// アカウントでも認証の主体でもない（このアプリに認証は存在しない）。
 class Members extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 50)();
@@ -266,8 +267,8 @@ class AppDatabase extends _$AppDatabase {
       final c = row.readTable(categories);
       return TransactionView(
         id: t.id,
-        userId: m.id,
-        userName: m.name,
+        memberId: m.id,
+        memberName: m.name,
         categoryId: c.id,
         categoryName: c.name,
         amount: t.amount,
@@ -279,7 +280,7 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> insertTransaction(TransactionInput input) =>
       into(transactions).insert(TransactionsCompanion.insert(
-        memberId: input.userId,
+        memberId: input.memberId,
         categoryId: input.categoryId,
         amount: input.amount,
         spentAt: input.spentAt,
@@ -289,7 +290,7 @@ class AppDatabase extends _$AppDatabase {
   Future<void> updateTransaction(int id, TransactionInput input) =>
       (update(transactions)..where((t) => t.id.equals(id))).write(
         TransactionsCompanion(
-          memberId: Value(input.userId),
+          memberId: Value(input.memberId),
           categoryId: Value(input.categoryId),
           amount: Value(input.amount),
           spentAt: Value(input.spentAt),

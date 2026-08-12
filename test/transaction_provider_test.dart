@@ -35,7 +35,7 @@ void main() {
     final cats = await db.getCategories();
     final members = await db.getMembers();
     await db.insertTransaction(TransactionInput(
-      userId: members.first.id,
+      memberId: members.first.id,
       categoryId: cats[categoryIndex].id,
       amount: amount,
       spentAt: DateTime(2026, 7, 10),

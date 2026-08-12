@@ -213,7 +213,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                       ),
                                       title: Text(t.categoryName),
                                       subtitle: Text(
-                                        '${t.userName}${t.memo != null && t.memo!.isNotEmpty ? ' · ${t.memo}' : ''}',
+                                        '${t.memberName}${t.memo != null && t.memo!.isNotEmpty ? ' · ${t.memo}' : ''}',
                                       ),
                                       trailing: Text(
                                         '¥${_fmt.format(t.amount)}',
