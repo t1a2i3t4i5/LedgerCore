@@ -10,12 +10,6 @@
 
 内部で生成しない。状態更新後は `notifyListeners()` を呼ぶ。
 
-## 命名に注意
-
-`TransactionView` / `userId` / `userName` が実際に指しているのは `Members` テーブル（端末内のメンバー）。ユーザーアカウントではない。名前に引きずられて認証やネットワークの層を想定しないこと。
-
-表示用モデルの接尾辞は読み出し用が `View`、書き込み用が `Input`。かつての `Response` / `Request` は派生元 `Ledger`（Flutter + Spring Boot）の REST API の名残で、HTTP を連想させるので外した。素の `Category` / `Transaction` にできないのは、drift の生成データクラスが同じ名前を使っているため。
-
 ## 月の範囲指定は半開区間
 
 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）。

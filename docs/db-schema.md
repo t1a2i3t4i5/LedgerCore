@@ -185,7 +185,7 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 
 ### `userId` / `userName` は members を指す
 
-`TransactionView` と `TransactionInput` のフィールド名は REST API 時代の名残で、
+`TransactionView` と `TransactionInput` は `userId` / `userName` という名前を使っているが、
 **`Users` テーブルは存在しない**。対応は次のとおり。
 
 | モデルのフィールド | 実際の出どころ |
