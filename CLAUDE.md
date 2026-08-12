@@ -56,42 +56,39 @@ screens → providers → AppDatabase（drift） → SQLite
 
 ## 設計上の約束
 
-- **集計ロジックは純関数に置く** — `summary_calculator.dart` の `buildMonthlySummary` / `buildSplit` は DB に触らず、取引リストを受け取って結果を返す。DB アクセスと計算を混ぜないことでテストしやすさを保つ
-- **Provider は `AppDatabase` を注入で受け取る** — 内部で生成しない。状態更新後は `notifyListeners()` を呼ぶ
-- **命名に注意** — `TransactionResponse` / `userId` / `userName` が実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスでもユーザーアカウントでもない。名前に引きずられて認証やネットワークの層を想定しないこと
-- 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）
-- **表示月の判断に画面から `DateTime.now()` を読まない** — 表示月の状態は `providers/month_scoped_provider.dart` の `MonthScopedProvider` に集約する。初期表示月・`isCurrentMonth`・`changeMonth`・`goToCurrentMonth` はすべて、Provider に注入された `clock`（既定 `DateTime.now`）1 つから導かれる。画面側で now を読み直すと判断材料が 2 層に分かれ、画面テストが実時刻に依存して月末に落ちる
-  - **取引追加画面の既定日付（`add_transaction_screen.dart` の `_spentAt`）はこの規則の対象外** — 意図的に実時刻を使う。表示中の月ではなく「今日」を既定にするのは、過去月を見返している最中に思い出した今日の出費を、徴候なく過去月へ沈めないため。表示月に寄せると「月しか選べない UI から日を捏造する」ことにもなる（`spentAt` の日は一覧のアバターとソートに効く）。**このずれは残す前提で、フィードバック側で誤認を潰す**（次項）
-  - **保存先の月が表示月と違うことは、画面が言葉で知らせる** — 既定日付が表示月と独立している以上、両者がずれたまま保存する経路は残る。ずれたまま保存すると一覧にも合計にも何も現れず、成功したのに「保存に失敗した」ようにしか見えない。これを次の 2 段で潰す
-    - 保存前: 日付欄の `helperText` に「表示中の 2026年7月 とは別の月です」を出す（事前に気づける）
-    - 保存後: 成功時は必ず SnackBar を出す。同じ月なら「保存しました」、別の月なら保存先を名指しした「2026年8月に保存しました」＋ `その月を表示` で移動できるようにする
-    - **保存後に表示月を自動で切り替えない** — 結果は必ず見えるようになるが、ユーザーの閲覧文脈を無断で移すことになる。移るかどうかは `その月を表示` を押すかで本人が決める
-  - **アクション付きの SnackBar は `floating` にして FAB を避ける** — SnackBar が出るのは `MainScreen` の Scaffold（ルートの `ScaffoldMessenger`）だが、FAB を持っているのは `TransactionsScreen` の入れ子の Scaffold なので、既定の `fixed` では FAB が押し上げられない。実測で `その月を表示` は FAB にぴたりと重なっており、続けてもう 1 件追加しようとしたタップがそのまま月移動になっていた。`behavior: SnackBarBehavior.floating` と下 88px の `margin` で FAB の上へ逃がす
-  - **タブを移ったら `hideCurrentSnackBar()` を呼ぶ**（`main_screen.dart` の `onDestinationSelected`）— SnackBar はルートに出るのでタブを移っても残る。サマリータブで `その月を表示` を押せてしまうと、画面は何も変わらないまま取引一覧の表示月だけが裏で動く
-  - **月をまたぐ操作は Provider 側で `fetch()` まで済ませる** — `changeMonth` / `goToCurrentMonth` / `goToMonth` は表示月を変えたうえで再取得する。画面に `setYearMonth` と再取得を並べると、取引・サマリー・割り勘の 3 画面で同じ 2 行を書くことになり、片方だけ書き忘れると「月を送ったのに中身が前の月のまま」になる。`setYearMonth` は `@visibleForTesting` で閉じてあるので production からは使わない
-    - 相対移動でない月ジャンプ（保存後の `その月を表示` など）は `goToMonth(year, month)` を使う。`changeMonth` に差分を計算して渡す書き方はしない — 呼ぶ側が年またぎの計算を持つことになる
-  - **画面テストは `clock` を注入して固定年月で書く** — 詳細は下記「テストの書き方」を参照
-- **金額は正の整数のみ** — 入力側（`add_transaction_screen.dart` の validator）と DB の CHECK 制約の二重で守る。上限は `models/transaction.dart` の `kMaxAmount` を両方が参照し、入力欄の桁数制限も同じ値から導出しているので、変えるときはそこだけを直す。片方にしか無い条件を足すと「画面では通るのに保存で落ちる」か、その逆になる。ただし割り勘の `fairShare` は `合計 ÷ 人数` の導出値なので小数のまま
-  - **`kMaxAmount` はスキーマ定義値でもある** — CHECK 制約にリテラルとして焼き込まれるため、値を変えるだけでは済まない。`schemaVersion` のインクリメントと移行、固定スキーマの再生成まで必要（下記「DB スキーマ変更時の注意」）
-  - **金額を描くウィジェットテストには `kMaxAmount` を使ったケースを置く** — `¥999,999,999,999` は実機幅の 1/3 以上を占める。短い金額しか描かないと overflow を見逃す（実際、合計パネルが 9.3px はみ出していた）
-- **金額の入力欄は `widgets/amount_input_formatter.dart` の `AmountInputFormatter` を使う** — 取引の追加・編集画面とフィルターシートが共有する。全角の正規化・記号の除去・桁数制限をここに閉じ込めてあるので、金額を入力する欄を新しく足すときも必ずこれを付ける。付け忘れると同じアプリ内で「追加画面では全角が通るのに、こちらでは理由の分からないエラーになる」という食い違いが出る
-- **グラフウィジェットは `AppDatabase` も Provider も参照しない** — 表示データはすべて引数で受け取る。DB なしでウィジェットテストできる状態を保つ
-- **グラフの色は `widgets/chart_palette.dart` に集約する** — `categoryColor(categoryId)` はカテゴリ ID から決定的に色を選ぶので、同じカテゴリはグラフ・凡例・リストで常に同じ色になる。新しいグラフを追加するときもここを使い、ウィジェット内で色を直書きしない
+根拠と過去の事故は [docs/design-notes.md](docs/design-notes.md) にある。守るべきことだけをここに並べる。
+
+- 集計ロジックは純関数に置く（`summary_calculator.dart` は DB に触らない）
+- Provider は `AppDatabase` を注入で受け取る。状態更新後は `notifyListeners()` を呼ぶ
+- `TransactionResponse` / `userId` / `userName` が指しているのは `Members` テーブル。認証やネットワークの層を想定しない
+- 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する
+- 表示月の判断に画面から `DateTime.now()` を読まない。`MonthScopedProvider` の `clock` に集約する
+  - 取引追加画面の既定日付（`_spentAt`）だけは例外で、意図的に実時刻を使う
+  - 保存先の月が表示月と違うことは、日付欄の `helperText` と保存後の SnackBar で知らせる。表示月は自動で切り替えない
+  - アクション付きの SnackBar は `floating` + 下 88px の `margin` で FAB を避ける。タブを移ったら `hideCurrentSnackBar()` を呼ぶ
+  - 月をまたぐ操作は Provider 側で `fetch()` まで済ませる。月ジャンプは `goToMonth(year, month)` を使う
+- 金額は正の整数のみ。上限は `models/transaction.dart` の `kMaxAmount` だけを直す（入力側の validator と DB の CHECK 制約が両方これを参照する）
+  - `kMaxAmount` はスキーマ定義値でもあるので、変えるなら「DB スキーマ変更時の注意」の手順まで必要
+- 金額の入力欄には必ず `widgets/amount_input_formatter.dart` の `AmountInputFormatter` を付ける
+- グラフウィジェットは `AppDatabase` も Provider も参照せず、表示データを引数で受け取る
+- グラフの色は `widgets/chart_palette.dart` の `categoryColor(categoryId)` を使い、直書きしない
 
 ## テストの書き方
 
-- 集計・割り勘のロジックは純関数として `summary_calculator.dart` に置き、DB なしでテストする（`test/summary_calculator_test.dart`）
-- DB を伴うテストは `AppDatabase.forTesting(NativeDatabase.memory())` でインメモリ DB を使い、実端末のファイルに触らない（`test/database_test.dart`）
-- マイグレーションテストは drift の `SchemaVerifier` を使い、`drift_schemas/` に固定した過去バージョンから起こす（`test/database_migration_test.dart`）。手書き DDL で一部のテーブルだけ旧版に差し替える書き方はしない — 検証対象が「実在しない中間状態」になり、変更していないテーブルの移行漏れを見逃す
-- **マイグレーションテストに対象バージョンをリテラルで書かない** — 起点は `GeneratedHelper.versions`（生成物）を回し、終点はその最新版にする。`migrateAndValidate(db, 3)` と書くと、drift は `AppDatabase.schemaVersion` ではなく引数の値まで移行するため、`schemaVersion` を 4 に上げてもテストは v1 → v3 だけを見たままグリーンになる
-- **新規作成時（`onCreate`）のスキーマが固定スキーマと一致することも検証する** — 移行のテストだけでは足りない。移行が作り直すのは一部のテーブルだけで、それ以外は「ヘルパ旧版が作った形」対「ヘルパ新版の形」の比較になり、`lib/db/database.dart` の定義が一度も登場しない。素の `AppDatabase.forTesting(NativeDatabase.memory())` に対して `verifier.migrateAndValidate` を呼ぶ。`db.validateDatabaseSchema()` は使わない — 参照スキーマを同じ生成コードから採るので同語反復になり、常にグリーンになる
-- ウィジェットテストは `test/widgets/` に置く。fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.text()` では拾えない。検証は凡例など通常のウィジェットに対して行う
-- ウィジェットテストの画面サイズは `tester.view.physicalSize` でスマホ幅（360x690）に設定する。既定の 800x600 は実機より広く overflow を見逃す
-- **月を扱うテストは `clock` を注入して固定年月で書く** — テストデータを「今月」に置く書き方はしない。seed 時点の `DateTime.now()` と Provider 構築時点の `DateTime.now()` の間で月が変わると落ちるので、月末 23:59 台の CI で不可解に赤くなる。`TransactionProvider(db, clock: () => DateTime(2026, 7, 15))` のように渡し、アプリ全体を組み立てるときは `LedgerApp(db: db, clock: ...)` を使う
-- **月送りのテストは、ヘッダの年月だけでなく中身の値も見る** — ヘッダだけだと「月表示は動いたが再取得していない」を見逃す。月ごとに違う金額を seed して、送った先の金額が出ることまで確認する（`test/widgets/month_navigation_test.dart`）
-- **画面の配線は Provider のテストでは代替できない** — 取引・サマリー・割り勘の 3 画面は同じ月選択 Row を手で複製している。実際、左右の矢印を入れ替えても Provider 側のテストは全部通る。矢印と「今月に戻る」は `tester.tap` で実際に押す
-- **取引の日付に依存するテストは、日付ピッカーで明示的に選ぶ** — 追加画面の既定日付は `clock` ではなく実時刻なので（上記の約束どおり）、既定のまま保存すると期待値がテストを走らせた月に左右される。カレンダーの升目を辿る書き方も初期表示月が実時刻依存になるので、`Icons.edit_outlined` でテキスト入力モードへ切り替えて `MM/DD/YYYY`（ロケール未指定なので en_US 書式）を打ち込む。`test/widgets/save_feedback_test.dart` の `pickDate` が実装例
-- **`clock` は「呼ぶたびに評価される」ことまで固定する** — `Clock` を関数型にしてあるのは、アプリを開いたまま日付が変わっても正しく判定するため。固定値を返す clock だけでテストすると、コンストラクタで 1 回読んでキャッシュする実装を素通しする。値を書き換えられる変数を閉じ込めた clock（`var now = ...; () => now`）で 1 本書く
+根拠と過去に見逃した事故は [docs/testing.md](docs/testing.md) にある。守るべきことだけをここに並べる。
+
+- 集計・割り勘は純関数として DB なしでテストする
+- DB を伴うテストは `AppDatabase.forTesting(NativeDatabase.memory())` を使う
+- マイグレーションテストは `SchemaVerifier` と `drift_schemas/` の固定スキーマから起こす。手書き DDL で一部のテーブルだけ旧版に差し替えない
+- マイグレーションテストに対象バージョンをリテラルで書かない（`GeneratedHelper.versions` を回す）
+- 新規作成時（`onCreate`）のスキーマも `verifier.migrateAndValidate` で検証する。`db.validateDatabaseSchema()` は使わない
+- ウィジェットテストは `test/widgets/` に置く。fl_chart が描く文字は `find.text()` では拾えない
+- ウィジェットテストの画面サイズは 360x690 にする。金額を描くなら `kMaxAmount` のケースを置く
+- 月を扱うテストは `clock` を注入して固定年月で書く。「今月」にテストデータを置かない
+  - `clock` は値を書き換えられる変数を閉じ込めた形（`var now = ...; () => now`）でも 1 本書く
+- 月送りのテストは、ヘッダの年月だけでなく中身の値も見る
+- 画面の配線は Provider のテストでは代替できない。矢印と「今月に戻る」は `tester.tap` で実際に押す
+- 取引の日付に依存するテストは、日付ピッカーをテキスト入力モードにして明示的に選ぶ
 
 ## git 運用
 
