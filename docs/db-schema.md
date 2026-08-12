@@ -116,7 +116,7 @@ CREATE TABLE "transactions" (
 `created_at` / `updated_at` は drift の `clientDefault` で、**SQL の DEFAULT ではなく Dart 側が
 `DateTime.now()` を入れている**。DDL に DEFAULT 句がないので、drift を経由せず直接 INSERT すると
 NOT NULL 違反になる。`updated_at` を更新するのは `updateTransaction` だけで、
-どちらのカラムも表示用モデル `TransactionResponse` には載らない（画面には出てこない）。
+どちらのカラムも表示用モデル `TransactionView` には載らない（画面には出てこない）。
 
 ## スキーマを読むときの注意
 
@@ -168,30 +168,33 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 ## 表示用モデルとの対応
 
 `lib/models/` のクラスは DB の行そのものではなく、JOIN 結果や計算結果を保持する表示用モデル。
-`Response` / `Request` という接尾辞は付いているが、
-**このアプリに HTTP は一切介在しない**。読み出し用（`Response`）と書き込み用（`Request`）の区別でしかない。
+**このアプリに HTTP は一切介在しない**ので、名前も読み出し用（`*View`）と
+書き込み用（`*Input`）の区別だけを表す。
+
+`Category` / `Member` / `Transaction` という素の名前は drift が `database.g.dart` に生成する
+データクラスが既に使っている。表示用モデルに `View` を付けているのはそれと衝突しないため。
 
 | 表示用モデル | 対応するテーブル | 備考 |
 | --- | --- | --- |
-| `CategoryResponse` | `categories` | `id` / `name` のみ |
+| `CategoryView` | `categories` | `id` / `name` のみ |
 | `HouseholdMember` | `members` | `id` / `name` / `mail` |
-| `TransactionResponse` | `transactions` + `members` + `categories` の JOIN | 下記の命名の注意を参照 |
-| `TransactionRequest` | 書き込み用の入力 | `userId` が `member_id` に入る |
-| `MonthlySummaryResponse` / `YearlySummaryResponse` / `CategorySummaryItem` / `UserSummaryItem` / `PeriodTotal` | なし | `summary_calculator.dart` が取引リストから計算する導出値。DB には保存されない |
-| `SplitResponse` / `UserBalance` | なし | 同上（割り勘の計算結果） |
+| `TransactionView` | `transactions` + `members` + `categories` の JOIN | 下記の命名の注意を参照 |
+| `TransactionInput` | 書き込み用の入力 | `userId` が `member_id` に入る |
+| `MonthlySummary` / `YearlySummary` / `CategorySummaryItem` / `UserSummaryItem` / `PeriodTotal` | なし | `summary_calculator.dart` が取引リストから計算する導出値。DB には保存されない |
+| `SplitResult` / `UserBalance` | なし | 同上（割り勘の計算結果） |
 
 ### `userId` / `userName` は members を指す
 
-`TransactionResponse` と `TransactionRequest` のフィールド名も REST API 時代の名残で、
+`TransactionView` と `TransactionInput` は `userId` / `userName` という名前を使っているが、
 **`Users` テーブルは存在しない**。対応は次のとおり。
 
 | モデルのフィールド | 実際の出どころ |
 | --- | --- |
-| `TransactionResponse.userId` | `members.id` |
-| `TransactionResponse.userName` | `members.name` |
-| `TransactionResponse.categoryId` | `categories.id` |
-| `TransactionResponse.categoryName` | `categories.name` |
-| `TransactionRequest.userId` | `transactions.member_id` に書き込まれる |
+| `TransactionView.userId` | `members.id` |
+| `TransactionView.userName` | `members.name` |
+| `TransactionView.categoryId` | `categories.id` |
+| `TransactionView.categoryName` | `categories.name` |
+| `TransactionInput.userId` | `transactions.member_id` に書き込まれる |
 
 `UserSummaryItem.userId` / `userName`、`UserBalance.userId` / `userName` も同じくメンバーを指す。
 

@@ -173,11 +173,11 @@ class AppDatabase extends _$AppDatabase {
       );
 
   // ---- カテゴリ ----
-  Future<List<CategoryResponse>> getCategories() async {
+  Future<List<CategoryView>> getCategories() async {
     final rows = await (select(categories)
           ..orderBy([(c) => OrderingTerm(expression: c.id)]))
         .get();
-    return rows.map((c) => CategoryResponse(id: c.id, name: c.name)).toList();
+    return rows.map((c) => CategoryView(id: c.id, name: c.name)).toList();
   }
 
   Future<void> insertCategory(String name) =>
@@ -215,7 +215,7 @@ class AppDatabase extends _$AppDatabase {
   // ---- 取引 ----
   /// 指定月の取引を、メンバー名・カテゴリ名を JOIN して取得する。
   /// 月レンジは半開区間 [月初, 翌月初)。
-  Future<List<TransactionResponse>> getTransactionsByMonth(
+  Future<List<TransactionView>> getTransactionsByMonth(
     int year,
     int month,
   ) =>
@@ -226,19 +226,19 @@ class AppDatabase extends _$AppDatabase {
 
   /// 期間 [start, end) の取引を、メンバー名・カテゴリ名を JOIN して取得する。
   /// 月・年をまたぐ集計の共通入口。
-  Future<List<TransactionResponse>> getTransactionsByRange(
+  Future<List<TransactionView>> getTransactionsByRange(
     DateTime start,
     DateTime end,
   ) =>
       _selectTransactions(start: start, end: end);
 
   /// 全期間の取引を取得する（年別集計用）。
-  Future<List<TransactionResponse>> getAllTransactions() =>
+  Future<List<TransactionView>> getAllTransactions() =>
       _selectTransactions();
 
   /// 取引をメンバー名・カテゴリ名付きで取得する共通クエリ。
   /// start / end を渡すと半開区間 [start, end) で絞り込む。
-  Future<List<TransactionResponse>> _selectTransactions({
+  Future<List<TransactionView>> _selectTransactions({
     DateTime? start,
     DateTime? end,
   }) async {
@@ -264,7 +264,7 @@ class AppDatabase extends _$AppDatabase {
       final t = row.readTable(transactions);
       final m = row.readTable(members);
       final c = row.readTable(categories);
-      return TransactionResponse(
+      return TransactionView(
         id: t.id,
         userId: m.id,
         userName: m.name,
@@ -277,23 +277,23 @@ class AppDatabase extends _$AppDatabase {
     }).toList();
   }
 
-  Future<void> insertTransaction(TransactionRequest r) =>
+  Future<void> insertTransaction(TransactionInput input) =>
       into(transactions).insert(TransactionsCompanion.insert(
-        memberId: r.userId,
-        categoryId: r.categoryId,
-        amount: r.amount,
-        spentAt: r.spentAt,
-        memo: Value(r.memo),
+        memberId: input.userId,
+        categoryId: input.categoryId,
+        amount: input.amount,
+        spentAt: input.spentAt,
+        memo: Value(input.memo),
       ));
 
-  Future<void> updateTransaction(int id, TransactionRequest r) =>
+  Future<void> updateTransaction(int id, TransactionInput input) =>
       (update(transactions)..where((t) => t.id.equals(id))).write(
         TransactionsCompanion(
-          memberId: Value(r.userId),
-          categoryId: Value(r.categoryId),
-          amount: Value(r.amount),
-          spentAt: Value(r.spentAt),
-          memo: Value(r.memo),
+          memberId: Value(input.userId),
+          categoryId: Value(input.categoryId),
+          amount: Value(input.amount),
+          spentAt: Value(input.spentAt),
+          memo: Value(input.memo),
           updatedAt: Value(DateTime.now()),
         ),
       );
@@ -302,14 +302,14 @@ class AppDatabase extends _$AppDatabase {
       (delete(transactions)..where((t) => t.id.equals(id))).go();
 
   // ---- 集計（端末側で再計算） ----
-  Future<MonthlySummaryResponse> getMonthlySummary(int year, int month) async {
+  Future<MonthlySummary> getMonthlySummary(int year, int month) async {
     final txns = await getTransactionsByMonth(year, month);
     return buildMonthlySummary(year, month, txns);
   }
 
   /// 指定年の年次サマリー（月別推移＋カテゴリ別内訳）。
   /// 年レンジは半開区間 [1/1, 翌年1/1)。
-  Future<YearlySummaryResponse> getYearlySummary(int year) async {
+  Future<YearlySummary> getYearlySummary(int year) async {
     final txns = await getTransactionsByRange(
       DateTime(year, 1, 1),
       DateTime(year + 1, 1, 1),
@@ -323,7 +323,7 @@ class AppDatabase extends _$AppDatabase {
     return buildYearlyTotals(txns);
   }
 
-  Future<SplitResponse> getSplit(int year, int month) async {
+  Future<SplitResult> getSplit(int year, int month) async {
     final txns = await getTransactionsByMonth(year, month);
     final memberList = await getMembers();
     return buildSplit(year, month, txns, memberList);

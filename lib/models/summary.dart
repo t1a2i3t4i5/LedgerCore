@@ -38,14 +38,14 @@ class PeriodTotal {
   });
 }
 
-class MonthlySummaryResponse {
+class MonthlySummary {
   final int year;
   final int month;
   final double total;
   final List<CategorySummaryItem> byCategory;
   final List<UserSummaryItem> byUser;
 
-  const MonthlySummaryResponse({
+  const MonthlySummary({
     required this.year,
     required this.month,
     required this.total,
@@ -55,7 +55,7 @@ class MonthlySummaryResponse {
 }
 
 /// 年次サマリー。月別推移グラフと、その年のカテゴリ別内訳を持つ。
-class YearlySummaryResponse {
+class YearlySummary {
   final int year;
   final double total;
 
@@ -65,7 +65,7 @@ class YearlySummaryResponse {
   /// 合計金額の降順
   final List<CategorySummaryItem> byCategory;
 
-  const YearlySummaryResponse({
+  const YearlySummary({
     required this.year,
     required this.total,
     required this.byMonth,

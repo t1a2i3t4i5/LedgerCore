@@ -6,13 +6,13 @@ import '../models/category.dart';
 class CategoryProvider extends ChangeNotifier {
   final AppDatabase _db;
 
-  List<CategoryResponse> _categories = [];
+  List<CategoryView> _categories = [];
   bool _loading = false;
   String? _error;
 
   CategoryProvider(this._db);
 
-  List<CategoryResponse> get categories => _categories;
+  List<CategoryView> get categories => _categories;
   bool get loading => _loading;
   String? get error => _error;
 

@@ -36,7 +36,7 @@ void main() {
     //   合計 5000 / カテゴリ別 1200・3500・300 / メンバー別 1500・3500
     //   削除後 3800 / カテゴリ別 3500・300 / メンバー別 300・3500
     Future<void> seed(int userId, int categoryIndex, double amount) =>
-        db.insertTransaction(TransactionRequest(
+        db.insertTransaction(TransactionInput(
           userId: userId,
           categoryId: cats[categoryIndex].id,
           amount: amount,

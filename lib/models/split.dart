@@ -14,7 +14,7 @@ class UserBalance {
   });
 }
 
-class SplitResponse {
+class SplitResult {
   final int year;
   final int month;
   final double total;
@@ -22,7 +22,7 @@ class SplitResponse {
   final List<UserBalance> users;
   final String settlement;
 
-  const SplitResponse({
+  const SplitResult({
     required this.year,
     required this.month,
     required this.total,

@@ -10,10 +10,6 @@
 
 内部で生成しない。状態更新後は `notifyListeners()` を呼ぶ。
 
-## 命名に注意
-
-`TransactionResponse` / `userId` / `userName` が実際に指しているのは `Members` テーブル（端末内のメンバー）。API のレスポンスでもユーザーアカウントでもない。名前に引きずられて認証やネットワークの層を想定しないこと。
-
 ## 月の範囲指定は半開区間
 
 `[月初, 翌月初)` で統一する（`getTransactionsByMonth` 参照）。

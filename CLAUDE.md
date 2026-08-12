@@ -60,7 +60,8 @@ screens → providers → AppDatabase（drift） → SQLite
 
 - 集計ロジックは純関数に置く（`summary_calculator.dart` は DB に触らない）
 - Provider は `AppDatabase` を注入で受け取る。状態更新後は `notifyListeners()` を呼ぶ
-- `TransactionResponse` / `userId` / `userName` が指しているのは `Members` テーブル。認証やネットワークの層を想定しない
+- `TransactionView` / `userId` / `userName` が指しているのは `Members` テーブル。認証やネットワークの層を想定しない
+- `lib/models/` の表示用モデルは読み出し用が `*View`、書き込み用が `*Input`。`Response` / `Request` を復活させない。素の `Category` / `Transaction` は drift の生成クラスが使っているので避ける
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する
 - 表示月の判断に画面から `DateTime.now()` を読まない。`MonthScopedProvider` の `clock` に集約する
   - 取引追加画面の既定日付（`_spentAt`）だけは例外で、意図的に実時刻を使う

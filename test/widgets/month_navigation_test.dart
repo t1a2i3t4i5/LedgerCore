@@ -31,7 +31,7 @@ void main() {
   Future<void> seed(int year, int month, double amount) async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionRequest(
+    await db.insertTransaction(TransactionInput(
       userId: members.first.id,
       categoryId: cats.first.id,
       amount: amount,

@@ -8,16 +8,16 @@ import 'month_scoped_provider.dart';
 class SummaryProvider extends MonthScopedProvider {
   final AppDatabase _db;
 
-  MonthlySummaryResponse? _summary;
-  SplitResponse? _split;
+  MonthlySummary? _summary;
+  SplitResult? _split;
   bool _loading = false;
   String? _error;
 
   SummaryProvider(this._db, {super.clock});
 
   // year / month は MonthScopedProvider が持つ
-  MonthlySummaryResponse? get summary => _summary;
-  SplitResponse? get split => _split;
+  MonthlySummary? get summary => _summary;
+  SplitResult? get split => _split;
   bool get loading => _loading;
   String? get error => _error;
 

@@ -13,7 +13,7 @@ enum SortOrder { asc, desc }
 class TransactionProvider extends MonthScopedProvider {
   final AppDatabase _db;
 
-  List<TransactionResponse> _transactions = [];
+  List<TransactionView> _transactions = [];
   bool _loading = false;
   String? _error;
 
@@ -31,7 +31,7 @@ class TransactionProvider extends MonthScopedProvider {
   TransactionProvider(this._db, {super.clock});
 
   // ---- 基本 getter ----（year / month は MonthScopedProvider が持つ）
-  List<TransactionResponse> get transactions => _transactions;
+  List<TransactionView> get transactions => _transactions;
   bool get loading => _loading;
   String? get error => _error;
 
@@ -45,7 +45,7 @@ class TransactionProvider extends MonthScopedProvider {
   String get filterMemoQuery => _filterMemoQuery;
 
   // フィルター・ソートを適用した取引リスト
-  List<TransactionResponse> get filteredTransactions {
+  List<TransactionView> get filteredTransactions {
     final filtered = _transactions.where((t) {
       if (_filterCategoryIds.isNotEmpty &&
           !_filterCategoryIds.contains(t.categoryId)) {
@@ -68,7 +68,7 @@ class TransactionProvider extends MonthScopedProvider {
       return true;
     }).toList();
 
-    int cmp(TransactionResponse a, TransactionResponse b) {
+    int cmp(TransactionView a, TransactionView b) {
       final c = switch (_sortField) {
         TransactionSortField.spentAt => a.spentAt.compareTo(b.spentAt),
         TransactionSortField.amount => a.amount.compareTo(b.amount),
@@ -145,14 +145,14 @@ class TransactionProvider extends MonthScopedProvider {
   }
 
   /// 取引を追加する
-  Future<void> create(TransactionRequest request) async {
-    await _db.insertTransaction(request);
+  Future<void> create(TransactionInput input) async {
+    await _db.insertTransaction(input);
     await fetch();
   }
 
   /// 取引を更新する
-  Future<void> update(int transactionId, TransactionRequest request) async {
-    await _db.updateTransaction(transactionId, request);
+  Future<void> update(int transactionId, TransactionInput input) async {
+    await _db.updateTransaction(transactionId, input);
     await fetch();
   }
 
