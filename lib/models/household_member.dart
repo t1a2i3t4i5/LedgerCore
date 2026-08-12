@@ -2,11 +2,9 @@
 class HouseholdMember {
   final int id;
   final String name;
-  final String? mail;
 
   const HouseholdMember({
     required this.id,
     required this.name,
-    this.mail,
   });
 }

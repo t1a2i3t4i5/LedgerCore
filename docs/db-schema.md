@@ -5,7 +5,7 @@ LedgerCore のデータはすべて [drift](https://drift.simonbinder.eu/)（SQL
 3 テーブルがアプリの持つデータのすべて。
 
 - **定義元** — [`lib/db/database.dart`](../lib/db/database.dart)。`database.g.dart` は `build_runner` の生成物
-- **`schemaVersion`** — 現在 `3`（`transactions.amount` の CHECK 制約を段階的に強めてきた。[マイグレーション履歴](#マイグレーション履歴)を参照）
+- **`schemaVersion`** — 現在 `4`（`transactions.amount` の CHECK 制約を段階的に強め、未使用だった `members.mail` を削除した。[マイグレーション履歴](#マイグレーション履歴)を参照）
 - このドキュメントと実装が食い違った場合は `database.dart` が正。スキーマを変更したらこのファイルも更新する
 
 Dart 側の識別子は camelCase だが、drift が実際の SQL 名を **snake_case** に変換する
@@ -27,7 +27,6 @@ erDiagram
     members {
         INTEGER id PK
         TEXT name
-        TEXT mail "NULL可"
     }
 
     transactions {
@@ -69,8 +68,7 @@ CREATE TABLE "categories" (
 ```sql
 CREATE TABLE "members" (
   "id"   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  "name" TEXT NOT NULL,
-  "mail" TEXT NULL
+  "name" TEXT NOT NULL
 )
 ```
 
@@ -78,13 +76,12 @@ CREATE TABLE "members" (
 | --- | --- | --- | --- | --- |
 | `id` | `id` | INTEGER | PK / AUTOINCREMENT | |
 | `name` | `name` | TEXT | NOT NULL | メンバー名。1〜50 文字 |
-| `mail` | `mail` | TEXT | NULL 可 | **現状は常に NULL**（下記） |
 
 初回起動時に既定メンバー「自分」が 1 件投入される。
 
-`mail` は DAO `insertMember(name, {mail})` が引数として受け取るものの、
-`lib/screens/members_screen.dart` にメールアドレスの入力欄がないため、UI 経由では常に NULL になる。
-現時点で読み出して使っている画面もない。
+v3 までは `mail`（NULL 可）があったが、書き込む画面も読み出す画面も無く常に NULL だった。
+このアプリは端末内で完結し、メールの送信先になるものが存在しない（`http` は依存に含まれていない）ので、
+**v4 で列ごと削除した**。値を持っていた端末があっても移行時に捨てられる。
 
 ### transactions — 取引
 
@@ -177,7 +174,7 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | 表示用モデル | 対応するテーブル | 備考 |
 | --- | --- | --- |
 | `CategoryView` | `categories` | `id` / `name` のみ |
-| `HouseholdMember` | `members` | `id` / `name` / `mail` |
+| `HouseholdMember` | `members` | `id` / `name` のみ |
 | `TransactionView` | `transactions` + `members` + `categories` の JOIN | 下記のフィールド対応を参照 |
 | `TransactionInput` | 書き込み用の入力 | `memberId` が `member_id` に入る |
 | `MonthlySummary` / `YearlySummary` / `CategorySummaryItem` / `MemberSummaryItem` / `PeriodTotal` | なし | `summary_calculator.dart` が取引リストから計算する導出値。DB には保存されない |
@@ -216,6 +213,7 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | 1 | 初版（`categories` / `members` / `transactions`） |
 | 2 | `transactions.amount` に `CHECK (amount > 0)` を追加 |
 | 3 | `transactions.amount` に上限（`<= 999999999999`）と整数条件を追加 |
+| 4 | 未使用だった `members.mail` を削除 |
 
 SQLite は既存カラムへの CHECK 追加をサポートしないため、`onUpgrade` は
 drift の `TableMigration` で `transactions` を作り直している。作り直しは新テーブルへの
@@ -239,15 +237,29 @@ v2 からの移行（v1 からの場合は上記に続けて実行される）:
 補正された行の分だけ月次合計が変わる（`-2000` が `+2000` になれば合計は 4000 円ずれる）。
 移行後にユーザーへ通知する仕組みも無い。
 
+v3 からの移行:
+
+- `members.mail` を**列ごと削除**。`ALTER TABLE ... DROP COLUMN` は SQLite 3.35 以降にしか無く、
+  端末に載っている SQLite のバージョンは選べないので、ここも `TableMigration` による
+  テーブルの作り直しで落とす。`mail` は Dart 側の最新の定義に無いためコピー対象から外れ、
+  値ごと消える（もともと常に NULL だったので失われるデータは無い）
+
 順序には意味がある。**四捨五入で 0 になる行の削除は、四捨五入より先に実行する。**
 v2 のテーブルには `CHECK (amount > 0.0)` が付いており、テーブルを作り直す前の
 `UPDATE ... SET amount = ROUND(amount)` で 0 を書き込むと、その時点の制約に弾かれて
 移行が失敗する。v1 のテーブルには CHECK が無いので、逆順にすると **v2 起点の移行だけが落ちる**。
 
-同じ理由で、**データ整形をすべて済ませてから最後に一度だけ `alterTable` を呼ぶ**。
+同じ理由で、**データ整形をすべて済ませてから、テーブルごとに一度だけ `alterTable` を呼ぶ**。
 `TableMigration` は「そのとき Dart 側に書かれている最新の定義」でテーブルを作るため、
-v1 用のブロックの中で呼ぶと、v1 の端末では小数を持ったまま v3 の CHECK を持つテーブルへ
-コピーすることになり、v1 → v3 の直行だけが失敗する。
+v1 用のブロックの中で呼ぶと、v1 の端末では小数を持ったまま最新の CHECK を持つテーブルへ
+コピーすることになり、v1 からの直行だけが失敗する。
+
+作り直しが 2 つのテーブルに及ぶときは、**参照する側（`transactions`）を先、参照される側
+（`members`）を後**にする。作り直しは `DROP TABLE` を挟むので、`members` を先に落とすと
+その間だけ `transactions` の外部キーが存在しないテーブルを指す
+（`onUpgrade` 中は `PRAGMA foreign_keys` が OFF なので実害は出ないが、drift が推奨する順序に合わせてある）。
+なお drift は作り直しの最中に `PRAGMA legacy_alter_table = 1` を立てるので、
+一時テーブルのリネームで `transactions` の `REFERENCES members (id)` が書き換わることはない。
 
 `onUpgrade` 全体は `transaction()` で包んである。drift は `onUpgrade` を
 トランザクションで包まないため、包まないと「クリーンアップだけコミット済み・
@@ -264,8 +276,8 @@ v1 用のブロックの中で呼ぶと、v1 の端末では小数を持った�
 （どちらもテーブル再作成で壊れうるが、壊れても金額のアサーションだけでは気付けないため）。
 
 検証の対象バージョンはテストにリテラルで書かず、`GeneratedHelper.versions`（生成物）から採る。
-`migrateAndValidate(db, 3)` のようにリテラルで書くと、drift は `AppDatabase.schemaVersion` では
-なく引数の値まで移行するため、`schemaVersion` を 4 に上げてもテストは v1 → v3 だけを見たまま
+`migrateAndValidate(db, 3)` のように終点をリテラルで書くと、drift は `AppDatabase.schemaVersion` では
+なく引数の値まで移行するため、`schemaVersion` を上げてもテストは古い版までを見たまま
 グリーンになる。あわせて「`schemaVersion` と固定スキーマの最新版が一致すること」と
 「新規作成時（`onCreate`）のスキーマが最新の固定スキーマと一致すること」も検証している。
 後者が無いと、移行で作り直されない `categories` / `members` の定義変更を取りこぼす

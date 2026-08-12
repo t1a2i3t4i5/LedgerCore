@@ -34,7 +34,6 @@ class Categories extends Table {
 class Members extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 50)();
-  TextColumn get mail => text().nullable()();
 }
 
 class Transactions extends Table {
@@ -80,7 +79,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -100,7 +99,7 @@ class AppDatabase extends _$AppDatabase {
           // 未対応のバージョンを黙って素通りさせない。drift の既定 onUpgrade は
           // 「移行が書かれていません」と例外を投げる安全網だが、それを上書きして
           // しまうため、分岐から漏れたら気付けるようにここで落とす。
-          if (from < 1 || to > 3) {
+          if (from < 1 || to > 4) {
             throw StateError('未対応のマイグレーションです: v$from → v$to');
           }
           // drift は onUpgrade をトランザクションで包まない。包まないと
@@ -119,11 +118,11 @@ class AppDatabase extends _$AppDatabase {
             // 作り直しは新テーブルへのコピーを伴うので、制約違反の行が残っていると
             // 移行そのものが失敗する。先に既存データを制約に合う形へ整えておく。
             //
-            // **データ整形をすべて済ませてから、最後に一度だけ作り直す。**
+            // **データ整形をすべて済ませてから、テーブルごとに一度だけ作り直す。**
             // TableMigration は「そのとき Dart 側に書かれている最新の定義」で
             // テーブルを作るため、v1 の端末で from < 2 のブロック内から呼ぶと
             // v3 の CHECK を持つテーブルに小数のまま流し込むことになり、
-            // v1 → v3 の直行だけが移行に失敗する。
+            // v1 → 最新の直行だけが移行に失敗する。
             if (from < 2) {
               // 負の金額はマイナス記号の打ち間違いとみなして絶対値に補正し、
               // 0 円は集計上意味を持たない（グラフでも幅 0 のセクションになる）ので削除する。
@@ -163,9 +162,24 @@ class AppDatabase extends _$AppDatabase {
                 'UPDATE transactions SET amount = ROUND(amount)',
               );
             }
+            // 作り直しは「参照する側（transactions）→ 参照される側（members）」の
+            // 順で行う。members を先に落とすと、その間 transactions の外部キーは
+            // 存在しないテーブルを指す（onUpgrade 中は PRAGMA foreign_keys が OFF
+            // なので実害は出ないが、順序を drift の推奨どおりにしておく）。
+            //
             // experimental 扱いだが、制約変更を伴う移行はこれが drift の標準手段。
-            // ignore: experimental_member_use
-            await m.alterTable(TableMigration(transactions));
+            if (from < 3) {
+              // ignore: experimental_member_use
+              await m.alterTable(TableMigration(transactions));
+            }
+            if (from < 4) {
+              // v4 は未使用だった members.mail の削除。SQLite の DROP COLUMN は
+              // 3.35 以降にしか無く、端末の SQLite のバージョンは選べないので、
+              // ここも CHECK 追加と同じくテーブルの作り直しで落とす。
+              // mail は最新の定義に無いためコピー対象から外れ、そのまま消える。
+              // ignore: experimental_member_use
+              await m.alterTable(TableMigration(members));
+            }
           });
         },
         beforeOpen: (details) async {
@@ -196,15 +210,11 @@ class AppDatabase extends _$AppDatabase {
     final rows = await (select(members)
           ..orderBy([(m) => OrderingTerm(expression: m.id)]))
         .get();
-    return rows
-        .map((m) => HouseholdMember(id: m.id, name: m.name, mail: m.mail))
-        .toList();
+    return rows.map((m) => HouseholdMember(id: m.id, name: m.name)).toList();
   }
 
-  Future<void> insertMember(String name, {String? mail}) =>
-      into(members).insert(
-        MembersCompanion.insert(name: name, mail: Value(mail)),
-      );
+  Future<void> insertMember(String name) =>
+      into(members).insert(MembersCompanion.insert(name: name));
 
   Future<void> updateMemberName(int id, String name) =>
       (update(members)..where((m) => m.id.equals(id)))

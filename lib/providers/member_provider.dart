@@ -30,8 +30,8 @@ class MemberProvider extends ChangeNotifier {
   }
 
   /// メンバーを追加する
-  Future<void> addMember(String name, {String? mail}) async {
-    await _db.insertMember(name, mail: mail);
+  Future<void> addMember(String name) async {
+    await _db.insertMember(name);
     await fetchMembers();
   }
 
