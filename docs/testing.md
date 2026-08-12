@@ -18,7 +18,9 @@ drift の `SchemaVerifier` を使い、`drift_schemas/` に固定した過去バ
 
 ## マイグレーションテストに対象バージョンをリテラルで書かない
 
-起点は `GeneratedHelper.versions`（生成物）を回し、終点はその最新版にする。`migrateAndValidate(db, 3)` と書くと、drift は `AppDatabase.schemaVersion` ではなく引数の値まで移行するため、`schemaVersion` を 4 に上げてもテストは v1 → v3 だけを見たままグリーンになる。
+起点は `GeneratedHelper.versions`（生成物）を回し、終点はその最新版にする。`migrateAndValidate(db, 3)` と終点を数字で書くと、drift は `AppDatabase.schemaVersion` ではなく引数の値まで移行するため、`schemaVersion` を上げてもテストは古い版までを見たままグリーンになる。
+
+起点を絞るときも同じ。「小数を持ちうる版」「`mail` を持つ版」のように**その版が持っていた性質**で `_oldVersions` から導出し、`[1, 2]` のようなリテラルの一覧を置かない。リテラルだと `schemaVersion` を上げるたびに人手で追従させることになり、追従を忘れると seed の INSERT が「そんな列は無い」で落ちる（または、その版だけ検証から静かに漏れる）。導出が空にならないことを 1 本のテストで押さえておく。
 
 ## 新規作成時（`onCreate`）のスキーマも検証する
 

@@ -205,13 +205,8 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
           GeneratedColumn.checkTextLength(minTextLength: 1, maxTextLength: 50),
       type: DriftSqlType.string,
       requiredDuringInsert: true);
-  static const VerificationMeta _mailMeta = const VerificationMeta('mail');
   @override
-  late final GeneratedColumn<String> mail = GeneratedColumn<String>(
-      'mail', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
-  @override
-  List<GeneratedColumn> get $columns => [id, name, mail];
+  List<GeneratedColumn> get $columns => [id, name];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -231,10 +226,6 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
-    if (data.containsKey('mail')) {
-      context.handle(
-          _mailMeta, mail.isAcceptableOrUnknown(data['mail']!, _mailMeta));
-    }
     return context;
   }
 
@@ -248,8 +239,6 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
-      mail: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}mail']),
     );
   }
 
@@ -262,16 +251,12 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
 class Member extends DataClass implements Insertable<Member> {
   final int id;
   final String name;
-  final String? mail;
-  const Member({required this.id, required this.name, this.mail});
+  const Member({required this.id, required this.name});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
-    if (!nullToAbsent || mail != null) {
-      map['mail'] = Variable<String>(mail);
-    }
     return map;
   }
 
@@ -279,7 +264,6 @@ class Member extends DataClass implements Insertable<Member> {
     return MembersCompanion(
       id: Value(id),
       name: Value(name),
-      mail: mail == null && nullToAbsent ? const Value.absent() : Value(mail),
     );
   }
 
@@ -289,7 +273,6 @@ class Member extends DataClass implements Insertable<Member> {
     return Member(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
-      mail: serializer.fromJson<String?>(json['mail']),
     );
   }
   @override
@@ -298,24 +281,17 @@ class Member extends DataClass implements Insertable<Member> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
-      'mail': serializer.toJson<String?>(mail),
     };
   }
 
-  Member copyWith(
-          {int? id,
-          String? name,
-          Value<String?> mail = const Value.absent()}) =>
-      Member(
+  Member copyWith({int? id, String? name}) => Member(
         id: id ?? this.id,
         name: name ?? this.name,
-        mail: mail.present ? mail.value : this.mail,
       );
   Member copyWithCompanion(MembersCompanion data) {
     return Member(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
-      mail: data.mail.present ? data.mail.value : this.mail,
     );
   }
 
@@ -323,55 +299,44 @@ class Member extends DataClass implements Insertable<Member> {
   String toString() {
     return (StringBuffer('Member(')
           ..write('id: $id, ')
-          ..write('name: $name, ')
-          ..write('mail: $mail')
+          ..write('name: $name')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, mail);
+  int get hashCode => Object.hash(id, name);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Member &&
-          other.id == this.id &&
-          other.name == this.name &&
-          other.mail == this.mail);
+      (other is Member && other.id == this.id && other.name == this.name);
 }
 
 class MembersCompanion extends UpdateCompanion<Member> {
   final Value<int> id;
   final Value<String> name;
-  final Value<String?> mail;
   const MembersCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
-    this.mail = const Value.absent(),
   });
   MembersCompanion.insert({
     this.id = const Value.absent(),
     required String name,
-    this.mail = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Member> custom({
     Expression<int>? id,
     Expression<String>? name,
-    Expression<String>? mail,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
-      if (mail != null) 'mail': mail,
     });
   }
 
-  MembersCompanion copyWith(
-      {Value<int>? id, Value<String>? name, Value<String?>? mail}) {
+  MembersCompanion copyWith({Value<int>? id, Value<String>? name}) {
     return MembersCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
-      mail: mail ?? this.mail,
     );
   }
 
@@ -384,9 +349,6 @@ class MembersCompanion extends UpdateCompanion<Member> {
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
-    if (mail.present) {
-      map['mail'] = Variable<String>(mail.value);
-    }
     return map;
   }
 
@@ -394,8 +356,7 @@ class MembersCompanion extends UpdateCompanion<Member> {
   String toString() {
     return (StringBuffer('MembersCompanion(')
           ..write('id: $id, ')
-          ..write('name: $name, ')
-          ..write('mail: $mail')
+          ..write('name: $name')
           ..write(')'))
         .toString();
   }
@@ -1040,12 +1001,10 @@ typedef $$CategoriesTableProcessedTableManager = ProcessedTableManager<
 typedef $$MembersTableCreateCompanionBuilder = MembersCompanion Function({
   Value<int> id,
   required String name,
-  Value<String?> mail,
 });
 typedef $$MembersTableUpdateCompanionBuilder = MembersCompanion Function({
   Value<int> id,
   Value<String> name,
-  Value<String?> mail,
 });
 
 final class $$MembersTableReferences
@@ -1083,9 +1042,6 @@ class $$MembersTableFilterComposer
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get mail => $composableBuilder(
-      column: $table.mail, builder: (column) => ColumnFilters(column));
-
   Expression<bool> transactionsRefs(
       Expression<bool> Function($$TransactionsTableFilterComposer f) f) {
     final $$TransactionsTableFilterComposer composer = $composerBuilder(
@@ -1122,9 +1078,6 @@ class $$MembersTableOrderingComposer
 
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get mail => $composableBuilder(
-      column: $table.mail, builder: (column) => ColumnOrderings(column));
 }
 
 class $$MembersTableAnnotationComposer
@@ -1141,9 +1094,6 @@ class $$MembersTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get mail =>
-      $composableBuilder(column: $table.mail, builder: (column) => column);
 
   Expression<T> transactionsRefs<T extends Object>(
       Expression<T> Function($$TransactionsTableAnnotationComposer a) f) {
@@ -1192,22 +1142,18 @@ class $$MembersTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<String> name = const Value.absent(),
-            Value<String?> mail = const Value.absent(),
           }) =>
               MembersCompanion(
             id: id,
             name: name,
-            mail: mail,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
             required String name,
-            Value<String?> mail = const Value.absent(),
           }) =>
               MembersCompanion.insert(
             id: id,
             name: name,
-            mail: mail,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) =>

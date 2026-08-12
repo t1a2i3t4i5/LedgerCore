@@ -21,11 +21,11 @@ import 'matchers.dart';
 /// 固定スキーマと移行ヘルパの再生成手順は CLAUDE.md の
 /// 「スキーマ検証用の生成物」を参照（コマンドの正本はそちら）。
 ///
-/// このファイルは対象バージョンをリテラルで持たない。起点は
+/// このファイルは移行の終点をリテラルで持たない。起点は
 /// [GeneratedHelper.versions]（生成物）を回し、終点は常にその最新版にする。
-/// `migrateAndValidate(db, 3)` のようにリテラルで書くと、drift は
+/// `migrateAndValidate(db, 3)` のように終点をリテラルで書くと、drift は
 /// `AppDatabase.schemaVersion` ではなく引数の値まで移行するため、
-/// schemaVersion を 4 に上げてもテストは v1 → v3 だけを見たままグリーンになる。
+/// schemaVersion を上げてもテストは古い版までを見たままグリーンになる。
 
 /// 固定スキーマの最新版。移行の終点であり、参照スキーマの出どころでもある。
 final _latestVersion = GeneratedHelper.versions.last;
@@ -46,6 +46,17 @@ const _amountCheckVersion = 3;
 /// 生成物から導出しておけば、人手でこのリストを追従させる必要がない。
 final _versionsWithDirtyAmount =
     _oldVersions.where((v) => v < _amountCheckVersion).toList();
+
+/// `members.mail` を削除したバージョン。これより前が「mail を持つ版」。
+const _mailDropVersion = 4;
+
+/// `members.mail` が存在した起点バージョン。
+///
+/// ここもリテラルの `[1, 2, 3]` を置かない。`schemaVersion` が上がると
+/// `_oldVersions` に mail を持たない版が加わり、seed の INSERT が
+/// 「そんな列は無い」で落ちるようになる。
+final _versionsWithMail =
+    _oldVersions.where((v) => v < _mailDropVersion).toList();
 
 /// 検証を厳しめにする。既定では `validateDropped: false` で
 /// 「参照に無いのに実在するテーブル」を見ないため、移行が中間テーブルを
@@ -262,5 +273,103 @@ void main() {
 
     final txns = await db.getAllTransactions();
     expect(txns.map((t) => t.amount).toList()..sort(), [1000.0, 2000.0]);
+  });
+
+  // 起点は `_oldVersions` 全部ではない。mail に値を入れられるのは列があった版だけで、
+  // 削除後の版を起点にすると seed の INSERT が「そんな列は無い」で落ちる。
+  //
+  // この一覧が空になると、members の作り直しの検証も黙って消える。
+  test('mail を持つ起点バージョンが存在する', () {
+    expect(_versionsWithMail, isNotEmpty);
+    expect(_versionsWithMail.every((v) => v < _mailDropVersion), isTrue);
+  });
+
+  for (final from in _versionsWithMail) {
+    test('v$from の members.mail は列ごと消え、メンバーと取引の紐づけは残る', () async {
+      // members はテーブルの作り直しで mail を落とす。作り直しは新テーブルへの
+      // コピーなので、行が消える・id が振り直されるという壊れ方をしうる。
+      // id が変わると transactions.member_id が別人（または存在しない行）を
+      // 指すことになり、innerJoin で取引が一覧から丸ごと消える。
+      final schema = await verifier.schemaAt(from);
+      addTearDown(schema.close);
+
+      final raw = schema.rawDatabase;
+      raw.execute('INSERT INTO categories (name) VALUES (?)', [_categoryName]);
+      final categoryId = raw.lastInsertRowId;
+      // mail に実際の値を入れられるのはこの版まで。値ごと消えることを確かめる
+      raw.execute(
+        'INSERT INTO members (name, mail) VALUES (?, ?)',
+        ['先住', 'old@example.com'],
+      );
+      final firstId = raw.lastInsertRowId;
+      // 2 人目を入れて、取引はこちらに紐づける。1 人だけだと id が
+      // 振り直されても偶然一致してしまい、ずれを検出できない
+      raw.execute(
+        'INSERT INTO members (name, mail) VALUES (?, ?)',
+        [_memberName, null],
+      );
+      final secondId = raw.lastInsertRowId;
+
+      final at = DateTime(2026, 7, 10).millisecondsSinceEpoch ~/ 1000;
+      raw.execute(
+        'INSERT INTO transactions '
+        '(member_id, category_id, amount, spent_at, memo, created_at, updated_at) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [secondId, categoryId, 1000, at, 'メモ', at, at],
+      );
+
+      final db = AppDatabase.forTesting(schema.newConnection());
+      addTearDown(db.close);
+      await verifier.migrateAndValidate(db, _latestVersion,
+          options: _validation);
+
+      // mail は列ごと消えている。migrateAndValidate もスキーマ一致で見るが、
+      // このイシューの主題なので名指しで押さえる
+      final columns = await db.customSelect('PRAGMA table_info(members)').get();
+      expect(
+        columns.map((r) => r.read<String>('name')).toList(),
+        ['id', 'name'],
+      );
+
+      // 行は 2 件とも残り、id も名前も保たれる
+      final members = await db.getMembers();
+      expect(
+        members.map((m) => (m.id, m.name)).toList(),
+        [(firstId, '先住'), (secondId, _memberName)],
+      );
+
+      // 取引は 2 人目に紐づいたまま JOIN できる
+      final txns = await db.getAllTransactions();
+      expect(txns.single.memberId, secondId);
+      expect(txns.single.memberName, _memberName);
+      expect(txns.single.memo, 'メモ');
+    });
+  }
+
+  test('members を作り直しても外部キー制約は効いたまま', () async {
+    // members の作り直しは DROP TABLE を挟む。transactions 側の REFERENCES が
+    // 途中の一時テーブル名に書き換わっていると、移行後だけ存在しない
+    // メンバーの取引を作れてしまい、innerJoin で一覧から消える
+    final schema = await verifier.schemaAt(_versionsWithMail.last);
+    addTearDown(schema.close);
+
+    final raw = schema.rawDatabase;
+    raw.execute('INSERT INTO categories (name) VALUES (?)', [_categoryName]);
+    raw.execute('INSERT INTO members (name) VALUES (?)', [_memberName]);
+
+    final db = AppDatabase.forTesting(schema.newConnection());
+    addTearDown(db.close);
+    await verifier.migrateAndValidate(db, _latestVersion, options: _validation);
+
+    final categoryId = (await db.getCategories()).first.id;
+    await expectLater(
+      db.insertTransaction(TransactionInput(
+        memberId: 9999, // 存在しないメンバー
+        categoryId: categoryId,
+        amount: 100,
+        spentAt: DateTime(2026, 7, 11),
+      )),
+      throwsForeignKeyViolation,
+    );
   });
 }
