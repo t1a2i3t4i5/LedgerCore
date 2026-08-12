@@ -205,10 +205,12 @@ gh pr diff <num>                 # PR の差分を表示
 gh issue list                    # Issue 一覧
 gh issue view <num>              # Issue 詳細
 gh issue create                  # Issue 作成(テンプレートを選ばせる)
-gh issue create --template issue.md  # 雛形付きでエディタを開く
+gh issue create --template '課題・改善の記録'  # 雛形付きでエディタを開く
 
 gh repo view --web               # リポジトリをブラウザで開く
 ```
+
+`--template` が取るのはファイル名ではなく front matter の `name` です。また **対話(TTY)でのみ効く** ため、Claude Code の Bash のように `--title` / `--body` を直接渡す経路では雛形が入りません。詳細は [docs/issue-writing.md](issue-writing.md) の「CLI から使うとき」を参照。
 
 ## トラブルシューティング
 

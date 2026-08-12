@@ -69,7 +69,7 @@
 
 [CLAUDE.md](../CLAUDE.md) の「テストの書き方」に従う。不具合の issue なら、**実装のどこをどう壊せばそのテストが落ちるか**まで書く。落ちない書き方のテストを足しても、グリーンが増えるだけで何も守られない（`docs/testing.md` に並べた規約は、いずれも破っても静かにグリーンのまま通る類のもの）。
 
-自動テストの対象外なら、その旨と手で確認する手順を書く。この issue 規約自体（[#55](https://github.com/t1a2i3t4i5/LedgerCore/issues/55)）がその例で、「Web UI の New issue に選択肢が出ること」「`gh issue create --template issue.md` で雛形付きのエディタが開くこと」を手順として置いている。
+自動テストの対象外なら、その旨と手で確認する手順を書く。この issue 規約自体（[#55](https://github.com/t1a2i3t4i5/LedgerCore/issues/55)）がその例で、「Web UI の New issue に選択肢が出ること」「`gh issue create --template '課題・改善の記録'` で雛形付きのエディタが開くこと」を手順として置いている。
 
 ## 受け入れ条件 — 第三者が判定できる粒度で書く
 
@@ -89,6 +89,26 @@
 
 これが無いと、後から見て「気付いていたのに、なぜ直さなかったのか」が失われる。指摘を issue に逃がす運用（`/review3`）を採っている以上、逃がした理由が記録の一部になる。
 
+## CLI から使うとき
+
+`--template` に渡すのは **front matter の `name`** であって、ファイル名ではない（`gh issue create --help` は `-T, --template name`、例も `--template "Bug Report"`）。`gh pr create` 側だけが `--template <file>` でパスを取るので混同しやすい。
+
+```bash
+gh issue create                              # テンプレートを選ばせる
+gh issue create --template '課題・改善の記録'  # 雛形付きでエディタを開く
+```
+
+どちらも **対話（TTY）でのみ効く**。`--title` / `--body` を直接渡す非対話の呼び出し（Claude Code の Bash など）ではテンプレートは読まれず、渡した本文がそのまま issue になる。このリポジトリの issue はほぼこの経路で作られるので、**雛形が自動で入ることを当てにしない**。本文を自分で組み立てて `--body-file` で渡す。
+
+```bash
+# front matter を落として雛形だけ取り出す
+sed '1,/^---$/d;1,/^---$/d' .github/ISSUE_TEMPLATE/issue.md > /tmp/issue-body.md
+# /tmp/issue-body.md を埋めてから
+gh issue create --title "..." --body-file /tmp/issue-body.md
+```
+
+`gh` も Web UI もテンプレートを**リモートのデフォルトブランチ**から取得する。テンプレートを変更した PR が main にマージされるまで、手元のブランチで `--template` を試しても反映されない。
+
 ## テンプレを `.github/` に置いている理由
 
 「`CLAUDE.md` は索引、`docs/` が本文」という方針（#49）からすると `docs/ISSUE_TEMPLATE/` も候補になるが、採らなかった。
@@ -101,4 +121,4 @@ GitHub と `gh` が issue テンプレートを探すのは `.github/ISSUE_TEMPL
 
 不具合・機能追加・docs で分けない。既存 issue は不具合寄り（#30）も機能追加（#45）も docs（#49）も骨格が同一で、分けても中身が同じものが増えるだけになる。増えた分だけ片方が陳腐化する。
 
-Issue Forms（YAML 形式）も採らない。Web UI では入力欄を強制できるが、`gh issue create --body` から作ると適用されない。このリポジトリの issue はほぼ CLI 経由で、長い実装案やコードブロックを書く経路と噛み合わない。
+Issue Forms（YAML 形式）も採らない。Web UI では入力欄を強制できる代わりに、**本文が Web のフォームでしか組み立てられない**。markdown の雛形なら、テンプレートが適用されない非対話の CLI からでも上記のように `--body-file` へ写せる（「CLI から使うとき」）。このリポジトリの issue はほぼ CLI 経由で、長い実装案やコードブロックを書く経路と噛み合わない。
