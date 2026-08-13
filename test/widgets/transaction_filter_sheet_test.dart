@@ -162,13 +162,17 @@ void main() {
   ///
   /// composing 中の値は素通しされる仕様なので、桁数制限を超えた文字列が
   /// そのままコントローラに載る。
+  ///
+  /// 欄にフォーカスを当てるのも [tapInSheet] 経由にする。素の `tap` だと
+  /// 欄が可視域の外にあったときミスするが、それは警告止まりで例外にならない。
+  /// composing が一度も送られないまま「適用」が押され、通るはずのない
+  /// アサーションが理由の分からない形で落ちる（カテゴリを 10 件足すと再現する）。
   Future<void> sendComposing(
     WidgetTester tester,
     Finder field,
     String text,
   ) async {
-    await tester.tap(field);
-    await tester.pump();
+    await tapInSheet(tester, field);
 
     tester.testTextInput.updateEditingValue(TextEditingValue(
       text: text,
