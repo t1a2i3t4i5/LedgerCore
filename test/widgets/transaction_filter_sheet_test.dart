@@ -158,6 +158,26 @@ void main() {
   Finder memoField() =>
       find.widgetWithText(TextFormField, 'メモに含まれる文字列');
 
+  /// フォーマッタの桁数制限を抜ける経路（IME の変換確定前）で [text] を送る。
+  ///
+  /// composing 中の値は素通しされる仕様なので、桁数制限を超えた文字列が
+  /// そのままコントローラに載る。
+  Future<void> sendComposing(
+    WidgetTester tester,
+    Finder field,
+    String text,
+  ) async {
+    await tester.tap(field);
+    await tester.pump();
+
+    tester.testTextInput.updateEditingValue(TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+      composing: TextRange(start: 0, end: text.length),
+    ));
+    await tester.pump();
+  }
+
   // ---- 金額欄 ----
 
   testWidgets('全角数字は半角に直して受け付ける', (tester) async {
@@ -229,15 +249,7 @@ void main() {
   // 欄に 'Infinity' が表示され、再適用しても同じ状態のまま固定される。
   testWidgets('composing 中に送られた桁あふれは適用されない', (tester) async {
     await pumpSheet(tester);
-    await tester.tap(minField());
-    await tester.pump();
-
-    tester.testTextInput.updateEditingValue(TextEditingValue(
-      text: '9' * 400,
-      selection: const TextSelection.collapsed(offset: 400),
-      composing: const TextRange(start: 0, end: 400),
-    ));
-    await tester.pump();
+    await sendComposing(tester, minField(), '9' * 400);
 
     await tapInSheet(tester, find.text('適用'));
 
@@ -245,19 +257,28 @@ void main() {
     expect(provider.filterMinAmount, isNull);
   });
 
+  // 最大側にも同じガードが要る。min だけ守られていると、max に Infinity が
+  // 入って全件が除外され、開き直しても欄に 'Infinity' が復元されて再適用が
+  // 効かず、リセットするまで戻らない（min 側と同じ事故が起きる）
+  testWidgets('composing 中の桁あふれは最大金額側でも適用されない', (tester) async {
+    await pumpSheet(tester);
+    await sendComposing(tester, maxField(), '9' * 400);
+
+    await tapInSheet(tester, find.text('適用'));
+
+    expect(find.text('最大金額が不正な値です'), findsOneWidget);
+    expect(provider.filterMaxAmount, isNull);
+  });
+
   testWidgets('上限を超える値は適用されない', (tester) async {
     await pumpSheet(tester);
-    await tester.tap(minField());
-    await tester.pump();
 
     // 桁数制限を抜ける経路（composing）で上限超過の有限値を送る
-    final over = (kMaxAmount + 1).toStringAsFixed(0);
-    tester.testTextInput.updateEditingValue(TextEditingValue(
-      text: over,
-      selection: TextSelection.collapsed(offset: over.length),
-      composing: TextRange(start: 0, end: over.length),
-    ));
-    await tester.pump();
+    await sendComposing(
+      tester,
+      minField(),
+      (kMaxAmount + 1).toStringAsFixed(0),
+    );
 
     await tapInSheet(tester, find.text('適用'));
 
