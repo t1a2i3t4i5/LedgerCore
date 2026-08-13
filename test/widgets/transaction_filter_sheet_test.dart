@@ -7,6 +7,7 @@ import 'package:ledger_app/providers/category_provider.dart';
 import 'package:ledger_app/providers/member_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
 import 'package:ledger_app/screens/transaction_filter_sheet.dart';
+import 'package:ledger_app/screens/transactions_screen.dart';
 import 'package:ledger_app/widgets/amount_input_formatter.dart';
 import 'package:provider/provider.dart';
 
@@ -60,18 +61,26 @@ void main() {
   /// `findsNothing` になり、「エラーが出ていないこと」を見るアサーションが
   /// 無条件に通ってしまう（実際、成功パスに `_showError` を差し込んでも通った）。
   /// シートの下に画面を残しておけば、pop 後も SnackBar を検出できる。
-  Future<void> pumpSheet(WidgetTester tester) async {
+  ///
+  /// カテゴリとメンバーは既定で読み込み済みにしてから開く。生成しただけの
+  /// Provider を渡すと「カテゴリがありません」だけが出て `FilterChip` が
+  /// 1 つも描かれず、チップの経路を通せないため。
+  ///
+  /// [preloaded] を false にすると、実画面の `_openFilterSheet`
+  /// （`transactions_screen.dart`。未読込なら fetch を投げるが **await せずに**
+  /// シートを開く）と同じ順序になる。空のまま開いて、あとから届いた通知で
+  /// チップが出る経路を通したいときに使う。
+  Future<void> pumpSheet(WidgetTester tester, {bool preloaded = true}) async {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    // 実画面では一覧を開いた時点でどちらも読み込み済み。生成しただけの
-    // Provider を渡すと一覧が空のまま「カテゴリがありません」だけが出て、
-    // FilterChip が 1 つも描かれずチップの経路を通せない
     final categoryProvider = CategoryProvider(db);
     final memberProvider = MemberProvider(db);
-    await categoryProvider.fetch();
-    await memberProvider.fetchMembers();
+    if (preloaded) {
+      await categoryProvider.fetch();
+      await memberProvider.fetchMembers();
+    }
 
     await tester.pumpWidget(
       MultiProvider(
@@ -97,6 +106,40 @@ void main() {
       ),
     );
     await tester.tap(find.text('シートを開く'));
+    await tester.pumpAndSettle();
+
+    if (!preloaded) {
+      // 開いた時点ではまだ空。ここでチップが出ていると「あとから届く」
+      // 経路を通せないので、前提として確かめておく
+      expect(find.text('カテゴリがありません'), findsOneWidget);
+      await categoryProvider.fetch();
+      await memberProvider.fetchMembers();
+      await tester.pumpAndSettle();
+    }
+  }
+
+  /// 実画面（一覧 → フィルターボタン → シート）をそのまま組み立てる。
+  ///
+  /// [pumpSheet] はシートしか描かないので、適用の結果が Provider から一覧へ
+  /// 伝わるところ（`setFilters` の `notifyListeners` と、一覧が
+  /// `filteredTransactions` を読んでいること）は、そちらでは判定できない。
+  /// Provider の getter は通知と無関係に正しい値を返すため。
+  Future<void> pumpTransactionsScreen(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(360, 690);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => CategoryProvider(db)),
+          ChangeNotifierProvider(create: (_) => MemberProvider(db)),
+          ChangeNotifierProvider.value(value: provider),
+        ],
+        // TransactionsScreen は自前で Scaffold を返す
+        child: const MaterialApp(home: TransactionsScreen()),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -231,6 +274,8 @@ void main() {
 
     expect(find.text('最小金額は最大金額以下にしてください'), findsOneWidget);
     expect(provider.filterMinAmount, isNull);
+    // エラーのときは閉じない。閉じると打ち直しに開き直しが要る
+    expect(find.byType(TransactionFilterSheet), findsOneWidget);
   });
 
   testWidgets('金額欄を空にして適用するとフィルタが外れる', (tester) async {
@@ -272,11 +317,51 @@ void main() {
 
     expect(provider.sortField, TransactionSortField.amount);
     expect(provider.sortOrder, SortOrder.asc);
-    // 状態だけでなく、一覧に出る順番まで見る
+    // 状態だけでなく、一覧が読む filteredTransactions の順番まで見る。
+    // ただしここで描いているのはシートだけなので、この並びが実際に画面へ
+    // 反映されるかは別（「適用した絞り込みが一覧に反映される」で見る）
     expect(
       provider.filteredTransactions.map((t) => t.amount).toList(),
       [1000, 3000],
     );
+    // 適用したらシートは閉じる。閉じないと絞り込んだ一覧が見えない
+    expect(find.byType(TransactionFilterSheet), findsNothing);
+  });
+
+  testWidgets('適用した絞り込みが一覧に反映される', (tester) async {
+    // 既定カテゴリの 0 番目が食費、2 番目が交通費
+    await seedTransaction(amount: 1200, categoryIndex: 0);
+    await seedTransaction(amount: 3400, categoryIndex: 2);
+
+    await pumpTransactionsScreen(tester);
+    expect(find.text('2件'), findsOneWidget);
+    expect(find.text('¥1,200'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('ソート・フィルター'));
+    await tester.pumpAndSettle();
+    await tapInSheet(tester, find.widgetWithText(FilterChip, '交通費'));
+    await tapInSheet(tester, find.text('適用'));
+
+    // Provider が通知し、一覧が filteredTransactions を読み直したか。
+    // setFilters の notifyListeners を消すと、シートは閉じるのに
+    // 一覧は 2 件のまま残る
+    expect(find.text('1件'), findsOneWidget);
+    expect(find.text('¥1,200'), findsNothing);
+    expect(find.text('¥3,400'), findsOneWidget);
+  });
+
+  testWidgets('読み込みが終わる前に開いても、届いたチップで絞り込める', (tester) async {
+    final cats = await db.getCategories();
+    final target = cats.firstWhere((c) => c.name == '交通費');
+
+    // 実画面はカテゴリの読み込みを待たずにシートを開く。シートが
+    // context.watch をやめると、実機ではチップが出ないまま固定される
+    await pumpSheet(tester, preloaded: false);
+
+    await tapInSheet(tester, find.widgetWithText(FilterChip, '交通費'));
+    await tapInSheet(tester, find.text('適用'));
+
+    expect(provider.filterCategoryIds, {target.id});
   });
 
   // ---- カテゴリ・登録者・メモ ----
@@ -340,5 +425,69 @@ void main() {
     expect(provider.filterMaxAmount, isNull);
     expect(provider.filterMemoQuery, '');
     expect(provider.activeFilterCount, 0);
+    expect(find.byType(TransactionFilterSheet), findsNothing);
+  });
+
+  // ---- 復元 ----
+
+  testWidgets('適用中の条件が全項目そろって復元される', (tester) async {
+    final cats = await db.getCategories();
+    final members = await db.getMembers();
+    await db.insertMember('配偶者');
+    final spouse = (await db.getMembers()).firstWhere((m) => m.name == '配偶者');
+
+    provider.setSort(TransactionSortField.amount, SortOrder.asc);
+    provider.setFilters(
+      categoryIds: {cats.firstWhere((c) => c.name == '交通費').id},
+      memberIds: {spouse.id},
+      minAmount: 1000,
+      maxAmount: 5000,
+      memoQuery: 'コンビニ',
+    );
+
+    await pumpSheet(tester);
+
+    // 開いた時点で全項目が Provider 由来になっているか。
+    // チップは selected、ソートは金額・昇順、メモ欄には文字列が入る
+    expect(
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, '交通費'))
+          .selected,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<FilterChip>(find.widgetWithText(FilterChip, '配偶者'))
+          .selected,
+      isTrue,
+    );
+    // 選んでいない側まで拾っていないことも見る
+    expect(
+      tester.widget<FilterChip>(find.widgetWithText(FilterChip, '食費')).selected,
+      isFalse,
+    );
+    expect(
+      tester
+          .widget<FilterChip>(
+              find.widgetWithText(FilterChip, members.first.name))
+          .selected,
+      isFalse,
+    );
+    expect(find.byTooltip('昇順'), findsOneWidget);
+    expect(find.text('コンビニ'), findsOneWidget);
+
+    // 金額だけ打ち替えて適用しても、他の条件は消えずに往復する。
+    // initState の復元が抜けると、ここで黙って 1 件だけに減る
+    await tester.enterText(minField(), '2000');
+    await tapInSheet(tester, find.text('適用'));
+
+    expect(provider.filterMinAmount, 2000);
+    expect(provider.filterMaxAmount, 5000);
+    expect(provider.filterCategoryIds,
+        {cats.firstWhere((c) => c.name == '交通費').id});
+    expect(provider.filterMemberIds, {spouse.id});
+    expect(provider.filterMemoQuery, 'コンビニ');
+    expect(provider.sortField, TransactionSortField.amount);
+    expect(provider.sortOrder, SortOrder.asc);
   });
 }
