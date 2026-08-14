@@ -8,7 +8,7 @@ import 'package:ledger_app/providers/member_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
 import 'package:ledger_app/screens/transaction_filter_sheet.dart';
 import 'package:ledger_app/screens/transactions_screen.dart';
-import 'package:ledger_app/widgets/amount_input_formatter.dart';
+import 'package:ledger_app/widgets/amount_format.dart';
 import 'package:provider/provider.dart';
 
 /// フィルターシートが「適用」「リセット」で Provider に何を書くかを確認する。

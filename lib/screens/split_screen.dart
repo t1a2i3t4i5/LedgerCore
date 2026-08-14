@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/summary_provider.dart';
+import '../widgets/amount_format.dart';
 
 class SplitScreen extends StatefulWidget {
   const SplitScreen({super.key});
@@ -11,8 +11,6 @@ class SplitScreen extends StatefulWidget {
 }
 
 class _SplitScreenState extends State<SplitScreen> {
-  final _fmt = NumberFormat('#,###', 'ja_JP');
-
   @override
   void initState() {
     super.initState();
@@ -92,7 +90,7 @@ class _SplitScreenState extends State<SplitScreen> {
                             children: [
                               const Text('合計', style: TextStyle(fontSize: 12)),
                               Text(
-                                '¥${_fmt.format(provider.split!.total)}',
+                                formatYen(provider.split!.total),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -108,7 +106,7 @@ class _SplitScreenState extends State<SplitScreen> {
                               const Text('一人当たり',
                                   style: TextStyle(fontSize: 12)),
                               Text(
-                                '¥${_fmt.format(provider.split!.fairShare)}',
+                                formatYen(provider.split!.fairShare),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -164,15 +162,17 @@ class _SplitScreenState extends State<SplitScreen> {
                     child: ListTile(
                       leading: CircleAvatar(child: Text(m.memberName[0])),
                       title: Text(m.memberName),
-                      subtitle: Text('支払済み: ¥${_fmt.format(m.paid)}'),
+                      subtitle: Text('支払済み: ${formatYen(m.paid)}'),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
+                            // 黒字だけ + を前置する。負値は formatYen が
+                            // ¥-1,000 の形で符号を出す
                             isOver
-                                ? '+¥${_fmt.format(m.balance)}'
-                                : '¥${_fmt.format(m.balance)}',
+                                ? '+${formatYen(m.balance)}'
+                                : formatYen(m.balance),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: isOver

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/summary_provider.dart';
+import '../widgets/amount_format.dart';
 import '../widgets/category_pie_chart.dart';
 import '../widgets/chart_palette.dart';
 
@@ -13,8 +13,6 @@ class SummaryScreen extends StatefulWidget {
 }
 
 class _SummaryScreenState extends State<SummaryScreen> {
-  final _fmt = NumberFormat('#,###', 'ja_JP');
-
   @override
   void initState() {
     super.initState();
@@ -92,7 +90,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         const Text('合計支出', style: TextStyle(fontSize: 14)),
                         const SizedBox(height: 8),
                         Text(
-                          '¥${_fmt.format(provider.summary!.total)}',
+                          formatYen(provider.summary!.total),
                           style: Theme.of(context)
                               .textTheme
                               .headlineMedium
@@ -126,7 +124,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       ),
                     ),
                     title: Text(item.categoryName),
-                    trailing: Text('¥${_fmt.format(item.total)}'),
+                    trailing: Text(formatYen(item.total)),
                     dense: true,
                   ),
                 ),
@@ -143,7 +141,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       child: Text(item.memberName[0]),
                     ),
                     title: Text(item.memberName),
-                    trailing: Text('¥${_fmt.format(item.total)}'),
+                    trailing: Text(formatYen(item.total)),
                     dense: true,
                   ),
                 ),

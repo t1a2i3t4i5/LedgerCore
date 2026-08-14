@@ -6,7 +6,7 @@ import '../models/transaction.dart';
 import '../providers/category_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/transaction_provider.dart';
-import '../widgets/amount_input_formatter.dart';
+import '../widgets/amount_format.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   // 編集時は既存の取引を渡す

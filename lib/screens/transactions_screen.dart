@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/transaction_provider.dart';
+import '../widgets/amount_format.dart';
 import 'add_transaction_screen.dart';
 import 'transaction_filter_sheet.dart';
 
@@ -15,7 +16,6 @@ class TransactionsScreen extends StatefulWidget {
 }
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
-  final _fmt = NumberFormat('#,###', 'ja_JP');
   final _dateFmt = DateFormat('MM/dd');
 
   @override
@@ -161,7 +161,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerRight,
                         child: Text(
-                          '合計 ¥${_fmt.format(provider.filteredTotal)}',
+                          '合計 ${formatYen(provider.filteredTotal)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -216,7 +216,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                         '${t.memberName}${t.memo != null && t.memo!.isNotEmpty ? ' · ${t.memo}' : ''}',
                                       ),
                                       trailing: Text(
-                                        '¥${_fmt.format(t.amount)}',
+                                        formatYen(t.amount),
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
