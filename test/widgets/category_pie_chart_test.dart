@@ -67,6 +67,10 @@ void main() {
       expect(find.textContaining('食費'), findsOneWidget);
       expect(find.textContaining('交通費'), findsOneWidget);
       expect(find.text('データがありません'), findsNothing);
+      // 凡例の金額も formatYen() を通っている。カテゴリ名だけを見ていると、
+      // 金額の整形を壊してもこの画面だけ検知できない
+      expect(find.text('食費 ¥1,500'), findsOneWidget);
+      expect(find.text('交通費 ¥500'), findsOneWidget);
     });
 
     testWidgets('カテゴリ1件でも例外なく描画される', (tester) async {
