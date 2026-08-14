@@ -154,7 +154,7 @@ void main() {
     expect(find.text('取引がありません'), findsOneWidget);
     expect(find.text('該当する取引がありません'), findsNothing);
     expect(find.text('0件'), findsOneWidget);
-    // NumberFormat('#,###') は 0 を空文字にせず '0' を返す
+    // formatYen() の書式 '#,###' は 0 を空文字にせず '0' を返す
     expect(find.text('合計 ¥0'), findsOneWidget);
   });
 

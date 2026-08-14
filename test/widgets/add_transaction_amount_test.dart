@@ -86,8 +86,8 @@ void main() {
   testWidgets('小数点は入力自体を受け付けない', (tester) async {
     await pumpScreen(tester);
 
-    // 小数は全画面 NumberFormat('#,###') で表示されないため、
-    // 保存できても読めない値にしかならない。入り口で落とす
+    // 小数は表示側の formatYen() が落とすため、保存できても読めない値に
+    // しかならない。入り口で落とす
     await tester.enterText(amountField(), '1234.5');
     await tester.pump();
 

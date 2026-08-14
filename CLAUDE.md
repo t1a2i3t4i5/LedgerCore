@@ -70,7 +70,8 @@ screens → providers → AppDatabase（drift） → SQLite
   - 月をまたぐ操作は Provider 側で `fetch()` まで済ませる。月ジャンプは `goToMonth(year, month)` を使う
 - 金額は正の整数のみ。上限は `models/transaction.dart` の `kMaxAmount` だけを直す（入力側の validator と DB の CHECK 制約が両方これを参照する）
   - `kMaxAmount` はスキーマ定義値でもあるので、変えるなら「DB スキーマ変更時の注意」の手順まで必要
-- 金額の入力欄には必ず `widgets/amount_input_formatter.dart` の `AmountInputFormatter` を付ける
+- 金額の入力欄には必ず `widgets/amount_format.dart` の `AmountInputFormatter` を付ける
+- 金額を画面に出すときは `widgets/amount_format.dart` の `formatYen()` を使う。画面側で `NumberFormat` を作らない（`¥` 込み・小数なし。DB の整数 CHECK 制約がこの書式を根拠にしている）
 - グラフウィジェットは `AppDatabase` も Provider も参照せず、表示データを引数で受け取る
 - グラフの色は `widgets/chart_palette.dart` の `categoryColor(categoryId)` を使い、直書きしない
 
