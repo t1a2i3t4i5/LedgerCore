@@ -43,9 +43,12 @@ class Transactions extends Table {
   // 金額は「0 より大きい」「上限以下」「整数」の 3 つを満たす値のみ許す
   // （入力側の validator と二重に防ぐ）。
   //
-  // 整数に限る理由: 金額の表示は全画面 NumberFormat('#,###') で小数部を出さない。
+  // 整数に限る理由: 金額の表示は widgets/amount_format.dart の formatYen() が
+  // 一手に担っており、書式 '#,###' で小数部を出さない（画面ごとの定義は無い）。
   // 0.4 円の取引を 3 件入れると一覧は 3 行とも「¥0」・合計は「¥1」になり、
   // 画面上で 0 + 0 + 0 = 1 になる。記録できても読めない値でしかない。
+  // この CHECK は formatYen() の書式に依存している。あちらを変えるならここも
+  // 見直すこと（formatYen() 側の dartdoc からもここを指している）。
   // 整数判定は drift の式 API に無いので CustomExpression で書く。
   // Infinity は上限の比較と CAST の比較の両方で弾かれる。
   //
@@ -151,8 +154,9 @@ class AppDatabase extends _$AppDatabase {
                 'DELETE FROM transactions WHERE ROUND(amount) <= 0',
               );
               // 小数は四捨五入する。SQLite の ROUND は half away from zero で、
-              // 表示側の NumberFormat('#,###') と同じ丸め方なので、**行ごとの
-              // 表示額は変わらない**（1234.5 はどちらも 1,235）。
+              // 表示側（widgets/amount_format.dart の formatYen()、書式 '#,###'）
+              // と同じ丸め方なので、**行ごとの表示額は変わらない**
+              // （1234.5 はどちらも 1,235）。
               //
               // ただし合計は変わりうる。「和を丸めた値」と「丸めた値の和」は
               // 別物なので、100.6 が 2 件あると移行前の合計表示 ¥201 が

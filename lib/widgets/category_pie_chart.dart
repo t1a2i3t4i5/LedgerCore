@@ -1,8 +1,8 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../models/summary.dart';
+import 'amount_format.dart';
 import 'chart_palette.dart';
 
 /// 構成比がこの割合未満のセクションはラベルを出さない。
@@ -20,8 +20,6 @@ const double _sectionRadius = 56;
 /// これより小さくすると円の上下が切れる。fl_chart は Canvas 直描きなので
 /// はみ出しても例外も overflow の縞模様も出ず静かに切れる点に注意。
 const double _chartHeight = 220;
-
-final _fmt = NumberFormat('#,###', 'ja_JP');
 
 /// カテゴリ別の構成比を描くドーナツグラフ。
 /// DB には触れず、表示するデータはすべて引数で受け取る。
@@ -109,7 +107,7 @@ class _Legend extends StatelessWidget {
         // Flexible で包まないと 25 文字あたりから横にはみ出す
         Flexible(
           child: Text(
-            '${item.categoryName} ¥${_fmt.format(item.total)}',
+            '${item.categoryName} ${formatYen(item.total)}',
             style: Theme.of(context).textTheme.bodySmall,
             overflow: TextOverflow.ellipsis,
           ),

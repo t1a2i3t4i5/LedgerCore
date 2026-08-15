@@ -8,7 +8,7 @@
 /// 参照するのは次の 3 か所。片方だけ変えると「画面では通るのに保存で落ちる」
 /// 状態になるので、必ずここを直す。
 ///
-/// - 入力の桁数制限（`widgets/amount_input_formatter.dart`。この値から導出）
+/// - 入力の桁数制限（`widgets/amount_format.dart`。この値から導出）
 /// - 入力の validator（`screens/add_transaction_screen.dart`）と
 ///   フィルターの範囲チェック（`screens/transaction_filter_sheet.dart`）
 /// - DB の CHECK 制約（`db/database.dart`）

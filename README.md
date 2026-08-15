@@ -93,7 +93,7 @@ lib/
 └── widgets/                   # 画面から切り離した再利用部品（ウィジェットとは限らない）
     ├── chart_palette.dart     # グラフの色パレット（カテゴリ ID から決定的に決まる）
     ├── category_pie_chart.dart# カテゴリ別構成比のドーナツグラフ
-    └── amount_input_formatter.dart # 金額入力欄の全角正規化・記号除去・桁数制限
+    └── amount_format.dart      # 金額の表示整形（¥ 付き）と入力欄の全角正規化・記号除去・桁数制限
 ```
 
 データの流れは一方向。

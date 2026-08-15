@@ -1,13 +1,13 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:intl/intl.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/category_provider.dart';
 import 'package:ledger_app/providers/member_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
 import 'package:ledger_app/screens/transactions_screen.dart';
+import 'package:ledger_app/widgets/amount_format.dart';
 import 'package:provider/provider.dart';
 
 /// 取引一覧画面からの削除フロー（長押し → 確認ダイアログ）を確認する。
@@ -154,7 +154,7 @@ void main() {
     expect(find.text('取引がありません'), findsOneWidget);
     expect(find.text('該当する取引がありません'), findsNothing);
     expect(find.text('0件'), findsOneWidget);
-    // NumberFormat('#,###') は 0 を空文字にせず '0' を返す
+    // formatYen() の書式 '#,###' は 0 を空文字にせず '0' を返す
     expect(find.text('合計 ¥0'), findsOneWidget);
   });
 
@@ -167,9 +167,9 @@ void main() {
     await pumpScreen(tester);
 
     // 一覧の行と合計パネルの両方に最大金額が出る状態にする
-    final formatted = NumberFormat('#,###', 'ja_JP').format(kMaxAmount);
-    expect(find.text('¥$formatted'), findsOneWidget);
-    expect(find.text('合計 ¥$formatted'), findsOneWidget);
+    final formatted = formatYen(kMaxAmount);
+    expect(find.text(formatted), findsOneWidget);
+    expect(find.text('合計 $formatted'), findsOneWidget);
     // overflow は例外として記録されるので、握りつぶさず明示的に見る
     expect(tester.takeException(), isNull);
   });
@@ -182,8 +182,8 @@ void main() {
     await seedTransaction(amount: kMaxAmount, day: 6, categoryIndex: 1);
     await pumpScreen(tester);
 
-    final total = NumberFormat('#,###', 'ja_JP').format(kMaxAmount * 2);
-    expect(find.text('合計 ¥$total'), findsOneWidget);
+    final total = formatYen(kMaxAmount * 2);
+    expect(find.text('合計 $total'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
