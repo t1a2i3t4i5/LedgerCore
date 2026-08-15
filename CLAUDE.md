@@ -89,6 +89,8 @@ screens → providers → AppDatabase（drift） → SQLite
 - 新規作成時（`onCreate`）のスキーマも `verifier.migrateAndValidate` で検証する。`db.validateDatabaseSchema()` は使わない
 - ウィジェットテストは `test/widgets/` に置く。fl_chart が描く文字は `find.text()` では拾えない
 - ウィジェットテストの画面サイズは 360x690 にする。金額を描くなら `kMaxAmount` のケースを置く
+- 文字が幅に収まったかは `RenderParagraph.didExceedMaxLines` で見る。`ellipsis` は例外を出さず、`find.text()` は畳まれた `Text` にもマッチするので `findsOneWidget` では守れない
+  - 幅を見るテストのカテゴリ名に既定カテゴリ（2〜3 文字）を使わない。幅が足りない実装でも収まってしまう。`insertCategory` でユーザーが付ける長さ（6 文字程度）を seed する
 - 月を扱うテストは `clock` を注入して固定年月で書く。「今月」にテストデータを置かない
   - `clock` は値を書き換えられる変数を閉じ込めた形（`var now = ...; () => now`）でも 1 本書く
 - 月送りのテストは、ヘッダの年月だけでなく中身の値も見る
