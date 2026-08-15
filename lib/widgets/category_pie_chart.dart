@@ -73,7 +73,7 @@ class CategoryPieChart extends StatelessWidget {
       color: color,
       radius: _sectionRadius,
       showTitle: ratio >= _minLabelRatio,
-      title: '${(ratio * 100).toStringAsFixed(1)}%',
+      title: formatRatio(item.total, total),
       titleStyle: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.bold,

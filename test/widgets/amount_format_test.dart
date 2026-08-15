@@ -60,6 +60,45 @@ void main() {
     });
   });
 
+  group('formatRatio', () {
+    // 集計画面のカテゴリ別リストと円グラフの扇形ラベルが同じ関数を通る。
+    // 桁数を変えると 2 か所の表示が同時に動くので、書式はここで固定する
+    test('小数第1位までの % にする', () {
+      expect(formatRatio(7500, 10000), '75.0%');
+      expect(formatRatio(2500, 10000), '25.0%');
+      expect(formatRatio(10000, 10000), '100.0%');
+    });
+
+    // この issue の動機。扇形ラベルが出ない比率でもリストには数字が出る
+    test('5%未満でもそのまま数字を返す（表示するかは呼び出し側の判断）', () {
+      expect(formatRatio(200, 10000), '2.0%');
+      expect(formatRatio(1, 10000), '0.0%');
+    });
+
+    // 合計を 100% に補正する処理は入れない。円グラフの扇形ラベルも同じ挙動
+    test('丸めて合計 100% にならないのは仕様', () {
+      final third = formatRatio(1, 3);
+      expect(third, '33.3%');
+      // 3 等分を 3 つ足しても 100% には届かない。補正する処理は入れない
+      final sum = double.parse(third.replaceAll('%', '')) * 3;
+      expect(sum, lessThan(100));
+      expect(sum, closeTo(99.9, 0.001));
+    });
+
+    // 分母 0 で 'NaN%' を描かせない。取引ゼロの月に画面が通る経路
+    test('分母が 0 以下のときは - を返す', () {
+      expect(formatRatio(0, 0), '-');
+      expect(formatRatio(100, 0), '-');
+      expect(formatRatio(100, -1), '-');
+    });
+
+    // kMaxAmount は DB の CHECK が認める最大値。桁が増えても表現は変わらない
+    test('上限額どうしでも 100.0% になる', () {
+      expect(formatRatio(kMaxAmount, kMaxAmount), '100.0%');
+      expect(formatRatio(kMaxAmount / 2, kMaxAmount), '50.0%');
+    });
+  });
+
   group('formatAmountForInput', () {
     // 表示用と取り違えると入力欄に ¥ や桁区切りが入り、
     // AmountInputFormatter が数字以外を落として値が壊れる

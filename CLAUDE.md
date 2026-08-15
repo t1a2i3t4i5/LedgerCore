@@ -72,6 +72,9 @@ screens → providers → AppDatabase（drift） → SQLite
   - `kMaxAmount` はスキーマ定義値でもあるので、変えるなら「DB スキーマ変更時の注意」の手順まで必要
 - 金額の入力欄には必ず `widgets/amount_format.dart` の `AmountInputFormatter` を付ける
 - 金額を画面に出すときは `widgets/amount_format.dart` の `formatYen()` を使う。画面側で `NumberFormat` を作らない（`¥` 込み・小数なし。DB の整数 CHECK 制約がこの書式を根拠にしている）
+- 構成比（%）を画面に出すときは同じファイルの `formatRatio()` を使い、`toStringAsFixed` を各所で組み立て直さない。円グラフの扇形ラベルと集計画面のリストが同じ値を別の場所に出すため
+  - 丸めて合計 100% にならないのは仕様（33.3% × 3 = 99.9%）。補正処理を入れない
+  - 集計画面のカテゴリ別リストでは、金額と % を `ListTile` の `trailing` に**縦に積む**。1 行に連結すると `title` の幅が足りずカテゴリ名が黙って畳まれる
 - グラフウィジェットは `AppDatabase` も Provider も参照せず、表示データを引数で受け取る
 - グラフの色は `widgets/chart_palette.dart` の `categoryColor(categoryId)` を使い、直書きしない
 
