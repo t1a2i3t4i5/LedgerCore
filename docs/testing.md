@@ -38,6 +38,27 @@ fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.tex
 
 金額を描くテストには `kMaxAmount` を使ったケースを置く。`¥999,999,999,999` は実機幅の 1/3 以上を占めるので、短い金額しか描かないと overflow を見逃す（実際、合計パネルが 9.3px はみ出していた）。
 
+## 文字が省略されたかは `didExceedMaxLines` で見る
+
+横幅が足りないときの失敗は 2 種類あり、**片方は例外を出さない**。`Row` などの `RenderFlex` は overflow を例外にするので `takeException()` で捕まるが、`overflow: TextOverflow.ellipsis` を付けた `Text` は幅が足りなければ黙って `…` に畳む。`ListTile` の `title` はこちらに当たる（`trailing` を先に測って残りを `title` に配分するため、`trailing` を長くすると `title` が静かに潰れる）。
+
+さらに **`find.text()` は畳まれた `Text` にもマッチする**。`Text` が持つ文字列を見ているだけで、実際に描かれた字を見ていないためで、`findsOneWidget` は潰れていても通る。省略が起きたかは描画側に訊く。
+
+```dart
+import 'package:flutter/rendering.dart'; // material.dart には入っていない
+
+bool _isEllipsized(WidgetTester tester, String text) =>
+    tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
+```
+
+`_isEllipsized` を `isFalse` で使うテストには、**同じファイルに `isTrue` になるケースも置く**。ヘルパ自身が省略を検知できていなければ `isFalse` は常に通り、何も守らないため（`test/widgets/summary_screen_chart_test.dart` は 50 文字のカテゴリ名で裏を取っている）。
+
+### 幅のテストに既定カテゴリ名を使わない
+
+既定カテゴリは「食費」「日用品」など 2〜3 文字しかなく、**幅が足りない実装でも収まってしまう**。実際、カテゴリ別リストの金額と構成比を 1 行に連結していた版は `title` の取り分が 43.5px しか無かったが、「食費」で書いたテストは緑のまま通った（縦積みに直すと 135.5px）。
+
+カテゴリ名は DB 上 50 文字まで入る。幅を見るテストでは `db.insertCategory('食費（外食）')` のように**ユーザーが実際に付ける長さ**（6 文字程度）を seed する。ここを既定カテゴリに戻すと、テストは緑のまま回帰の検知力だけが消える。
+
 ## 表示整形は小数を入れた単体テストで守る
 
 画面テストが使う金額はすべて整数なので、`formatYen()` の書式を `#,###` から `#,##0.##` に変えても出力は 1 文字も変わらず、ウィジェットテストは 1 本も落ちない（実測済み）。しかしそれは DB の整数 CHECK 制約の根拠そのものを崩す変更にあたる。`test/widgets/amount_format_test.dart` に `1234.5` や `合計 ÷ 人数` 相当の割り切れない値を入れて、小数部が出ないことを直接押さえる。期待値は実装から導かずリテラルで書く。

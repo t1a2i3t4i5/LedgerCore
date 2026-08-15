@@ -123,8 +123,33 @@ class _SummaryScreenState extends State<SummaryScreen> {
                         color: labelColorOn(categoryColor(item.categoryId)),
                       ),
                     ),
-                    title: Text(item.categoryName),
-                    trailing: Text(formatYen(item.total)),
+                    // カテゴリ名は DB 上 50 文字まで入る。trailing が長くなった分
+                    // title の取り分が減るので ellipsis で畳む
+                    title: Text(
+                      item.categoryName,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    // 構成比は円グラフの扇形ラベルにしか無く、5% 未満の扇形には
+                    // それも出ない（category_pie_chart.dart の _minLabelRatio）。
+                    // 細かいカテゴリの割合が読めるようリスト側にも併記する。
+                    //
+                    // 金額と % を 1 行に並べない。ListTile は trailing を先に
+                    // 測って残りを title に配分するので、'¥50,000 (14.3%)' の
+                    // 1 行では 360px 幅で title に 43.5px しか残らず、全角 4 文字の
+                    // カテゴリ名が既に ellipsis で畳まれていた（実測）。
+                    // 縦に積むと trailing の幅は金額だけで決まる
+                    trailing: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(formatYen(item.total)),
+                        Text(
+                          formatRatio(item.total, provider.summary!.total),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
                     dense: true,
                   ),
                 ),
