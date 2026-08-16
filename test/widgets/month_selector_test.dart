@@ -22,12 +22,13 @@ void main() {
     TextStyle? style,
     List<Widget> actions = const [],
     double textScale = 1.0,
+    double? width,
   }) async {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    final selector = MonthSelector(
+    final Widget selector = MonthSelector(
       year: year,
       month: month,
       style: style,
@@ -42,13 +43,20 @@ void main() {
         home: Scaffold(
           body: MediaQuery(
             data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
-            child: selector,
+            child: width == null
+                ? selector
+                : SizedBox(width: width, child: selector),
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
   }
+
+  /// 年月が 1 行に収まらず省略されたか。
+  /// [find.text] は畳まれた [Text] にもマッチするので描画側に訊く
+  bool isEllipsized(WidgetTester tester, String text) =>
+      tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
 
   /// 「今月に戻る」ボタンが押せる状態か
   bool todayIsEnabled(WidgetTester tester) =>
@@ -135,9 +143,23 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    final paragraph =
-        tester.renderObject<RenderParagraph>(find.text('9999年12月'));
-    expect(paragraph.didExceedMaxLines, isFalse);
+    expect(isEllipsized(tester, '9999年12月'), isFalse);
+  });
+
+  testWidgets('幅が足りなければ年月は 1 行のまま省略される', (tester) async {
+    // 上の isFalse の裏を取る対照ケース。maxLines を外すと
+    // didExceedMaxLines は常に false を返すので、isFalse だけでは
+    // 省略の契約を何も守れない（docs/testing.md）
+    await pump(
+      tester,
+      year: 9999,
+      month: 12,
+      actions: [filterButton()],
+      width: 200,
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(isEllipsized(tester, '9999年12月'), isTrue);
   });
 
   testWidgets('端末の文字サイズを 2 倍にしてもレイアウトが破綻しない', (tester) async {
