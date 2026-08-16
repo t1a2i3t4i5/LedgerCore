@@ -6,6 +6,7 @@ import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/summary_provider.dart';
 import 'package:ledger_app/screens/summary_screen.dart';
+import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:provider/provider.dart';
 
 /// テキストが横幅に収まらず ellipsis で畳まれたかどうか。
@@ -14,6 +15,66 @@ import 'package:provider/provider.dart';
 /// マッチしてしまう。畳まれたかは描画側の RenderParagraph だけが知っている。
 bool _isEllipsized(WidgetTester tester, String text) =>
     tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
+
+/// カテゴリ名の行に、その金額と構成比が**同じ `ListTile` の中に**出ていること。
+///
+/// 画面のどこかに '¥7,500' と '75.0%' があることを別々に見るだけでは、
+/// 行と行で中身が入れ替わっても気付けない（集合としては一致するため）。
+void expectRow(
+  WidgetTester tester,
+  String categoryName, {
+  required String amount,
+  required String ratio,
+}) {
+  final tile = find.ancestor(
+    of: find.text(categoryName),
+    matching: find.byType(ListTile),
+  );
+  expect(tile, findsOneWidget, reason: '$categoryName の行が無い');
+  expect(
+    find.descendant(of: tile, matching: find.text(amount)),
+    findsOneWidget,
+    reason: '$categoryName の行に $amount が無い',
+  );
+  expect(
+    find.descendant(of: tile, matching: find.text(ratio)),
+    findsOneWidget,
+    reason: '$categoryName の行に $ratio が無い',
+  );
+}
+
+/// 行の先頭の丸アイコンが、そのカテゴリ ID の [categoryColor] で塗られていること。
+///
+/// 円グラフが消えて chart_palette の lib 側の利用者はこの CircleAvatar だけに
+/// なったので、ここを直書きの色に変えても落ちるテストが無い状態を避ける。
+void expectAvatarColor(
+  WidgetTester tester,
+  String categoryName,
+  int categoryId,
+) {
+  final avatar = tester.widget<CircleAvatar>(
+    find.descendant(
+      of: find.ancestor(
+        of: find.text(categoryName),
+        matching: find.byType(ListTile),
+      ),
+      matching: find.byType(CircleAvatar),
+    ),
+  );
+  expect(avatar.backgroundColor, categoryColor(categoryId));
+
+  final icon = tester.widget<Icon>(
+    find.descendant(
+      of: find.ancestor(
+        of: find.text(categoryName),
+        matching: find.byType(ListTile),
+      ),
+      matching: find.byType(Icon),
+    ),
+  );
+  // 背景の輝度で白黒を選ぶ。直書きすると暗い色の上で読めなくなる
+  expect(icon.color, labelColorOn(categoryColor(categoryId)));
+}
 
 /// サマリー画面のカテゴリ別セクションを、インメモリ DB 込みで確認する。
 /// 実端末のファイルには触らない（database_test.dart と同じ方針）。
@@ -41,7 +102,35 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('取引があるとカテゴリ別に行が並ぶ', (tester) async {
+  // 行数だけを数えると、行と行で中身が入れ替わる改変を検知できない
+  // （カテゴリ 3 + メンバー 1 = 4 件は保たれるため）。名前・金額・構成比が
+  // 同じ ListTile に収まっているかまで見る
+  testWidgets('カテゴリごとに名前・金額・構成比が同じ行に並ぶ', (tester) async {
+    final cats = await db.getCategories();
+    final memberId = (await db.getMembers()).first.id;
+
+    // 合計 6000 円。構成比が割り切れて重複しない配分にする
+    for (final (i, cat) in cats.take(3).indexed) {
+      await db.insertTransaction(TransactionInput(
+        memberId: memberId,
+        categoryId: cat.id,
+        amount: (i + 1) * 1000,
+        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+      ));
+    }
+
+    await pumpSummary(tester);
+
+    expect(tester.takeException(), isNull);
+    expectRow(tester, cats[2].name, amount: '¥3,000', ratio: '50.0%');
+    expectRow(tester, cats[1].name, amount: '¥2,000', ratio: '33.3%');
+    expectRow(tester, cats[0].name, amount: '¥1,000', ratio: '16.7%');
+    expect(find.text('データがありません'), findsNothing);
+  });
+
+  // 金額の降順（summary_calculator の _buildCategoryItems）。この並びが崩れると
+  // 「支出の大きい順に見る」という画面の前提が静かに壊れる
+  testWidgets('カテゴリ別は金額の降順で並ぶ', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
 
@@ -56,22 +145,53 @@ void main() {
 
     await pumpSummary(tester);
 
-    expect(tester.takeException(), isNull);
-    // カテゴリ 3 件 + メンバー 1 件
-    expect(find.byType(ListTile), findsNWidgets(4));
-    expect(find.text('データがありません'), findsNothing);
+    double dy(String name) => tester.getCenter(find.text(name)).dy;
+    expect(dy(cats[2].name), lessThan(dy(cats[1].name)));
+    expect(dy(cats[1].name), lessThan(dy(cats[0].name)));
+  });
+
+  // chart_palette の lib 側の利用者は、円グラフが消えてこの CircleAvatar だけに
+  // なった。色を直書きに変えても落ちるテストが無い状態を避ける
+  testWidgets('行の丸アイコンはカテゴリの色で塗られる', (tester) async {
+    final cats = await db.getCategories();
+    final memberId = (await db.getMembers()).first.id;
+
+    for (final (i, cat) in cats.take(2).indexed) {
+      await db.insertTransaction(TransactionInput(
+        memberId: memberId,
+        categoryId: cat.id,
+        amount: (i + 1) * 1000,
+        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+      ));
+    }
+
+    await pumpSummary(tester);
+
+    expectAvatarColor(tester, cats[0].name, cats[0].id);
+    expectAvatarColor(tester, cats[1].name, cats[1].id);
   });
 
   // 取引ゼロの月でも summary は非 null で返る（byCategory が空、total が 0）ため、
   // 画面の summary == null 分岐では受からない。この文言はドーナツグラフを外す
   // まで CategoryPieChart 側が出していたもので、受け皿を画面へ移してある。
   // summary_screen.dart の byCategory.isEmpty 分岐を消すとここが落ちる
-  testWidgets('取引ゼロの月はカテゴリ別に「データがありません」が出る',
+  //
+  // 文言が 1 個あることだけを見ると、summary ごと null になる実装に変わっても
+  // 緑のまま通る（その場合は合計カードも見出しも消える）。カテゴリ別の中だけが
+  // 空で、画面の骨格は残っていることまで見る
+  testWidgets('取引ゼロの月はカテゴリ別だけが「データがありません」になる',
       (tester) async {
     await pumpSummary(tester);
 
     expect(tester.takeException(), isNull);
     expect(find.text('データがありません'), findsOneWidget);
+    // 骨格は残る。summary == null 分岐に落ちるとこれらが消える
+    expect(find.text('合計支出'), findsOneWidget);
+    expect(find.text('¥0'), findsOneWidget);
+    expect(find.text('カテゴリ別'), findsOneWidget);
+    expect(find.text('メンバー別'), findsOneWidget);
+    // 空なのはカテゴリ別だけで、行そのものが 1 つも無い
+    expect(find.byType(ListTile), findsNothing);
   });
 
   group('カテゴリ別リストの構成比', () {
@@ -94,11 +214,10 @@ void main() {
 
       await pumpSummary(tester);
 
-      // 金額と % は別の Text。1 行に連結すると title の幅が足りなくなる
-      expect(find.text('¥7,500'), findsOneWidget);
-      expect(find.text('75.0%'), findsOneWidget);
-      expect(find.text('¥2,500'), findsOneWidget);
-      expect(find.text('25.0%'), findsOneWidget);
+      // 金額と % は別の Text。1 行に連結すると title の幅が足りなくなる。
+      // どちらの行に出ているかまで見る（集合として一致するだけでは足りない）
+      expectRow(tester, '食費', amount: '¥7,500', ratio: '75.0%');
+      expectRow(tester, '日用品', amount: '¥2,500', ratio: '25.0%');
     });
 
     // trailing を縦積みにした理由そのもの。金額と % を 1 行に連結していた
@@ -144,7 +263,7 @@ void main() {
 
       await pumpSummary(tester);
 
-      expect(find.text('2.0%'), findsOneWidget);
+      expectRow(tester, '日用品', amount: '¥200', ratio: '2.0%');
     });
 
     // 上限額 + DB が許す最大長のカテゴリ名。金額を描くテストには kMaxAmount の

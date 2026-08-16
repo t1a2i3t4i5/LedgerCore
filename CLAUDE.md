@@ -93,6 +93,7 @@ screens → providers → AppDatabase（drift） → SQLite
 - ウィジェットテストは `test/widgets/` に置く。fl_chart が描く文字は `find.text()` では拾えない
 - ウィジェットテストの画面サイズは 360x690 にする。金額を描くなら `kMaxAmount` のケースを置く
 - 文字が幅に収まったかは `RenderParagraph.didExceedMaxLines` で見る。`ellipsis` は例外を出さず、`find.text()` は畳まれた `Text` にもマッチするので `findsOneWidget` では守れない
+- 一覧の行は `find.ancestor` + `find.descendant` で束ねて見る。画面全体に対する `find.text()` や `ListTile` の件数だけでは、行と行で中身が入れ替わっても通ってしまう
   - 幅を見るテストのカテゴリ名に既定カテゴリ（2〜3 文字）を使わない。幅が足りない実装でも収まってしまう。`insertCategory` でユーザーが付ける長さ（6 文字程度）を seed する
 - 月を扱うテストは `clock` を注入して固定年月で書く。「今月」にテストデータを置かない
   - `clock` は値を書き換えられる変数を閉じ込めた形（`var now = ...; () => now`）でも 1 本書く

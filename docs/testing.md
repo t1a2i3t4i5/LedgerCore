@@ -51,7 +51,15 @@ bool _isEllipsized(WidgetTester tester, String text) =>
     tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
 ```
 
-`_isEllipsized` を `isFalse` で使うテストには、**同じファイルに `isTrue` になるケースも置く**。ヘルパ自身が省略を検知できていなければ `isFalse` は常に通り、何も守らないため（`test/widgets/summary_screen_chart_test.dart` は 50 文字のカテゴリ名で裏を取っている）。
+`_isEllipsized` を `isFalse` で使うテストには、**同じファイルに `isTrue` になるケースも置く**。ヘルパ自身が省略を検知できていなければ `isFalse` は常に通り、何も守らないため（`test/widgets/summary_screen_category_test.dart` は 50 文字のカテゴリ名で裏を取っている）。
+
+### 一覧の行は `find.descendant` で束ねて見る
+
+`find.text('¥7,500')` と `find.text('75.0%')` を別々に `findsOneWidget` で見るだけでは、**行と行で中身が入れ替わっても気付けない**。画面全体では集合として一致してしまうためで、「食費 ¥2,500 / 25.0%」「日用品 ¥7,500 / 75.0%」と全カテゴリがずれた画面が緑のまま通る。
+
+行を `find.ancestor` で特定し、その中に金額と % があることを `find.descendant` で見る（`summary_screen_category_test.dart` の `expectRow`）。並び順そのものは `tester.getCenter(...).dy` の大小で見る。
+
+同じ理由で、`find.byType(ListTile)` の**件数だけ**を数えるテストは中身を何も守らない。カテゴリ 3 件 + メンバー 1 件の 4 個は、両方をメンバー別で描いても保たれる。
 
 ### 幅のテストに既定カテゴリ名を使わない
 
