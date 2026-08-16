@@ -235,7 +235,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
                     if (amount <= 0) return '金額は 0 より大きい値を入力してください';
                     // Infinity は `> 0` を満たすため上限の比較で止める。
-                    // 弾かないと合計と円グラフが NaN になって復旧できない
+                    // 弾かないと合計が `¥∞`、構成比が `NaN%` になって復旧できない
                     if (!amount.isFinite || amount > kMaxAmount) {
                       return '金額が大きすぎます';
                     }
