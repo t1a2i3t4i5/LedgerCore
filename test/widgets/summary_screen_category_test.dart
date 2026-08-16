@@ -1,5 +1,4 @@
 import 'package:drift/native.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,7 +6,6 @@ import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/summary_provider.dart';
 import 'package:ledger_app/screens/summary_screen.dart';
-import 'package:ledger_app/widgets/category_pie_chart.dart';
 import 'package:provider/provider.dart';
 
 /// テキストが横幅に収まらず ellipsis で畳まれたかどうか。
@@ -17,7 +15,7 @@ import 'package:provider/provider.dart';
 bool _isEllipsized(WidgetTester tester, String text) =>
     tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
 
-/// サマリー画面にグラフが組み込まれていることを、インメモリ DB 込みで確認する。
+/// サマリー画面のカテゴリ別セクションを、インメモリ DB 込みで確認する。
 /// 実端末のファイルには触らない（database_test.dart と同じ方針）。
 void main() {
   late AppDatabase db;
@@ -43,8 +41,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('取引があるとカテゴリ別セクションにドーナツグラフが出る',
-      (tester) async {
+  testWidgets('取引があるとカテゴリ別に行が並ぶ', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
 
@@ -60,16 +57,21 @@ void main() {
     await pumpSummary(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(CategoryPieChart), findsOneWidget);
-    expect(find.byType(PieChart), findsOneWidget);
+    // カテゴリ 3 件 + メンバー 1 件
+    expect(find.byType(ListTile), findsNWidgets(4));
+    expect(find.text('データがありません'), findsNothing);
   });
 
-  testWidgets('取引ゼロの月ではグラフを描かず例外も出ない', (tester) async {
+  // 取引ゼロの月でも summary は非 null で返る（byCategory が空、total が 0）ため、
+  // 画面の summary == null 分岐では受からない。この文言はドーナツグラフを外す
+  // まで CategoryPieChart 側が出していたもので、受け皿を画面へ移してある。
+  // summary_screen.dart の byCategory.isEmpty 分岐を消すとここが落ちる
+  testWidgets('取引ゼロの月はカテゴリ別に「データがありません」が出る',
+      (tester) async {
     await pumpSummary(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.byType(CategoryPieChart), findsOneWidget);
-    expect(find.byType(PieChart), findsNothing);
+    expect(find.text('データがありません'), findsOneWidget);
   });
 
   group('カテゴリ別リストの構成比', () {
@@ -133,18 +135,14 @@ void main() {
       expect(tester.getSize(tile).height, 48.0);
     });
 
-    // この issue の動機そのもの。扇形ラベルは _minLabelRatio = 0.05 未満で
-    // 消えるので、そこに落ちるカテゴリの割合はリストにしか出ない
-    testWidgets('扇形ラベルが出ない5%未満のカテゴリでもリストには % が出る',
-        (tester) async {
+    // #45 の動機そのもの。かつてのドーナツグラフは _minLabelRatio = 0.05 未満の
+    // 扇形にラベルを出さず、細かいカテゴリの割合はどこにも出ていなかった。
+    // リストは件数によらず全カテゴリに出す
+    testWidgets('5%未満のカテゴリでも構成比が出る', (tester) async {
       await seed('食費', 9800);
       await seed('日用品', 200); // 2%
 
       await pumpSummary(tester);
-
-      final sections =
-          tester.widget<PieChart>(find.byType(PieChart)).data.sections;
-      expect(sections[1].showTitle, isFalse, reason: 'グラフ側には出ていない');
 
       expect(find.text('2.0%'), findsOneWidget);
     });

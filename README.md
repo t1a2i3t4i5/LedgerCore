@@ -13,7 +13,7 @@
 - **保存先の月の明示** — 表示中の月と違う月の取引を入力しているときは日付欄で警告し、保存後は保存先の月を名指しした通知を出す（`その月を表示` でその月へ移動できる）
 - **カテゴリ管理** — 初回起動時に既定カテゴリ（食費・日用品ほか）を自動投入
 - **メンバー管理** — 端末内でメンバーを登録し、割り勘の対象にする
-- **月次サマリー** — カテゴリ別・メンバー別の集計と、カテゴリ別構成比のドーナツグラフ
+- **月次サマリー** — カテゴリ別・メンバー別の集計。カテゴリ別は金額と全体に占める構成比（%）を並べる
 - **割り勘** — メンバー全員で均等割りし、各自の過不足と精算方法を算出（すべて端末内で計算）
 
 ## 必要環境
@@ -54,7 +54,7 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 | 状態管理   | `provider`（`ChangeNotifier`）                          |
 | 永続化     | `drift` + `drift_flutter`（端末内 `ledgercore.sqlite`） |
 | 日付整形   | `intl`                                                  |
-| グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし）    |
+| グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし。現在 `lib/` からの利用は無く、支出推移グラフ用に残している） |
 | コード生成 | `drift_dev` + `build_runner`                            |
 | Lint       | `flutter_lints`（`analysis_options.yaml`）              |
 
@@ -91,9 +91,8 @@ lib/
 │   ├── categories_screen.dart # カテゴリ管理
 │   └── members_screen.dart    # メンバー管理
 └── widgets/                   # 画面から切り離した再利用部品（ウィジェットとは限らない）
-    ├── chart_palette.dart     # グラフの色パレット（カテゴリ ID から決定的に決まる）
-    ├── category_pie_chart.dart# カテゴリ別構成比のドーナツグラフ
-    └── amount_format.dart      # 金額の表示整形（¥ 付き）と入力欄の全角正規化・記号除去・桁数制限
+    ├── chart_palette.dart     # カテゴリの色パレット（カテゴリ ID から決定的に決まる）
+    └── amount_format.dart      # 金額・構成比の表示整形（¥ 付き / %）と入力欄の全角正規化・記号除去・桁数制限
 ```
 
 データの流れは一方向。
