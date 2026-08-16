@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/summary_provider.dart';
 import '../widgets/amount_format.dart';
 import '../widgets/chart_palette.dart';
+import '../widgets/month_selector.dart';
 
 class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key});
@@ -32,34 +33,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               // 月選択
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left),
-                    onPressed: () => provider.changeMonth(-1),
-                  ),
-                  Text(
-                    '${provider.year}年${provider.month}月',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.chevron_right),
-                        onPressed: () => provider.changeMonth(1),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.today),
-                        tooltip: '今月に戻る',
-                        onPressed: provider.isCurrentMonth
-                            ? null
-                            : provider.goToCurrentMonth,
-                      ),
-                    ],
-                  ),
-                ],
+              MonthSelector(
+                year: provider.year,
+                month: provider.month,
+                onPrev: () => provider.changeMonth(-1),
+                onNext: () => provider.changeMonth(1),
+                onToday:
+                    provider.isCurrentMonth ? null : provider.goToCurrentMonth,
               ),
               const SizedBox(height: 8),
 

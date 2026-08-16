@@ -92,6 +92,7 @@ lib/
 │   └── members_screen.dart    # メンバー管理
 └── widgets/                   # 画面から切り離した再利用部品（ウィジェットとは限らない）
     ├── chart_palette.dart     # カテゴリの色パレット（カテゴリ ID から決定的に決まる）
+    ├── month_selector.dart    # 月選択 UI（前月 / 翌月 / 今月に戻る）。取引・サマリー・割り勘の 3 画面で共用
     └── amount_format.dart      # 金額・構成比の表示整形（¥ 付き / %）と入力欄の全角正規化・記号除去・桁数制限
 ```
 

@@ -5,6 +5,7 @@ import '../providers/category_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../widgets/amount_format.dart';
+import '../widgets/month_selector.dart';
 import 'add_transaction_screen.dart';
 import 'transaction_filter_sheet.dart';
 
@@ -99,42 +100,25 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               // 月選択 + フィルターボタン
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
+                child: MonthSelector(
+                  year: provider.year,
+                  month: provider.month,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  onPrev: () => provider.changeMonth(-1),
+                  onNext: () => provider.changeMonth(1),
+                  onToday: provider.isCurrentMonth
+                      ? null
+                      : provider.goToCurrentMonth,
+                  actions: [
+                    // フィルターボタン（適用中の数をバッジ表示）
                     IconButton(
-                      icon: const Icon(Icons.chevron_left),
-                      onPressed: () => provider.changeMonth(-1),
-                    ),
-                    Text(
-                      '${provider.year}年${provider.month}月',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.chevron_right),
-                          onPressed: () => provider.changeMonth(1),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.today),
-                          tooltip: '今月に戻る',
-                          onPressed: provider.isCurrentMonth
-                              ? null
-                              : provider.goToCurrentMonth,
-                        ),
-                        // フィルターボタン（適用中の数をバッジ表示）
-                        IconButton(
-                          tooltip: 'ソート・フィルター',
-                          onPressed: _openFilterSheet,
-                          icon: Badge(
-                            isLabelVisible: activeCount > 0,
-                            label: Text('$activeCount'),
-                            child: const Icon(Icons.filter_list),
-                          ),
-                        ),
-                      ],
+                      tooltip: 'ソート・フィルター',
+                      onPressed: _openFilterSheet,
+                      icon: Badge(
+                        isLabelVisible: activeCount > 0,
+                        label: Text('$activeCount'),
+                        child: const Icon(Icons.filter_list),
+                      ),
                     ),
                   ],
                 ),

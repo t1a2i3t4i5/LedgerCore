@@ -17,7 +17,10 @@ import 'package:provider/provider.dart';
 /// 月送りのロジック自体は month_scoped_provider_test.dart で担保しているが、
 /// それだけだと「Provider は正しいが画面の配線が間違っている」を拾えない。
 /// 実際、左右の矢印を入れ替えても Provider のテストは全部通る。
-/// 3 画面は同じ月選択 Row を手で複製しているので、3 画面ぶん見る。
+/// 月選択の Row 自体は [MonthSelector] に集約したが、それを 3 画面がどう
+/// 呼んでいるか（どの Provider を渡し、どのコールバックを結んだか）は画面ごとに
+/// 違うので、3 画面ぶん見る。[MonthSelector] 単体の挙動は
+/// month_selector_test.dart が担当する。
 void main() {
   late AppDatabase db;
 
