@@ -85,7 +85,14 @@ bool _isEllipsized(WidgetTester tester, String text) =>
 
 ## 画面の配線は Provider のテストでは代替できない
 
-取引・サマリー・割り勘の 3 画面は同じ月選択 Row を手で複製している。実際、左右の矢印を入れ替えても Provider 側のテストは全部通る。矢印と「今月に戻る」は `tester.tap` で実際に押す。
+左右の矢印を入れ替えても Provider 側のテストは全部通る。矢印と「今月に戻る」は `tester.tap` で実際に押す。
+
+月選択の UI 自体は `lib/widgets/month_selector.dart` の `MonthSelector` に集約してあるので、**画面を足すときに Row を手で複製しない**。ただし集約したのは見た目だけで、どの Provider を渡してどのコールバックを結ぶかは画面ごとに違う。テストも 2 段に分かれる。
+
+- `test/widgets/month_selector_test.dart` — `MonthSelector` 単体。DB も Provider も組み立てず、渡したコールバックが押した矢印どおりに呼ばれるかを直接見る
+- `test/widgets/month_navigation_test.dart` — 画面ごとの配線。月送りで**中身の値まで**読み直されるかを 3 画面ぶん見る（上記「月送りのテストは、ヘッダの年月だけでなく中身の値も見る」）
+
+月選択を持つ画面を足したら、後者に 1 画面ぶん足す。前者は増やさなくてよい。
 
 ## 取引の日付に依存するテストは、日付ピッカーで明示的に選ぶ
 
