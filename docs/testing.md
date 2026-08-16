@@ -59,7 +59,7 @@ bool _isEllipsized(WidgetTester tester, String text) =>
 
 行を `find.ancestor` で特定し、その中に金額と % があることを `find.descendant` で見る（`summary_screen_category_test.dart` の `expectRow`）。並び順そのものは `tester.getCenter(...).dy` の大小で見る。
 
-同じ理由で、`find.byType(ListTile)` の**件数だけ**を数えるテストは中身を何も守らない。カテゴリ 3 件 + メンバー 1 件の 4 個は、両方をメンバー別で描いても保たれる。
+同じ理由で、`find.byType(ListTile)` の**件数だけ**を数えるテストは中身を守らない。件数は行の中身が入れ替わっても変わらないので、名前と金額の対応が崩れる改変はすべてすり抜ける（実測: 名前だけを逆順の項目から採るよう変えても、件数を見るテストは緑のまま通った。束ねて見る形にしたあとは 5 件落ちる）。
 
 ### 幅のテストに既定カテゴリ名を使わない
 
