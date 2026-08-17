@@ -201,6 +201,11 @@ void main() {
     });
   });
 
+  // 年の軸はこのクラスに持たせない。`_year` は表示月の一部で、動かせば
+  // fetch の対象月ごと変わる（＝Provider を共有している割り勘タブを巻き込む）。
+  // 年単位の表示は SummaryProvider が独立した軸として持つので、
+  // そちらのテストは test/summary_provider_test.dart にある。
+
   group('setYearMonth', () {
     test('通知はするが再取得はしない', () {
       // 呼び出し側が任意のタイミングで fetch できるよう、素の setter のまま

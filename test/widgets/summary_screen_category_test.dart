@@ -179,19 +179,34 @@ void main() {
   // 文言が 1 個あることだけを見ると、summary ごと null になる実装に変わっても
   // 緑のまま通る（その場合は合計カードも見出しも消える）。カテゴリ別の中だけが
   // 空で、画面の骨格は残っていることまで見る
-  testWidgets('取引ゼロの月はカテゴリ別だけが「データがありません」になる',
+  testWidgets('取引ゼロの月はどの見出しの下も「データがありません」になる',
       (tester) async {
     await pumpSummary(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('データがありません'), findsOneWidget);
     // 骨格は残る。summary == null 分岐に落ちるとこれらが消える
     expect(find.text('合計支出'), findsOneWidget);
     expect(find.text('¥0'), findsOneWidget);
     expect(find.text('カテゴリ別'), findsOneWidget);
     expect(find.text('メンバー別'), findsOneWidget);
-    // 空なのはカテゴリ別だけで、行そのものが 1 つも無い
+    // 行そのものは 1 つも無い
     expect(find.byType(ListTile), findsNothing);
+
+    // **見出しを出したら、その下に必ず何かを描く。**
+    // 取引ゼロの月は byCategory も byMember も空になる。かつてメンバー別には
+    // 受け皿が無く、見出しの下が無言の空白になっていた
+    final empties = find.text('データがありません');
+    expect(empties, findsNWidgets(2));
+    expect(
+      tester.getRect(empties.at(0)).top,
+      greaterThan(tester.getRect(find.text('カテゴリ別')).bottom),
+      reason: 'カテゴリ別の見出しの下に受け皿が無い',
+    );
+    expect(
+      tester.getRect(empties.at(1)).top,
+      greaterThan(tester.getRect(find.text('メンバー別')).bottom),
+      reason: 'メンバー別の見出しの下に受け皿が無い',
+    );
   });
 
   group('カテゴリ別リストの構成比', () {

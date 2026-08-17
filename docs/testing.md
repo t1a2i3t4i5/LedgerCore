@@ -124,6 +124,21 @@ bool _isEllipsized(WidgetTester tester, String text) =>
 
 月選択を持つ画面を足したら、後者に 1 画面ぶん足す。前者は増やさなくてよい。
 
+**年単位の送りは `month_navigation_test.dart` に相乗りさせない。** 集計画面は `MonthSelector` を年モードでも使い回すが（`month: null`）、あちらの共通ケースは `'2026年7月'` と「今月に戻る」を期待しており、年モードでは成り立たない。年送りは `test/widgets/summary_period_test.dart` で単独に見る。集計画面の**月**モードは既定なので、`month_navigation_test.dart` の 3 画面ぶんはそのまま通る。
+
+期間モードを持つ画面のテストでは、**モードを跨いだ状態の保存**も見る。タブを離れるとモードが初期化されないことは `LedgerApp` ごと pump して 1 本置く（`MainScreen` は `IndexedStack` を使わず `State` を捨てるため）。
+
+### 共有 Provider への波及は、波及先のタブを開いて確かめる
+
+`SummaryProvider` は集計タブと割り勘タブで 1 インスタンスなので、集計側の操作が割り勘側を壊しても集計画面のテストでは分からない。実際、年送りが割り勘タブの表示期間を 1 年ぶん巻き込む不具合が、集計画面のテスト全緑のまま通っていた（`docs/design-notes.md` の「年の軸は表示月から独立させる」）。
+
+- **Provider のテストでは値まで見る。** `expect(provider.split, isNotNull)` は、取得をモードで分岐させる改変のうち「前回の値が残る」形を素通しする。`SplitResult.year` / `month` / `total` を確かめる
+- **画面のテストでは `LedgerApp` ごと pump して、波及先のタブを実際に開く。** 集計タブで年を送ったあと割り勘タブへ移り、年月と金額が動いていないことを見る
+
+### 「今」に関わる分岐は、テストデータを「今」から離す
+
+年モードのテストを表示月 7 月（＝ `clock` の今月）のまま書くと、`isCurrentYear` と `isCurrentMonth`、`goToCurrentYear` と `goToCurrentMonth` が同じ結果になり、**取り違えても全緑になる**。表示月を今月から 1 つずらしてから年モードへ入り、「今年に戻る」を押しても表示月が今月へ戻らないことを見る。
+
 ## 取引の日付に依存するテストは、日付ピッカーで明示的に選ぶ
 
 追加画面の既定日付は `clock` ではなく実時刻なので（[design-notes.md](design-notes.md) の「取引追加画面の既定日付はこの規則の対象外」）、既定のまま保存すると期待値がテストを走らせた月に左右される。カレンダーの升目を辿る書き方も初期表示月が実時刻依存になるので、`Icons.edit_outlined` でテキスト入力モードへ切り替えて `MM/DD/YYYY`（ロケール未指定なので en_US 書式）を打ち込む。`test/widgets/save_feedback_test.dart` の `pickDate` が実装例。

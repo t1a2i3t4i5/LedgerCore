@@ -72,6 +72,18 @@ abstract class MonthScopedProvider extends ChangeNotifier {
     await goToMonth(now.year, now.month);
   }
 
+  /// 注入された [Clock] が返す「今」。
+  ///
+  /// サブクラスが表示月とは**別の軸**を持つときに使う（集計画面の年モードが
+  /// 該当する）。`_clock` そのものを公開しないのは、「今がいつか」の判断材料を
+  /// このクラスに閉じたままにするため。
+  ///
+  /// **年の軸をここに足さないこと。** `_year` は表示月の一部で、動かせば
+  /// [fetch] の対象月ごと変わる。年単位の表示は、この年月とは独立した軸を
+  /// サブクラス側に持たせる（`SummaryProvider` 参照）。
+  @protected
+  DateTime now() => _clock();
+
   /// 表示月ぶんのデータを読み直す。サブクラスが実装する
   Future<void> fetch();
 }
