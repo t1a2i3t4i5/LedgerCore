@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'period_format.dart';
+
 /// 表示月の選択 UI。前月 / 翌月 / 今月に戻る の 3 ボタンと年月表示を並べる。
 ///
 /// 取引一覧・サマリー・割り勘の 3 画面が同じ形の Row を手で複製していたのを
-/// ここに集約したもの。年月の整形 `'$year年$month月'` はこのファイルにしか
-/// 無いので、書式を変えるときの修正箇所は 1 か所で済む。
+/// ここに集約したもの。年月の整形そのものは [formatPeriod]（`period_format.dart`）
+/// に置いてあるので、書式を変えるときの修正箇所は 1 か所で済む
+/// （推移グラフのツールチップと取引追加画面の案内も同じ関数を通る）。
 ///
 /// [AppDatabase] も Provider も参照せず、表示する値とコールバックを引数で
 /// 受け取るだけにしてある（`widgets/` の他の部品と同じ条件）。おかげで
@@ -60,7 +63,7 @@ class MonthSelector extends StatelessWidget {
         // 畳んででもレイアウトを崩さない側を選んでいる
         Flexible(
           child: Text(
-            '$year年$month月',
+            formatPeriod(year, month),
             style: style ?? Theme.of(context).textTheme.titleLarge,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

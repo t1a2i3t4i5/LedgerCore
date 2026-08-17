@@ -38,26 +38,34 @@ Future<void> _pump(
   List<PeriodTotal> items, {
   // 幅を絞ると軸ラベルが畳まれる。省略時は実機相当の 360px
   double? width,
+  // 端末の文字サイズ設定。1.0 以外を通すケースを必ず 1 本以上置く
+  double textScale = 1.0,
+  double? height,
 }) async {
   tester.view.physicalSize = const Size(360, 690);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  final chart = PeriodBarChart(items: items);
+  final chart = height == null
+      ? PeriodBarChart(items: items)
+      : PeriodBarChart(items: items, height: height);
 
   await tester.pumpWidget(
     MaterialApp(
       theme: _theme,
       home: Scaffold(
-        // 集計画面と同じく ListView の子として置く。ListView の子は高さ制約が
-        // 非有界なので、ウィジェットが自分で高さを持てていないとここで落ちる
-        body: ListView(
-          children: [
-            if (width == null)
-              chart
-            else
-              Row(children: [SizedBox(width: width, child: chart)]),
-          ],
+        body: MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+          // 集計画面と同じく ListView の子として置く。ListView の子は高さ制約が
+          // 非有界なので、ウィジェットが自分で高さを持てていないとここで落ちる
+          child: ListView(
+            children: [
+              if (width == null)
+                chart
+              else
+                Row(children: [SizedBox(width: width, child: chart)]),
+            ],
+          ),
         ),
       ),
     ),
@@ -86,6 +94,33 @@ List<Rect> _visibleXLabelRects(WidgetTester tester, List<PeriodTotal> items) {
     rects.add(tester.getRect(finder));
   }
   return rects..sort((a, b) => a.left.compareTo(b.left));
+}
+
+/// 描かれた X 軸ラベルが隣と重なっていないことと、**間引かれ過ぎていない**
+/// ことの両方を見る。
+///
+/// 重なりだけを見ると、ラベルが減るほど通りやすくなるので「12 本のうち 2 本
+/// しか出ていない」図が最も安全な実装ということになってしまう。読める下限を
+/// [minVisible] で押さえる。
+void _expectLabelsReadable(
+  WidgetTester tester,
+  List<PeriodTotal> items, {
+  required int minVisible,
+}) {
+  final rects = _visibleXLabelRects(tester, items);
+
+  expect(
+    rects.length,
+    greaterThanOrEqualTo(minVisible),
+    reason: '${items.length} 件に対しラベルが ${rects.length} 本しか出ていない',
+  );
+  for (var i = 1; i < rects.length; i++) {
+    expect(
+      rects[i - 1].right,
+      lessThanOrEqualTo(rects[i].left),
+      reason: '${i - 1} 番目と $i 番目のラベルが重なっている',
+    );
+  }
 }
 
 void main() {
@@ -164,19 +199,11 @@ void main() {
     });
 
     // fl_chart は軸ラベルが重なっても例外を出さない。読めない図が静かに出来る
-    testWidgets('12 本でも軸ラベルどうしが重ならない', (tester) async {
+    testWidgets('12 本でも軸ラベルが重ならず、読める本数が残る', (tester) async {
       final items = _twelveMonths(List.filled(12, 1000));
       await _pump(tester, items);
 
-      final rects = _visibleXLabelRects(tester, items);
-      expect(rects, isNotEmpty);
-      for (var i = 1; i < rects.length; i++) {
-        expect(
-          rects[i - 1].right,
-          lessThanOrEqualTo(rects[i].left),
-          reason: '${i - 1} 番目と $i 番目のラベルが重なっている',
-        );
-      }
+      _expectLabelsReadable(tester, items, minVisible: 6);
     });
 
     // 全期間モードは年数が増え続ける。30 年でも間引きで読める形を保つ
@@ -189,17 +216,12 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(_data(tester).barGroups.length, 30);
 
-      final rects = _visibleXLabelRects(tester, items);
-      expect(rects, isNotEmpty);
-      // 全部は載らないので間引かれているはず
-      expect(rects.length, lessThan(items.length));
-      for (var i = 1; i < rects.length; i++) {
-        expect(
-          rects[i - 1].right,
-          lessThanOrEqualTo(rects[i].left),
-          reason: '${i - 1} 番目と $i 番目のラベルが重なっている',
-        );
-      }
+      // 全部は載らないので間引かれているが、読めない図にもしない
+      expect(
+        _visibleXLabelRects(tester, items).length,
+        lessThan(items.length),
+      );
+      _expectLabelsReadable(tester, items, minVisible: 4);
     });
 
     // 末尾アンカーの担保。間引きが効いた瞬間に直近の期間が落ちると、
@@ -294,6 +316,22 @@ void main() {
         labelColorOn(trendColor(_theme.colorScheme)),
       );
     });
+
+    // 文字色は labelColorOn(背景) で決まる。背景だけ別の色に変わると
+    // 白背景に白文字のような読めないツールチップになるが、文字色しか
+    // 見ていないテストでは気付けない
+    testWidgets('背景に棒と同じ色を敷き、タップを受け付ける', (tester) async {
+      await _pump(tester, [_month(3, 1500)]);
+
+      final data = _data(tester);
+      expect(
+        data.barTouchData.touchTooltipData
+            .getTooltipColor(data.barGroups.single),
+        trendColor(_theme.colorScheme),
+      );
+      // enabled を落とすとツールチップは二度と出ない
+      expect(data.barTouchData.enabled, isTrue);
+    });
   });
 
   group('棒の色', () {
@@ -307,6 +345,100 @@ void main() {
       }
       // カテゴリ ID から選ぶ色を流用していない
       expect(expected, isNot(categoryColor(0)));
+    });
+  });
+
+  group('目盛りの下限', () {
+    // 金額は正の整数しか入らないので、目盛りが 1 円未満になると存在しない額が
+    // 軸に並ぶ。合計 1 円だと 0.25 → 0.5 円刻みになり、formatYen が 0.5 を
+    // 四捨五入して `¥0 / ¥1 / ¥1` と同じラベルが 2 つ出ていた（実測）
+    testWidgets('合計が 1〜2 円でも目盛りが 1 円刻み以上になる', (tester) async {
+      for (final total in [1.0, 2.0, 3.0]) {
+        await _pump(tester, [_month(7, total)]);
+
+        expect(
+          _data(tester).gridData.horizontalInterval,
+          greaterThanOrEqualTo(1),
+          reason: '合計 $total 円で目盛りが 1 円未満になった',
+        );
+        expect(
+          find.text('¥1'),
+          findsOneWidget,
+          reason: '合計 $total 円で同じ金額のラベルが複数出ている',
+        );
+      }
+    });
+  });
+
+  group('端末の文字サイズ', () {
+    // 幅だけを実測して高さを定数にすると、文字サイズを 1 段階上げただけで
+    // X 軸ラベルの下端が黙って切れる。fl_chart は reservedSize で子の高さを
+    // tight に縛るので、はみ出した分は ellipsis 指定の Text がクリップし、
+    // 例外も overflow の縞模様も出ない（実測: scale 1.15 以降 14.0 で頭打ち）
+    testWidgets('文字サイズを上げても X 軸ラベルが縦に切れない', (tester) async {
+      final items = _twelveMonths(List.filled(12, 1000));
+
+      await _pump(tester, items);
+      final base = tester.getSize(find.text('12月')).height;
+
+      await _pump(tester, items, textScale: 2.0);
+      final scaled = tester.getSize(find.text('12月')).height;
+
+      // 切れていれば帯の高さで頭打ちになり、倍率に比例しない
+      expect(scaled, closeTo(base * 2, 1.0));
+    });
+
+    testWidgets('文字サイズを上げてもラベルが重ならない', (tester) async {
+      final items = _twelveMonths(List.filled(12, 1000));
+
+      await _pump(tester, items, textScale: 2.0);
+
+      expect(tester.takeException(), isNull);
+      // 文字が大きいぶん本数は減るが、末尾（直近の月）は必ず残る
+      _expectLabelsReadable(tester, items, minVisible: 2);
+      expect(find.text('12月'), findsOneWidget);
+    });
+  });
+
+  group('軸と目盛り線', () {
+    // FlTitlesData の既定は 4 辺すべて表示。明示的に消さないと上辺に棒の
+    // インデックス、右辺に ¥ の付かない生の数値が並ぶ（既存の find.text は
+    // ¥ 付きしか見ていないので 1 件も落ちない）
+    testWidgets('上辺と右辺には軸を出さない', (tester) async {
+      await _pump(tester, [_month(7, 700)]);
+
+      final titles = _data(tester).titlesData;
+      expect(titles.topTitles.sideTitles.showTitles, isFalse);
+      expect(titles.rightTitles.sideTitles.showTitles, isFalse);
+      expect(titles.leftTitles.sideTitles.showTitles, isTrue);
+      expect(titles.bottomTitles.sideTitles.showTitles, isTrue);
+    });
+
+    // 金額を読めるのは「Y 軸ラベルとグリッド線が同じ間隔で並ぶ」ため。
+    // 間隔がずれると、ラベルの位置に線が無い図になる
+    testWidgets('水平グリッド線を Y 軸ラベルと同じ間隔で引く', (tester) async {
+      await _pump(tester, [_month(7, 700)]);
+
+      final data = _data(tester);
+      expect(data.gridData.show, isTrue);
+      // 縦線は棒と重なって読みにくくなるので引かない
+      expect(data.gridData.drawVerticalLine, isFalse);
+      expect(data.gridData.horizontalInterval, 200);
+      expect(data.titlesData.leftTitles.sideTitles.interval, 200);
+    });
+  });
+
+  group('高さ', () {
+    // ListView の子なので自分で高さを持つ。既定値が潰れても画面側は既定の
+    // まま使うので、潰れたグラフがそのまま出る
+    testWidgets('既定は 200、指定すればその高さで描く', (tester) async {
+      final items = [_month(7, 700)];
+
+      await _pump(tester, items);
+      expect(tester.getSize(find.byType(PeriodBarChart)).height, 200);
+
+      await _pump(tester, items, height: 120);
+      expect(tester.getSize(find.byType(PeriodBarChart)).height, 120);
     });
   });
 }

@@ -14,8 +14,9 @@ const int _tickCount = 4;
 /// 軸ラベルの文字サイズ。12 本並ぶ月別グラフに合わせた下限。
 const double _labelFontSize = 10;
 
-/// X 軸ラベルの帯の高さ。`'12月'` 1 行ぶん。
-const double _bottomTitleHeight = 22;
+/// `SideTitleWidget` が軸ラベルの手前に空ける余白（fl_chart の既定値）。
+/// 帯の高さを実測から決めるとき、この分を足さないとラベルが切れる。
+const double _sideTitleSpace = 8;
 
 /// Y 軸が本体を食い潰さない上限（幅に対する割合）。
 /// ここに当たったらラベル側を ellipsis で畳む。畳まないとグラフ本体が消える。
@@ -75,7 +76,7 @@ class PeriodBarChart extends StatelessWidget {
     // 広く取り過ぎると 360px でグラフ本体が痩せる
     final axisLabelWidth = [
       for (var i = 0; i <= tickCount; i++)
-        _measure(formatYenAxis(i * interval), labelStyle, textScaler),
+        _measureText(formatYenAxis(i * interval), labelStyle, textScaler).width,
     ].reduce(math.max);
 
     return SizedBox(
@@ -89,9 +90,18 @@ class PeriodBarChart extends StatelessWidget {
           // 棒 1 本あたりに割り当てられる横幅
           final slot = (constraints.maxWidth - reserved) / items.length;
 
-          final xLabelWidth = items
-              .map((i) => _measure(_shortLabel(i), labelStyle, textScaler))
-              .reduce(math.max);
+          final xLabelSizes = [
+            for (final item in items)
+              _measureText(_shortLabel(item), labelStyle, textScaler),
+          ];
+          final xLabelWidth =
+              xLabelSizes.map((s) => s.width).reduce(math.max);
+          // X 軸の帯の高さも実測する。定数にすると、端末の文字サイズを
+          // 1 段階上げただけでラベルの下端が黙って切れる（fl_chart は
+          // reservedSize で子の高さを tight に縛るので、はみ出す分は
+          // ellipsis 指定の Text がクリップされ、例外も縞模様も出ない）
+          final xLabelHeight =
+              xLabelSizes.map((s) => s.height).reduce(math.max);
           // 隣のラベルと重なるなら間引く。fl_chart は重なっても例外を出さない
           final stride = slot <= 0
               ? items.length
@@ -149,7 +159,7 @@ class PeriodBarChart extends StatelessWidget {
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: _bottomTitleHeight,
+                    reservedSize: xLabelHeight + _sideTitleSpace,
                     getTitlesWidget: (value, meta) {
                       final index = value.toInt();
                       if (index < 0 || index >= items.length) {
@@ -219,6 +229,11 @@ bool _showLabelAt(int index, int count, int stride) =>
 /// 目盛り値がこの倍数になるので、万・億・兆に直しても小数 1 桁で収まる
 /// （目盛り幅は最大値の 1/4 以上、つまり単位の 0.2 以上になる）。
 /// [formatYenAxis] の dartdoc が前提にしているのはこの丸め。
+///
+/// **1 円を下限にする。** 金額は正の整数しか入らないので、目盛りが 1 円未満に
+/// なると存在しない額が軸に並ぶ。合計 1 円のときは 0.25 → 0.5 円刻みになり、
+/// [formatYen] が 0.5 を四捨五入して `¥0 / ¥1 / ¥1` と同じラベルが 2 つ出る
+/// （実測。合計 2 円なら `¥1` と `¥2` が 2 つずつ）。
 double _niceInterval(double rawMax) {
   if (rawMax <= 0) return 1;
   final raw = rawMax / _tickCount;
@@ -232,16 +247,19 @@ double _niceInterval(double rawMax) {
           : n <= 5
               ? 5.0
               : 10.0;
-  return step * magnitude;
+  return math.max(1, step * magnitude);
 }
 
-/// [text] を実際のスタイルで描いたときの幅。
-/// 端末の文字サイズ設定を反映させるため [textScaler] まで渡す。
-double _measure(String text, TextStyle style, TextScaler textScaler) {
+/// [text] を実際のスタイルで描いたときの大きさ。
+///
+/// 端末の文字サイズ設定を反映させるため [textScaler] まで渡す。**幅だけでなく
+/// 高さも使う。** 幅だけを実測して高さを定数にすると、文字サイズを上げた端末で
+/// X 軸ラベルの下端が切れる（幅は足りているので重なりの検査も素通りする）。
+Size _measureText(String text, TextStyle style, TextScaler textScaler) {
   final painter = TextPainter(
     text: TextSpan(text: text, style: style),
     textDirection: TextDirection.ltr,
     textScaler: textScaler,
   )..layout();
-  return painter.width;
+  return painter.size;
 }

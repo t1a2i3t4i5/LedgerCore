@@ -96,7 +96,10 @@ screens → providers → AppDatabase（drift） → SQLite
 - 新規作成時（`onCreate`）のスキーマも `verifier.migrateAndValidate` で検証する。`db.validateDatabaseSchema()` は使わない
 - ウィジェットテストは `test/widgets/` に置く。fl_chart は**軸ラベルだけがウィジェット**で `find.text()` に載る。ツールチップと扇形ラベルは `Canvas` 直描きなので拾えない
   - グラフは重なってもはみ出しても例外を出さない。軸ラベルの重なりは `getRect()` で隣接ペアを直接見る
+  - 重なりを見るなら**間引かれ過ぎの下限も一緒に見る**（ラベルが減るほど重なりの検査は通りやすい）
+  - `titlesData` の 4 辺・`gridData`・ツールチップの背景色は消しても緑になる。`BarChart.data` に直接 expect する
 - ウィジェットテストの画面サイズは 360x690 にする。金額を描くなら `kMaxAmount` のケースを置く
+  - 端末の文字サイズ（`textScaler`）を通すケースも 1 本置く。縦の切れは `didExceedMaxLines` では拾えないので、倍率を変えて `getSize()` の高さが比例するかを見る
 - 文字が幅に収まったかは `RenderParagraph.didExceedMaxLines` で見る。`ellipsis` は例外を出さず、`find.text()` は畳まれた `Text` にもマッチするので `findsOneWidget` では守れない
   - 幅を見るテストのカテゴリ名に既定カテゴリ（2〜3 文字）を使わない。幅が足りない実装でも収まってしまう。`insertCategory` でユーザーが付ける長さ（6 文字程度）を seed する
 - 一覧の行は `find.ancestor` + `find.descendant` で束ねて見る。画面全体に対する `find.text()` では、行と行で中身が入れ替わっても通ってしまう
