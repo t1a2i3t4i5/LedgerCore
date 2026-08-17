@@ -170,7 +170,10 @@ void main() {
 
     // 年送りで月まで動かすと、Provider を共有している割り勘タブの表示月が
     // 裏で動く。月モードへ戻したときに 7 月のままかで確かめる
-    testWidgets('年を送っても表示月は保たれる', (tester) async {
+    // 年送りは年の軸だけを動かす。表示月（＝割り勘タブと共有している年月）は
+    // 1 年ぶんも動かない。ここが 2025年7月 になる実装だと、割り勘タブを開いた
+    // 人の精算額が理由も分からず前の年のものに化ける
+    testWidgets('年を送っても表示月は 1 年ぶんも動かない', (tester) async {
       await seedTwoYears();
       await pumpSummary(tester);
 
@@ -178,7 +181,48 @@ void main() {
       await tapIcon(tester, Icons.chevron_left);
       await tapPeriod(tester, '月');
 
-      expect(find.text('2025年7月'), findsOneWidget);
+      expect(find.text('2026年7月'), findsOneWidget);
+      expect(find.text('2025年7月'), findsNothing);
+      // 中身も 7 月のまま
+      expect(find.text('¥700'), findsWidgets);
+    });
+
+    // 年モードのテストはすべて表示月 7 月（= 今月）で動くので、
+    // isCurrentYear と isCurrentMonth、goToCurrentYear と goToCurrentMonth が
+    // 同じ結果になってしまう。表示月を今月から離して取り違えを炙り出す
+    testWidgets('「今年に戻る」は表示月を今月に戻さない', (tester) async {
+      await seedTwoYears();
+      await pumpSummary(tester);
+
+      // 表示月を 6 月にしてから年モードへ
+      await tapIcon(tester, Icons.chevron_left);
+      expect(find.text('2026年6月'), findsOneWidget);
+      await tapPeriod(tester, '年');
+      await tapIcon(tester, Icons.chevron_left);
+      expect(find.text('2025年'), findsOneWidget);
+
+      await tapIcon(tester, Icons.today);
+      expect(find.text('2026年'), findsOneWidget);
+
+      await tapPeriod(tester, '月');
+      // goToCurrentMonth に取り違えるとここが 2026年7月 になる
+      expect(find.text('2026年6月'), findsOneWidget);
+    });
+
+    // 受け入れ条件「取引のない月も 0 として X 軸に並ぶ」を画面レベルで見る。
+    // ウィジェット単体のテストは「12 件渡したら 12 本」しか守らない
+    testWidgets('12 か月ぶんをグラフに渡す（取引の無い月も 0 で）', (tester) async {
+      await seedTwoYears();
+      await pumpSummary(tester);
+
+      await tapPeriod(tester, '年');
+
+      final data = tester.widget<BarChart>(find.byType(BarChart)).data;
+      expect(data.barGroups.length, 12);
+      expect(
+        data.barGroups.map((g) => g.barRods.single.toY),
+        [0, 0, 300, 0, 0, 0, 700, 0, 0, 0, 0, 0],
+      );
     });
   });
 
@@ -207,6 +251,58 @@ void main() {
       final data = tester.widget<BarChart>(find.byType(BarChart)).data;
       expect(data.barGroups.length, 2);
       expect(data.barGroups.map((g) => g.barRods.single.toY), [250, 1000]);
+    });
+
+    // 全期間モードはグラフ 1 枚しかなく、中身が画面高より短い。
+    // physics に AlwaysScrollableScrollPhysics を渡さないと、引っ張っても
+    // RefreshIndicator が反応せず再取得できない
+    testWidgets('中身が短くても引っ張って再取得できる', (tester) async {
+      await seedTwoYears();
+      await pumpSummary(tester);
+      await tapPeriod(tester, '全期間');
+      expect(
+        tester.widget<BarChart>(find.byType(BarChart)).data.barGroups.length,
+        2,
+      );
+
+      // 画面の外で 2024 年の取引が増えた状況を作る
+      await seed(DateTime(2024, 5, 5), 100);
+
+      await tester.fling(find.byType(ListView), const Offset(0, 300), 1000);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<BarChart>(find.byType(BarChart)).data.barGroups.length,
+        3,
+        reason: '引っ張っても再取得されていない',
+      );
+    });
+  });
+
+  group('期間セグメント', () {
+    // selected を固定しても本文の切り替えは動き続けるので、
+    // 「年を押したのにハイライトは月のまま」が本文のテストでは拾えない
+    testWidgets('選択中の期間がハイライトに反映される', (tester) async {
+      await seedTwoYears();
+      await pumpSummary(tester);
+
+      SummaryPeriod selected() => tester
+          .widget<SegmentedButton<SummaryPeriod>>(
+            find.byType(SegmentedButton<SummaryPeriod>),
+          )
+          .selected
+          .single;
+
+      expect(selected(), SummaryPeriod.month);
+
+      await tapPeriod(tester, '年');
+      expect(selected(), SummaryPeriod.year);
+
+      await tapPeriod(tester, '全期間');
+      expect(selected(), SummaryPeriod.all);
+
+      await tapPeriod(tester, '月');
+      expect(selected(), SummaryPeriod.month);
     });
   });
 
@@ -284,6 +380,39 @@ void main() {
       expect(find.text('2026年'), findsOneWidget);
       expect(find.byType(BarChart), findsOneWidget);
       expect(find.text('2026年7月'), findsNothing);
+    });
+
+    // 実測で踏んだ事故。年を送ったら割り勘タブが 2026年7月 / ¥700 から
+    // 2025年7月 / ¥250 に化けていた。割り勘タブでは何も操作していないので、
+    // 金額が変わった理由が画面から分からない
+    testWidgets('サマリーで年を送っても割り勘タブの表示期間は動かない',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 690);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await seedTwoYears();
+      await tester.pumpWidget(LedgerApp(db: db, clock: () => fixedNow));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('割り勘'));
+      await tester.pumpAndSettle();
+      expect(find.text('2026年7月'), findsOneWidget);
+
+      await tester.tap(find.text('サマリー'));
+      await tester.pumpAndSettle();
+      await tapPeriod(tester, '年');
+      await tapIcon(tester, Icons.chevron_left);
+      expect(find.text('2025年'), findsOneWidget);
+
+      await tester.tap(find.text('割り勘'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('2026年7月'), findsOneWidget);
+      expect(find.text('2025年7月'), findsNothing);
+      // 精算額も 7 月のまま
+      expect(find.text('¥700'), findsWidgets);
+      expect(find.text('¥250'), findsNothing);
     });
   });
 }

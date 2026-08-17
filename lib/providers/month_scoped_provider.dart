@@ -72,17 +72,17 @@ abstract class MonthScopedProvider extends ChangeNotifier {
     await goToMonth(now.year, now.month);
   }
 
-  /// 表示中の年が [Clock] の指す「今年」と一致するか。
-  /// 集計画面の年モードが「今年に戻る」ボタンの活性を決めるのに使う
-  bool get isCurrentYear => _year == _clock().year;
-
-  /// 表示年だけを今年へ戻し、読み直す。**月は動かさない。**
+  /// 注入された [Clock] が返す「今」。
   ///
-  /// 月まで今月へ戻すと、同じ Provider を共有している割り勘タブの表示月が、
-  /// 集計画面で年を触っただけで裏で動く（`SummaryProvider` は集計タブと
-  /// 割り勘タブで 1 インスタンス）。年モードは月に関心が無いので、
-  /// 触らないものは触らない。
-  Future<void> goToCurrentYear() async => goToMonth(_clock().year, _month);
+  /// サブクラスが表示月とは**別の軸**を持つときに使う（集計画面の年モードが
+  /// 該当する）。`_clock` そのものを公開しないのは、「今がいつか」の判断材料を
+  /// このクラスに閉じたままにするため。
+  ///
+  /// **年の軸をここに足さないこと。** `_year` は表示月の一部で、動かせば
+  /// [fetch] の対象月ごと変わる。年単位の表示は、この年月とは独立した軸を
+  /// サブクラス側に持たせる（`SummaryProvider` 参照）。
+  @protected
+  DateTime now() => _clock();
 
   /// 表示月ぶんのデータを読み直す。サブクラスが実装する
   Future<void> fetch();

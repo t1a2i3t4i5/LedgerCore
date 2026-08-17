@@ -87,17 +87,31 @@ void main() {
       expect(byCategory.last.total, 300);
     });
 
-    test('年を送ると送った先の年を読み直し、月は保つ', () async {
+    test('年を送ると送った先の年を読み直す', () async {
       await seedThreeYears();
       await provider.setPeriod(SummaryPeriod.year);
 
       await provider.changeYear(-1);
 
-      expect(provider.year, 2025);
-      // 月を動かすと、Provider を共有している割り勘タブの表示月が裏で動く
-      expect(provider.month, 7, reason: '年送りで月を動かしてはいけない');
+      expect(provider.yearAxis, 2025);
       expect(provider.yearly!.year, 2025);
       expect(provider.yearly!.total, 250);
+    });
+
+    // 月モードで別の年へ移ってから年モードへ入ると、その年が出る。
+    // 前に年モードで見ていた年を覚えていると、今見ている月と無関係な年が出る
+    test('年モードに入ると年の軸を表示月の年に合わせる', () async {
+      await seedThreeYears();
+      await provider.setPeriod(SummaryPeriod.year);
+      await provider.changeYear(-1);
+      expect(provider.yearAxis, 2025);
+
+      await provider.setPeriod(SummaryPeriod.month);
+      await provider.goToMonth(2026, 3);
+      await provider.setPeriod(SummaryPeriod.year);
+
+      expect(provider.yearAxis, 2026);
+      expect(provider.yearly!.year, 2026);
     });
   });
 
@@ -116,9 +130,14 @@ void main() {
   });
 
   group('割り勘タブとの共有', () {
-    // このテストがこのファイルの主目的。集計タブのモードを理由に split を
-    // 落とすと、割り勘タブを開いた人に「データがありません」が出る
-    test('どのモードでも月次サマリーと割り勘を持ち続ける', () async {
+    // このテストがこのファイルの主目的。SummaryProvider は集計タブと割り勘タブで
+    // 1 インスタンスしかないので、集計側の操作が割り勘側の表示期間を動かさない
+    // ことをここで押さえる。
+    //
+    // **isNotNull だけでは足りない。** モードで取得を分岐させる改変のうち
+    // 「前の値が残る」形は、存在確認では素通りする（初回 fetch の残骸が
+    // そのまま残るため）。年月と金額を値で見る。
+    test('どのモードでも月次サマリーと割り勘を 2026/7 のまま持ち続ける', () async {
       await seedThreeYears();
       // 画面は initState で fetch を呼ぶ。setPeriod は同じモードなら
       // 早期 return するので、初回の取得はここで済ませておく
@@ -129,8 +148,46 @@ void main() {
 
         expect(provider.summary, isNotNull, reason: '$period で月次が落ちた');
         expect(provider.split, isNotNull, reason: '$period で割り勘が落ちた');
+        expect(provider.summary!.year, 2026, reason: '$period で月次の年が動いた');
+        expect(provider.summary!.month, 7, reason: '$period で月次の月が動いた');
         expect(provider.summary!.total, 700, reason: '$period で月次の額が変わった');
+        expect(provider.split!.year, 2026, reason: '$period で割り勘の年が動いた');
+        expect(provider.split!.month, 7, reason: '$period で割り勘の月が動いた');
+        expect(provider.split!.total, 700, reason: '$period で割り勘の額が変わった');
       }
+    });
+
+    // 実測で踏んだ事故そのもの。年を送ったら割り勘タブが 2026年7月 / ¥700 から
+    // 2025年7月 / ¥250 に化けた（ユーザーは割り勘タブで何も操作していない）。
+    // 「月の数値さえ保てば無事」ではなく、年を動かした時点で対象期間が変わる
+    test('年を送っても割り勘と月次は表示月のまま動かない', () async {
+      await seedThreeYears();
+      await provider.setPeriod(SummaryPeriod.year);
+
+      await provider.changeYear(-1);
+
+      expect(provider.yearAxis, 2025, reason: '年の軸は動くべき');
+      expect(provider.split!.year, 2026, reason: '割り勘の年を巻き込んでいる');
+      expect(provider.split!.total, 700);
+      expect(provider.summary!.year, 2026);
+      expect(provider.summary!.total, 700);
+    });
+
+    test('「今年に戻る」でも割り勘と月次は動かない', () async {
+      await seedThreeYears();
+      // 表示月を今月から離しておく。ここが動かないことを見たい
+      await provider.goToMonth(2026, 3);
+      await provider.setPeriod(SummaryPeriod.year);
+      await provider.changeYear(-2);
+      expect(provider.isCurrentYear, isFalse);
+
+      await provider.goToCurrentYear();
+
+      expect(provider.yearAxis, 2026);
+      expect(provider.isCurrentYear, isTrue);
+      // goToCurrentMonth と取り違えると、ここが 7 月に戻る
+      expect(provider.month, 3, reason: '表示月を今月に戻してはいけない');
+      expect(provider.split!.month, 3);
     });
   });
 

@@ -66,9 +66,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 const SizedBox(height: 8),
               ] else if (provider.period == SummaryPeriod.year) ...[
                 MonthSelector(
-                  year: provider.year,
-                  // 年だけを出す。年送りでも月は保つので、割り勘タブの
-                  // 表示月はここでは動かない
+                  // 表示月（provider.year）ではなく年専用の軸。ここを
+                  // provider.year にすると、年を送った瞬間に割り勘タブの
+                  // 表示期間まで 1 年ぶん動く
+                  year: provider.yearAxis,
                   month: null,
                   todayTooltip: '今年に戻る',
                   onPrev: () => provider.changeYear(-1),

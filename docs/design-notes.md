@@ -63,9 +63,17 @@ SnackBar が出るのは `MainScreen` の Scaffold（ルートの `ScaffoldMesse
 
 `main_screen.dart` は `IndexedStack` を使わず `body: _screens[_currentIndex]` でタブを差し替える。**タブを離れると `SummaryScreen` の `State` は破棄される。** モードを画面に持たせると、取引タブを覗いて戻っただけで月モードに戻る。表示月が `SummaryProvider`（アプリ寿命）側にあるので、月だけ 2025 年 3 月のまま残りモードだけ初期化される、という半端な戻り方になる。
 
-### 年を送っても月は動かさない
+### 年の軸は表示月から独立させる（`_yearAxis`）
 
-`SummaryProvider` は**集計タブと割り勘タブで 1 インスタンスを共有している**（`main.dart` の `MultiProvider` に 1 つだけ）。`changeYear` / `goToCurrentYear` が月まで動かすと、集計画面で年を触っただけで割り勘タブの表示月が裏で動く。年モードは月に関心が無いので、触らないものは触らない。
+`SummaryProvider` は**集計タブと割り勘タブで 1 インスタンスを共有している**（`main.dart` の `MultiProvider` に 1 つだけ）。`MonthScopedProvider` の `year` / `month` は `fetch()` が月次サマリーと割り勘を取る対象そのものなので、**年送りでここを動かしてはいけない。**
+
+最初の実装は `changeYear(delta) => goToMonth(year + delta, month)` で、「月の数値さえ保てば割り勘タブは無事」と考えていた。**これは誤りだった。** 月は保っても年が動くので対象期間は変わる。実測すると、割り勘タブは `2026年7月 / ¥700` から `2025年7月 / ¥250` に化けた。ユーザーは割り勘タブで何も操作していないので、金額が変わった理由が画面から分からない。
+
+年モード・全期間モードが見る年は `SummaryProvider._yearAxis` という独立した軸に持たせる。年送りはこれだけを動かし、表示月には一切触らない。`isCurrentYear` / `goToCurrentYear` も年軸に対して定義する（`MonthScopedProvider` 側には置かない — あそこの `_year` は表示月の一部なので、同じ罠を次の人が踏む）。
+
+**年モードへ入るときは年軸を表示月の年に合わせる。** 前に年モードで見ていた年を覚えていると、月モードで別の年へ移ったあとに年モードへ戻ったとき、今見ている月と無関係な年が出る。
+
+この事故は「月が動かないこと」を見るテストでは捕まらない。`SplitResult.year` / `MonthlySummary.year` まで値で確かめる（`isNotNull` だけの確認では、前回 fetch の残骸が残る形の改変も素通りする）。
 
 同じ理由で **`fetch()` は月次サマリーと割り勘をモードに関わらず常に取る。** issue #9 の「モード切り替えのたびに全部取り直さない」を素直に読むと年モードで `getSplit` を落としたくなるが、そうすると割り勘タブを開いた人に「データがありません」が出る。モードで出し分けるのは年次データ（`getYearlySummary` / `getYearlyTotals`）だけ。
 

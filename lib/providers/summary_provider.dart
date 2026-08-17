@@ -33,12 +33,31 @@ class SummaryProvider extends MonthScopedProvider {
   bool _loading = false;
   String? _error;
 
-  SummaryProvider(this._db, {super.clock});
+  /// 年モード・全期間モードが見ている年。**表示月（[year] / [month]）とは
+  /// 独立した軸**で、年を送ってもここだけが動く。
+  ///
+  /// 表示月の年（`MonthScopedProvider.year`）を年送りに使ってはいけない。
+  /// あれは [fetch] が月次サマリーと割り勘を取る対象そのものなので、動かすと
+  /// **割り勘タブの表示期間が 1 年ぶん巻き込まれる**（`SummaryProvider` は
+  /// 集計タブと割り勘タブで 1 インスタンス）。「月の数値さえ保てば無事」では
+  /// なく、実測で割り勘タブが `2026年7月 / ¥700` から `2025年7月 / ¥250` に
+  /// 化けた。ユーザーは割り勘タブで何も操作していないので理由が分からない。
+  late int _yearAxis;
+
+  SummaryProvider(this._db, {super.clock}) {
+    _yearAxis = year;
+  }
 
   // year / month は MonthScopedProvider が持つ
   MonthlySummary? get summary => _summary;
   SplitResult? get split => _split;
   SummaryPeriod get period => _period;
+
+  /// 年モード・全期間モードのヘッダに出す年
+  int get yearAxis => _yearAxis;
+
+  /// 年の軸が [Clock] の指す「今年」と一致するか
+  bool get isCurrentYear => _yearAxis == now().year;
 
   /// 年モードで表示する年次サマリー。年モード以外では null
   YearlySummary? get yearly => _yearly;
@@ -50,21 +69,35 @@ class SummaryProvider extends MonthScopedProvider {
   bool get loading => _loading;
   String? get error => _error;
 
-  /// 表示期間を切り替え、その期間ぶんを読み直す
+  /// 表示期間を切り替え、その期間ぶんを読み直す。
+  ///
+  /// 年モードへ入るときは年の軸を表示月の年に合わせる。前に年モードで見ていた
+  /// 年を覚えていると、月モードで別の年へ移ったあとに年モードへ戻ったときへ
+  /// 「今見ている月と無関係な年」が出る。
   Future<void> setPeriod(SummaryPeriod period) async {
     if (_period == period) return;
     _period = period;
+    if (period == SummaryPeriod.year) _yearAxis = year;
     // 先に通知しておく。fetch の await を待つとセグメントの選択だけが
     // 一拍遅れて動き、押しても効かなかったように見える
     notifyListeners();
     await fetch();
   }
 
-  /// 表示年を [delta] 年ぶん送り、読み直す。**月は保つ。**
+  /// 年の軸を [delta] 年ぶん送り、読み直す。**表示月には触らない。**
   ///
-  /// 月まで動かさないのは、同じ Provider を割り勘タブと共有しているため
-  /// （[goToCurrentYear] と同じ理由）。
-  Future<void> changeYear(int delta) async => goToMonth(year + delta, month);
+  /// `goToMonth(year + delta, month)` にしてはいけない理由は [_yearAxis] を
+  /// 参照。割り勘タブの表示期間ごと動く。
+  Future<void> changeYear(int delta) async {
+    _yearAxis += delta;
+    await fetch();
+  }
+
+  /// 年の軸を今年へ戻し、読み直す。**表示月には触らない。**
+  Future<void> goToCurrentYear() async {
+    _yearAxis = now().year;
+    await fetch();
+  }
 
   /// 表示中の期間ぶんの集計を端末内 DB から計算する
   @override
@@ -88,7 +121,7 @@ class SummaryProvider extends MonthScopedProvider {
       // 使わないモードでは捨てる。残すと「年を送る → 月モードへ戻す →
       // また年モードへ」の途中で、前の年のグラフを一瞬描く経路ができる
       _yearly = _period == SummaryPeriod.year
-          ? await _db.getYearlySummary(year)
+          ? await _db.getYearlySummary(_yearAxis)
           : null;
       _allYears = _period == SummaryPeriod.all
           ? await _db.getYearlyTotals()

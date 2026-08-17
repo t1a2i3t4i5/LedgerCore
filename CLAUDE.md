@@ -69,7 +69,7 @@ screens → providers → AppDatabase（drift） → SQLite
   - アクション付きの SnackBar は `floating` + 下 88px の `margin` で FAB を避ける。タブを移ったら `hideCurrentSnackBar()` を呼ぶ
   - 月をまたぐ操作は Provider 側で `fetch()` まで済ませる。月ジャンプは `goToMonth(year, month)` を使う
 - 集計画面の期間モード（月／年／全期間）は `SummaryProvider` が持つ。画面の `State` に持たせない（`MainScreen` が `IndexedStack` を使わないのでタブを離れると破棄される）
-  - 年送りでも月は動かさない。`SummaryProvider` は割り勘タブと同じインスタンスを共有している
+  - 年の軸は表示月から独立させる（`SummaryProvider._yearAxis`）。`MonthScopedProvider` の `year` を年送りに使うと、割り勘タブの表示期間ごと 1 年動く（同じインスタンスを共有しているため）
   - `fetch()` は月次サマリーと割り勘を**モードに関わらず常に取る**。モードで出し分けるのは年次データだけ
   - 年モードにメンバー別は出さない（`YearlySummary` に `byMember` が無い。足すならデータ層まで波及するので別 issue）
 - 見出しか期間ナビを出したら、その下に必ず何かを描く。空表示は `summary_screen.dart` の `_EmptySection` に寄せ、分岐ごとに書き写さない

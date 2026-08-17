@@ -201,54 +201,10 @@ void main() {
     });
   });
 
-  group('isCurrentYear / goToCurrentYear', () {
-    test('clock の年では true、別の年では false', () async {
-      final provider = providerAt(DateTime(2026, 7, 15));
-      expect(provider.isCurrentYear, isTrue);
-
-      await provider.goToMonth(2025, 7);
-      expect(provider.isCurrentYear, isFalse);
-    });
-
-    // 年モードは月に関心が無い。同じ年の別の月を見ていても「今年」のまま
-    test('同じ年の別の月なら今年のまま', () async {
-      final provider = providerAt(DateTime(2026, 7, 15));
-
-      await provider.changeMonth(-3);
-
-      expect(provider.isCurrentMonth, isFalse);
-      expect(provider.isCurrentYear, isTrue);
-    });
-
-    // ここが月まで動かす実装だと、集計画面で「今年に戻る」を押しただけで
-    // 割り勘タブの表示月が裏で動く（Provider を共有しているため）
-    test('goToCurrentYear は年だけ戻し、月は動かさない', () async {
-      final provider = providerAt(DateTime(2026, 7, 15));
-      await provider.goToMonth(2024, 3);
-
-      await provider.goToCurrentYear();
-
-      expect(provider.year, 2026);
-      expect(provider.month, 3, reason: '月まで今月に戻してはいけない');
-      expect(provider.isCurrentYear, isTrue);
-      expect(provider.fetchedMonths, [DateTime(2024, 3), DateTime(2026, 3)]);
-    });
-
-    test('clock は呼ぶたびに評価される（年をまたいでも追従する）', () async {
-      var now = DateTime(2026, 12, 31, 23, 59);
-      final provider = _FakeMonthScopedProvider(clock: () => now);
-      expect(provider.isCurrentYear, isTrue);
-
-      // 年をまたぐ
-      now = DateTime(2027, 1, 1, 0, 1);
-
-      expect(provider.isCurrentYear, isFalse);
-      await provider.goToCurrentYear();
-      expect(provider.year, 2027);
-      // 表示していた 12 月はそのまま
-      expect(provider.month, 12);
-    });
-  });
+  // 年の軸はこのクラスに持たせない。`_year` は表示月の一部で、動かせば
+  // fetch の対象月ごと変わる（＝Provider を共有している割り勘タブを巻き込む）。
+  // 年単位の表示は SummaryProvider が独立した軸として持つので、
+  // そちらのテストは test/summary_provider_test.dart にある。
 
   group('setYearMonth', () {
     test('通知はするが再取得はしない', () {
