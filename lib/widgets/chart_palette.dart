@@ -33,3 +33,14 @@ Color labelColorOn(Color background) =>
     background.computeLuminance() > _labelLuminanceThreshold
         ? Colors.black87
         : Colors.white;
+
+/// 推移グラフ（`widgets/period_bar_chart.dart`）の棒の色。
+///
+/// [categoryColor] を流用しないこと。あれはカテゴリ ID から色を選ぶ関数なので、
+/// カテゴリと対応しない棒に使うと「食費と同じ色」という無意味な結び付きが
+/// 画面上に生まれ、意味のある対応に見えてしまう。
+///
+/// 固定色を直書きせず [ColorScheme] に委ねるのは、推移グラフの棒が
+/// 「その画面の主役の 1 色」でしかなく、カテゴリのように**互いを区別する**
+/// 必要が無いため。テーマから採ればダークテーマでもコントラストが保たれる。
+Color trendColor(ColorScheme scheme) => scheme.primary;

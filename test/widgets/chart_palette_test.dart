@@ -88,4 +88,35 @@ void main() {
       expect(labelColorOn(Colors.black), Colors.white);
     });
   });
+
+  group('trendColor', () {
+    // main.dart の ThemeData(colorSchemeSeed: Colors.teal) と同じ採り方をする。
+    // 推移グラフのツールチップは trendColor を背景に敷いて文字を載せるので、
+    // 棒の色が変わったときに文字が読めなくなる経路がここで塞がる
+    ColorScheme scheme(Brightness brightness) =>
+        ColorScheme.fromSeed(seedColor: Colors.teal, brightness: brightness);
+
+    test('ライト・ダークとも ColorScheme の primary を返す', () {
+      for (final brightness in Brightness.values) {
+        final s = scheme(brightness);
+        expect(trendColor(s), s.primary, reason: '$brightness');
+      }
+    });
+
+    // ダークテーマでは primary が明るい側へ反転するので、固定色を直書きすると
+    // ここが落ちる（ツールチップの文字が背景に溶ける）
+    test('ツールチップの文字が実効コントラスト AA（4.5:1）を満たす', () {
+      for (final brightness in Brightness.values) {
+        final bar = trendColor(scheme(brightness));
+        final ratio = _effectiveContrastRatio(labelColorOn(bar), bar);
+        expect(ratio, greaterThanOrEqualTo(4.5), reason: '$brightness で $ratio');
+      }
+    });
+
+    // カテゴリの色を流用すると、無関係なカテゴリと同色になって
+    // 「この棒は食費」という誤った対応に見える
+    test('ライトテーマでカテゴリ色をそのまま流用していない', () {
+      expect(_allPaletteColors(), isNot(contains(trendColor(scheme(Brightness.light)))));
+    });
+  });
 }

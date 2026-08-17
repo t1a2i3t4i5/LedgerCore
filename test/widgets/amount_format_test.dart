@@ -99,6 +99,55 @@ void main() {
     });
   });
 
+  // 推移グラフの Y 軸ラベル専用。formatYen と違って**丸める**ので、
+  // ここが実額の表示に使われ出すと金額が静かに嘘になる。
+  // formatYen 側の「小数部を出さない」契約（= DB の整数 CHECK の根拠）は
+  // この追加で一切緩まない。上の formatYen の group がそれを見ている
+  group('formatYenAxis', () {
+    // 万に届かない額は圧縮の余地が無いので通常表示と同じ形（カンマ付き）
+    test('万未満は formatYen と同じ形にする', () {
+      expect(formatYenAxis(0), '¥0');
+      expect(formatYenAxis(800), '¥800');
+      expect(formatYenAxis(9999), '¥9,999');
+      expect(formatYenAxis(9999), formatYen(9999));
+    });
+
+    test('万・億・兆で単位を切り替える', () {
+      expect(formatYenAxis(10000), '¥1万');
+      expect(formatYenAxis(125000), '¥12.5万');
+      expect(formatYenAxis(100000000), '¥1億');
+      expect(formatYenAxis(250000000000), '¥2500億');
+      expect(formatYenAxis(1000000000000), '¥1兆');
+    });
+
+    // '1.0兆' ではなく '1兆'。桁を詰めるための関数なので末尾の .0 は落とす
+    test('割り切れる値に .0 を付けない', () {
+      expect(formatYenAxis(10000), isNot(contains('.')));
+      expect(formatYenAxis(500000000000), '¥5000億');
+    });
+
+    test('負値でも ¥ の後ろに符号が付く', () {
+      expect(formatYenAxis(-10000), '¥-1万');
+    });
+
+    // この関数が存在する理由そのもの。formatYen だと 15 文字になり、
+    // 360px 幅の 3 分の 1 以上を Y 軸が占めてグラフ本体が潰れる
+    test('上限額でも軸に収まる長さになる', () {
+      expect(formatYen(kMaxAmount).length, 16); // ¥ + 12 桁 + カンマ 3 つ
+      expect(formatYenAxis(kMaxAmount).length, lessThanOrEqualTo(8));
+      // 概数だと分かるよう単位を必ず付ける（カンマ区切りの実額には見せない）
+      expect(formatYenAxis(kMaxAmount), isNot(contains(',')));
+    });
+
+    // 実際に軸へ渡るのは period_bar_chart が 1/2/5 × 10^n に丸めた目盛りだけ。
+    // 上限額のデータなら 0 / 5000億 / 1兆 の 3 本になる
+    test('上限額のグラフで実際に出る目盛りがすべて短い', () {
+      for (final v in [0.0, 500000000000.0, 1000000000000.0]) {
+        expect(formatYenAxis(v).length, lessThanOrEqualTo(7), reason: '$v');
+      }
+    });
+  });
+
   group('formatAmountForInput', () {
     // 表示用と取り違えると入力欄に ¥ や桁区切りが入り、
     // AmountInputFormatter が数字以外を落として値が壊れる

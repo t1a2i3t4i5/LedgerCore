@@ -54,7 +54,7 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 | 状態管理   | `provider`（`ChangeNotifier`）                          |
 | 永続化     | `drift` + `drift_flutter`（端末内 `ledgercore.sqlite`） |
 | 日付整形   | `intl`                                                  |
-| グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし。現在 `lib/` からの利用は無く、支出推移グラフ用に残している） |
+| グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし。支出推移の棒グラフで使う） |
 | コード生成 | `drift_dev` + `build_runner`                            |
 | Lint       | `flutter_lints`（`analysis_options.yaml`）              |
 

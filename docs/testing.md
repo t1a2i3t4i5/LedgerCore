@@ -30,7 +30,18 @@ drift の `SchemaVerifier` を使い、`drift_schemas/` に固定した過去バ
 
 ## ウィジェットテストは `test/widgets/` に置く
 
-fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.text()` では拾えない。検証は凡例など通常のウィジェットに対して行う。現在 `lib/` にグラフウィジェットは無いが（カテゴリ別の円グラフは重複表示になったため削除した。`design-notes.md` 参照）、#9 の推移グラフを足すときにまた効く。
+### fl_chart は「どこが Canvas 直描きか」で検証手段が変わる
+
+かつてここには「fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.text()` では拾えない」と書いてあった。**軸については fl_chart 1.x で成り立たない。** `side_titles_widget.dart` が `SideTitles.getTitlesWidget` の返り値をそのままウィジェットツリーに載せるため、軸ラベルは通常の `Text` として存在する。削除した円グラフ（0.x 系）の扇形ラベルだけを見て一般化したのが元の記述で、`period_bar_chart_test.dart` を書く段で誤りが分かった。
+
+| 描かれるもの | 実体 | 検証手段 |
+| --- | --- | --- |
+| 軸ラベル（`getTitlesWidget`） | **ウィジェット** | `find.text()` で拾い、`getRect()` で位置も測れる |
+| ツールチップの文字 | `Canvas` 直描き | `BarTouchTooltipData.getTooltipItem` を直接呼ぶ |
+| 円グラフの扇形ラベル | `Canvas` 直描き | （現在 `lib/` に円グラフは無い） |
+| 棒・扇形そのもの | `Canvas` 直描き | `tester.widget<BarChart>(...).data` を見る |
+
+軸ラベルが**ウィジェットとして拾える**ことは、ただ便利なだけではない。fl_chart はラベルが隣と重なっても例外を出さず、はみ出しても overflow の縞模様を出さずに静かに切れる。`takeException()` では崩れを一切捕まえられないので、**描画されたラベルの矩形を `getRect()` で取り、隣接ペアが重なっていないことを直接見る**（`period_bar_chart_test.dart` の `_visibleXLabelRects`）。棒グラフの X 軸には `SideTitles.interval` が効かず（fl_chart が `barGroups` を全数走査する）、間引きは実装側の自前処理なので、ここが壊れると 12 本のラベルが重なった読めない図が黙って出来る。
 
 ## 画面サイズはスマホ幅に設定する
 
