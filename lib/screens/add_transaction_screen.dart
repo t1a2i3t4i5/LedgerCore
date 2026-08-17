@@ -7,6 +7,7 @@ import '../providers/category_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../widgets/amount_format.dart';
+import '../widgets/period_format.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   // 編集時は既存の取引を渡す
@@ -160,7 +161,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     messenger.showSnackBar(
       SnackBar(
         content: Text(
-          inShownMonth ? '保存しました' : '${savedAt.year}年${savedAt.month}月に保存しました',
+          inShownMonth
+              ? '保存しました'
+              : '${formatPeriod(savedAt.year, savedAt.month)}に保存しました',
         ),
         action: inShownMonth
             ? null
@@ -358,7 +361,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       prefixIcon: const Icon(Icons.calendar_today),
                       border: const OutlineInputBorder(),
                       helperText: savingToOtherMonth
-                          ? '表示中の${shown.year}年${shown.month}月とは別の月です'
+                          ? '表示中の${formatPeriod(shown.year, shown.month)}とは別の月です'
                           : null,
                       helperMaxLines: 2,
                     ),

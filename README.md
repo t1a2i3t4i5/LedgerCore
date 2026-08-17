@@ -54,7 +54,7 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 | 状態管理   | `provider`（`ChangeNotifier`）                          |
 | 永続化     | `drift` + `drift_flutter`（端末内 `ledgercore.sqlite`） |
 | 日付整形   | `intl`                                                  |
-| グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし。現在 `lib/` からの利用は無く、支出推移グラフ用に残している） |
+| グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし。支出推移の棒グラフで使う） |
 | コード生成 | `drift_dev` + `build_runner`                            |
 | Lint       | `flutter_lints`（`analysis_options.yaml`）              |
 
@@ -91,8 +91,10 @@ lib/
 │   ├── categories_screen.dart # カテゴリ管理
 │   └── members_screen.dart    # メンバー管理
 └── widgets/                   # 画面から切り離した再利用部品（ウィジェットとは限らない）
-    ├── chart_palette.dart     # カテゴリの色パレット（カテゴリ ID から決定的に決まる）
+    ├── chart_palette.dart     # グラフの色（カテゴリ ID から決まる色・推移グラフの棒の色）
     ├── month_selector.dart    # 月選択 UI（前月 / 翌月 / 今月に戻る）。取引・サマリー・割り勘の 3 画面で共用
+    ├── period_bar_chart.dart  # 月別・年別の支出推移を描く棒グラフ（DB も Provider も参照しない）
+    ├── period_format.dart     # 年月の表示整形（'2026年7月' / 軸用の '7月'）
     └── amount_format.dart      # 金額・構成比の表示整形（¥ 付き / %）と入力欄の全角正規化・記号除去・桁数制限
 ```
 

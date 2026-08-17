@@ -30,7 +30,37 @@ drift の `SchemaVerifier` を使い、`drift_schemas/` に固定した過去バ
 
 ## ウィジェットテストは `test/widgets/` に置く
 
-fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.text()` では拾えない。検証は凡例など通常のウィジェットに対して行う。現在 `lib/` にグラフウィジェットは無いが（カテゴリ別の円グラフは重複表示になったため削除した。`design-notes.md` 参照）、#9 の推移グラフを足すときにまた効く。
+### fl_chart は「どこが Canvas 直描きか」で検証手段が変わる
+
+かつてここには「fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.text()` では拾えない」と書いてあった。**軸については fl_chart 1.x で成り立たない。** `side_titles_widget.dart` が `SideTitles.getTitlesWidget` の返り値をそのままウィジェットツリーに載せるため、軸ラベルは通常の `Text` として存在する。削除した円グラフ（0.x 系）の扇形ラベルだけを見て一般化したのが元の記述で、`period_bar_chart_test.dart` を書く段で誤りが分かった。
+
+| 描かれるもの | 実体 | 検証手段 |
+| --- | --- | --- |
+| 軸ラベル（`getTitlesWidget`） | **ウィジェット** | `find.text()` で拾い、`getRect()` で位置も測れる |
+| ツールチップの文字 | `Canvas` 直描き | `BarTouchTooltipData.getTooltipItem` を直接呼ぶ |
+| 円グラフの扇形ラベル | `Canvas` 直描き | （現在 `lib/` に円グラフは無い） |
+| 棒・扇形そのもの | `Canvas` 直描き | `tester.widget<BarChart>(...).data` を見る |
+
+軸ラベルが**ウィジェットとして拾える**ことは、ただ便利なだけではない。fl_chart はラベルが隣と重なっても例外を出さず、はみ出しても overflow の縞模様を出さずに静かに切れる。`takeException()` では崩れを一切捕まえられないので、**描画されたラベルの矩形を `getRect()` で取り、隣接ペアが重なっていないことを直接見る**（`period_bar_chart_test.dart` の `_visibleXLabelRects`）。棒グラフの X 軸には `SideTitles.interval` が効かず（fl_chart が `barGroups` を全数走査する）、間引きは実装側の自前処理なので、ここが壊れると 12 本のラベルが重なった読めない図が黙って出来る。
+
+### 重なりを見るなら「間引かれ過ぎ」も一緒に見る
+
+重なりの検査は**ラベルが減るほど通りやすい**。下限を置かないと、12 本のうち 2 本しか出ていない図がいちばん安全な実装ということになってしまう。実際、間引き幅を広げる改変（`+4` → `+40`）で表示が 12 本から 4 本に落ちても、重なりだけを見るテストは緑のままだった。`_expectLabelsReadable(..., minVisible: n)` のように読める下限を添える。
+
+### `BarChartData` の設定は「消しても緑」になりやすい
+
+`titlesData` の 4 辺・`gridData`・`barTouchData.enabled`・ツールチップの**背景色**は、どれも描画に効くのに `find.text()` には現れない。とくに次の 2 つは実測で確認した。
+
+- `topTitles` / `rightTitles` の `const AxisTitles()` を消すと上辺・右辺に軸が出るが、既定のラベルは `¥` を含まないので `¥` 付きを探す既存の期待とはぶつからず 1 件も落ちない
+- ツールチップの文字色は `labelColorOn(背景)` で決まるので、**背景だけ**を別の色に変えると白背景に白文字になるが、文字色しか見ていないテストは通る
+
+`tester.widget<BarChart>(...).data` に対して、これらの値を直接 `expect` する。
+
+### 端末の文字サイズ（`textScaler`）を通すケースを 1 本置く
+
+既定倍率だけで pump すると、`MediaQuery.textScalerOf` を読む実装を消しても検出できない。実際、X 軸の帯の高さを定数にしていた版は、倍率 1.0 のテストを全部通したまま **scale 1.15 でラベルの下端が切れていた**（幅は足りているので重なりの検査もすり抜ける）。
+
+縦の切れは `didExceedMaxLines` では拾えない（`maxLines: 1` を超えるのは行数であって高さではない）。**倍率を変えて `tester.getSize()` の高さが比例するか**を見る。切れていれば帯の高さで頭打ちになり、比例しない。
 
 ## 画面サイズはスマホ幅に設定する
 

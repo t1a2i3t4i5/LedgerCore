@@ -60,6 +60,41 @@ String formatRatio(double amount, double total) {
   return '${(amount / total * 100).toStringAsFixed(1)}%';
 }
 
+/// 軸ラベルで使う単位。大きい順に見て、最初に届いたものを使う。
+const _axisUnits = <(double, String)>[
+  (1000000000000.0, '兆'),
+  (100000000.0, '億'),
+  (10000.0, '万'),
+];
+
+/// **グラフの軸ラベル専用**の圧縮表記。`¥1兆` `¥5000億` `¥12.5万` `¥800` の形。
+///
+/// [formatYen] をそのまま軸に使うと、[kMaxAmount] が `¥999,999,999,999` の
+/// 15 文字になり、360px 幅の 3 分の 1 以上を Y 軸が占めてグラフ本体が潰れる。
+/// この値は DB の CHECK 制約が現に許すので「そんな金額は入らない」では逃げられない。
+///
+/// **取引金額の表示には使わないこと。** 丸めるので `¥12.5万` は 125,000 円とは
+/// 限らない。画面に出す実額は必ず [formatYen] を通す — 小数部を出さないことが
+/// DB の整数 CHECK 制約の根拠になっており、ここはその唯一の例外にあたる。
+/// 例外だと分かるよう、丸めた概数には必ず単位を付けて返す。
+///
+/// 小数第 1 位までで足りるのは、呼び出し側（`widgets/period_bar_chart.dart`）が
+/// 目盛りを 1/2/5 × 10^n の倍数に丸めてから渡すため。目盛り幅は最大値の
+/// 4 分の 1 以上になるので、単位に直しても 0.2 刻みより細かくならない。
+String formatYenAxis(double amount) {
+  final abs = amount.abs();
+  for (final (scale, suffix) in _axisUnits) {
+    if (abs < scale) continue;
+    final scaled = (amount / scale).toStringAsFixed(1);
+    // '1.0兆' ではなく '1兆'。桁を詰めるための関数なので末尾の .0 は落とす
+    final trimmed =
+        scaled.endsWith('.0') ? scaled.substring(0, scaled.length - 2) : scaled;
+    return '¥$trimmed$suffix';
+  }
+  // 万に届かない額は圧縮の余地が無いので、通常の表示と同じ形にする
+  return formatYen(amount);
+}
+
 /// 金額欄の入力フォーマッタ。
 ///
 /// 取引の追加・編集画面とフィルターシートの金額欄が共有する。片方だけ挙動が
