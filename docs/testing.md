@@ -124,6 +124,10 @@ bool _isEllipsized(WidgetTester tester, String text) =>
 
 月選択を持つ画面を足したら、後者に 1 画面ぶん足す。前者は増やさなくてよい。
 
+**年単位の送りは `month_navigation_test.dart` に相乗りさせない。** 集計画面は `MonthSelector` を年モードでも使い回すが（`month: null`）、あちらの共通ケースは `'2026年7月'` と「今月に戻る」を期待しており、年モードでは成り立たない。年送りは `test/widgets/summary_period_test.dart` で単独に見る。集計画面の**月**モードは既定なので、`month_navigation_test.dart` の 3 画面ぶんはそのまま通る。
+
+期間モードを持つ画面のテストでは、**モードを跨いだ状態の保存**も見る。`SummaryProvider` は割り勘タブと 1 インスタンスを共有しているので、年を送ったときに月が動いていないか（＝割り勘タブの表示月を巻き込んでいないか）は年モードのままでは分からない。月モードへ戻して年月を読む形で確かめる。タブを離れるとモードが初期化されないことも `LedgerApp` ごと pump して 1 本置く（`MainScreen` は `IndexedStack` を使わず `State` を捨てるため）。
+
 ## 取引の日付に依存するテストは、日付ピッカーで明示的に選ぶ
 
 追加画面の既定日付は `clock` ではなく実時刻なので（[design-notes.md](design-notes.md) の「取引追加画面の既定日付はこの規則の対象外」）、既定のまま保存すると期待値がテストを走らせた月に左右される。カレンダーの升目を辿る書き方も初期表示月が実時刻依存になるので、`Icons.edit_outlined` でテキスト入力モードへ切り替えて `MM/DD/YYYY`（ロケール未指定なので en_US 書式）を打ち込む。`test/widgets/save_feedback_test.dart` の `pickDate` が実装例。

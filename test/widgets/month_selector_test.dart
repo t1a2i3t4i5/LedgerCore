@@ -17,8 +17,10 @@ void main() {
   Future<void> pump(
     WidgetTester tester, {
     int year = 2026,
-    int month = 7,
+    // null を渡すと年だけを表示する年単位の選択になる
+    int? month = 7,
     bool todayEnabled = true,
+    String? todayTooltip,
     TextStyle? style,
     List<Widget> actions = const [],
     double textScale = 1.0,
@@ -35,6 +37,7 @@ void main() {
       onPrev: () => pressed.add('prev'),
       onNext: () => pressed.add('next'),
       onToday: todayEnabled ? () => pressed.add('today') : null,
+      todayTooltip: todayTooltip ?? '今月に戻る',
       actions: actions,
     );
 
@@ -175,5 +178,51 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
+  });
+
+  group('年単位で使うとき', () {
+    // 集計画面の年モードがこの形で使う
+    testWidgets('month が null なら年だけを表示する', (tester) async {
+      await pump(tester, month: null);
+
+      expect(find.text('2026年'), findsOneWidget);
+      expect(find.text('2026年7月'), findsNothing);
+    });
+
+    // 矢印の意味は呼び出し側が決める（年モードでは年送り）。
+    // ウィジェット側はコールバックを呼ぶだけ、という契約を固定する
+    testWidgets('年表示でも矢印は同じコールバックを呼ぶ', (tester) async {
+      await pump(tester, month: null);
+
+      await tester.tap(find.byIcon(Icons.chevron_left));
+      await tester.tap(find.byIcon(Icons.chevron_right));
+      await tester.tap(find.byIcon(Icons.today));
+
+      expect(pressed, ['prev', 'next', 'today']);
+    });
+
+    testWidgets('tooltip を差し替えられる（既定は今月に戻る）', (tester) async {
+      await pump(tester);
+      expect(find.byTooltip('今月に戻る'), findsOneWidget);
+
+      await pump(tester, month: null, todayTooltip: '今年に戻る');
+      expect(find.byTooltip('今年に戻る'), findsOneWidget);
+      expect(find.byTooltip('今月に戻る'), findsNothing);
+    });
+
+    // 年表示は月表示より短いので、月が収まる幅なら必ず収まる。
+    // 対照の isTrue ケースは月表示側（'9999年12月' を幅 200）に既にある
+    testWidgets('幅 360 で桁が最大の年でも畳まれない', (tester) async {
+      await pump(
+        tester,
+        year: 9999,
+        month: null,
+        style: const TextStyle(fontSize: 16),
+        actions: [filterButton()],
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(isEllipsized(tester, '9999年'), isFalse);
+    });
   });
 }
