@@ -58,6 +58,8 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 | 永続化     | `drift` + `drift_flutter`（端末内 `ledgercore.sqlite`） |
 | 日付整形   | `intl`                                                  |
 | グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし。支出推移の棒グラフで使う） |
+| 操作ログ   | 自前実装（`lib/logging/`）。端末内のファイルへ JSON Lines で追記する |
+| ファイル配置 | `path_provider` + `path`（ログの書き込み先の解決だけに使う） |
 | コード生成 | `drift_dev` + `build_runner`                            |
 | Lint       | `flutter_lints`（`analysis_options.yaml`）              |
 
@@ -78,6 +80,11 @@ lib/
 │   ├── household_member.dart
 │   ├── summary.dart           # 月次サマリー（カテゴリ別・メンバー別）
 │   └── split.dart             # 割り勘の結果（各自の過不足・精算方法）
+├── logging/                   # 操作ログ（AppDatabase も Provider も参照しない）
+│   ├── operation_logger.dart  # 記録の入口。info / error を積んで直列に書き出す（呼び出し側は await しない）
+│   ├── log_entry.dart         # ログ 1 行のデータと JSON Lines への整形（純関数）
+│   ├── log_sink.dart          # 書き出し先の抽象・何もしない実装・テスト用のメモリ実装
+│   └── file_log_sink.dart     # ファイルへの追記とサイズによる世代交代
 ├── providers/                 # 状態管理（provider / ChangeNotifier）
 │   ├── month_scoped_provider.dart # 表示月の共通基底（clock 注入・月送り・今月判定）
 │   ├── member_provider.dart

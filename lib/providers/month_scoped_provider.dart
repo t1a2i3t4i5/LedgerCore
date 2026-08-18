@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../logging/operation_logger.dart';
+
 /// 「今」を返す関数。既定は [DateTime.now] で、テストから固定時刻を注入するための口。
 typedef Clock = DateTime Function();
 
@@ -14,10 +16,17 @@ typedef Clock = DateTime Function();
 abstract class MonthScopedProvider extends ChangeNotifier {
   final Clock _clock;
 
+  /// 操作ログの出力先。サブクラスからも使う。
+  /// 省略時は何も書かないロガーなので、ログを見ないテストは今までどおり書ける
+  @protected
+  final OperationLogger logger;
+
   late int _year;
   late int _month;
 
-  MonthScopedProvider({Clock? clock}) : _clock = clock ?? DateTime.now {
+  MonthScopedProvider({Clock? clock, OperationLogger? logger})
+      : _clock = clock ?? DateTime.now,
+        logger = logger ?? OperationLogger.noop() {
     final now = _clock();
     _year = now.year;
     _month = now.month;
@@ -52,8 +61,20 @@ abstract class MonthScopedProvider extends ChangeNotifier {
   ///
   /// 相対移動でない月ジャンプの唯一の入口。[setYearMonth] と違って再取得まで
   /// 面倒を見るので、production から表示月を動かすときはこれを使う。
-  Future<void> goToMonth(int year, int month) async {
+  ///
+  /// 月の移動はすべてここを通る（[changeMonth] も [goToCurrentMonth] も
+  /// これを呼ぶ）ので、`month.change` のログもここに 1 つ置けば足りる。
+  /// [via] は入口の区別（`arrow` / `jump` / `current`）で、ログにだけ載る
+  Future<void> goToMonth(int year, int month, {String via = 'jump'}) async {
+    final from = _logMonth(_year, _month);
     setYearMonth(year, month);
+    // 記録するのは丸めた**後**の月。setYearMonth は 13 月を翌年 1 月へ
+    // 正規化するので、引数をそのまま書くとログだけ 2026-13 になる
+    logger.info('month.change', detail: {
+      'from': from,
+      'to': _logMonth(_year, _month),
+      'via': via,
+    });
     await fetch();
   }
 
@@ -63,13 +84,13 @@ abstract class MonthScopedProvider extends ChangeNotifier {
     // DateTime は月の桁あふれを正規化するので、繰り上げ・繰り下げを自前で
     // 書かずに済む（13 月 → 翌年 1 月、0 月 → 前年 12 月）
     final shifted = DateTime(_year, _month + delta);
-    await goToMonth(shifted.year, shifted.month);
+    await goToMonth(shifted.year, shifted.month, via: 'arrow');
   }
 
   /// 今月へ戻り、その月のデータを読み直す
   Future<void> goToCurrentMonth() async {
     final now = _clock();
-    await goToMonth(now.year, now.month);
+    await goToMonth(now.year, now.month, via: 'current');
   }
 
   /// 注入された [Clock] が返す「今」。
@@ -87,3 +108,12 @@ abstract class MonthScopedProvider extends ChangeNotifier {
   /// 表示月ぶんのデータを読み直す。サブクラスが実装する
   Future<void> fetch();
 }
+
+/// ログに載せる年月の書式（`2026-08`）。
+///
+/// 画面用の `widgets/period_format.dart` の `formatPeriod()`（`2026年8月`）を
+/// 使わないのは、ログが機械可読を優先して桁を固定するため。
+/// **画面にこの書式を出さないこと** — 年月の表示は今までどおり
+/// `formatPeriod()` / `formatPeriodShort()` に寄せる
+String _logMonth(int year, int month) =>
+    '$year-${month.toString().padLeft(2, '0')}';

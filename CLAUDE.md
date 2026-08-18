@@ -89,6 +89,13 @@ screens → providers → AppDatabase（drift） → SQLite
   - 棒グラフの X 軸ラベルは `SideTitles.interval` が効かない。間引きは `getTitlesWidget` の中で自前でやる
 - グラフの色は `widgets/chart_palette.dart` を使い、直書きしない。カテゴリ別は `categoryColor(categoryId)`、推移グラフの棒は `trendColor(colorScheme)`
 - 年月を画面に出すときは `widgets/period_format.dart` の `formatPeriod()` / `formatPeriodShort()` を使い、`'$year年$month月'` を各所で組み立て直さない
+- 操作ログは `lib/logging/` の `OperationLogger` だけを通す。画面と Provider は `info(op, detail)` / `error(op, e, detail)` しか呼ばない
+  - 出力先は端末内のログファイル 1 本（JSON Lines）。**drift のテーブルには入れない**し、履歴画面も作らない
+  - `info()` / `error()` は `void`。呼び出し側に `await` させない（書き出しは内部の単一キューで直列化する）。待てるのは `flush()` だけで、production からは呼ばない
+  - 書き込み系（`create` / `update` / `delete`）にログのために足した `try` は**必ず `rethrow` する**。例外は今までどおり画面の catch へ届かせる
+  - **取引のメモ本文とフィルターの検索語はログに書かない**（`memoLength` と `hasMemoQuery` だけ）。カテゴリ名・メンバー名は書く
+  - ログの年月は `2026-08`、時刻はミリ秒 3 桁固定。画面用の `formatPeriod()` を使い回さず、この書式を画面にも出さない
+  - `op` は `<対象>.<動作>`、`lv` は `info` / `error` の 2 値だけ。レベルを増やさない
 
 ## テストの書き方
 
@@ -113,6 +120,11 @@ screens → providers → AppDatabase（drift） → SQLite
 - 月送りのテストは、ヘッダの年月だけでなく中身の値も見る
 - 画面の配線は Provider のテストでは代替できない。矢印と「今月に戻る」は `tester.tap` で実際に押す
 - 取引の日付に依存するテストは、日付ピッカーをテキスト入力モードにして明示的に選ぶ
+- ログのテストは `lib/logging/log_sink.dart` の `MemoryLogSink` を注入する。実ファイルを触らない
+  - 行の書式（`toJsonLine`）は純関数として DB もファイルも無しでテストする。**`jsonDecode` して Map で比べない** — キーの順まで固定したいので、出来上がった文字列そのものを期待値に置く
+  - `FileLogSink` のテストは `Directory.systemTemp.createTemp()` を渡す（`path_provider` はプラグインなので素の `flutter test` では答えない）
+  - **`testWidgets` の中で `logger.flush()` を待たない。** 擬似時間のゾーンに積まれたキューは返ってこず、失敗ではなく 10 分のハングになる。`await tester.pump()` を挟む（`tester.runAsync()` で包むのは逆効果でデッドロックする）
+  - 書き込み系の失敗は、金額 0（DB の CHECK 制約）や FK 違反で起こす。閉じた DB への削除は例外にならない
 
 ## git 運用
 
