@@ -142,3 +142,50 @@ bool _isEllipsized(WidgetTester tester, String text) =>
 ## 取引の日付に依存するテストは、日付ピッカーで明示的に選ぶ
 
 追加画面の既定日付は `clock` ではなく実時刻なので（[design-notes.md](design-notes.md) の「取引追加画面の既定日付はこの規則の対象外」）、既定のまま保存すると期待値がテストを走らせた月に左右される。カレンダーの升目を辿る書き方も初期表示月が実時刻依存になるので、`Icons.edit_outlined` でテキスト入力モードへ切り替えて `MM/DD/YYYY`（ロケール未指定なので en_US 書式）を打ち込む。`test/widgets/save_feedback_test.dart` の `pickDate` が実装例。
+
+## ログのテストは `MemoryLogSink` を注入して実ファイルを触らない
+
+`lib/logging/log_sink.dart` の `MemoryLogSink` は書かれた行を `List<String>` に溜めるだけの `LogSink`。
+Provider にも `LedgerApp` にも `logger` を任意引数で渡せるので、ログを見ないテストは今までどおりの
+書き方のまま動く（省略時は何も書かない `NoopLogSink`）。
+
+`FileLogSink` のテストだけは `Directory.systemTemp.createTemp()` を渡す。書き込み先のディレクトリを
+コンストラクタ引数にしてあるのは、**`path_provider` がプラグインで素の `flutter test` では答えない**ため。
+パスの解決は `main.dart` の `_createLogger` に閉じてあり、そこはテストしない。
+
+## 行の書式は文字列そのものを期待値に置く
+
+`toJsonLine()` の検証で `jsonDecode` して `Map` を比べると、**キーの順が入れ替わっても通ってしまう**。
+目で追う前提の JSON Lines なので、行ごとに列が動かないことに意味がある。`log_entry_test.dart` は
+出来上がった 1 行を丸ごと期待値に置いて、`ts` → `lv` → `op` → `detail` → `error` の順まで固定している。
+
+一方で「どの操作がどんな detail を残すか」を見る `provider_logging_test.dart` のほうは `jsonDecode` してよい。
+あちらが守りたいのは中身であって並びではないため。
+
+## `testWidgets` の中では `flush()` を待たず `pump()` で流す
+
+素の `await logger.flush()` を `testWidgets` の中に書くと**返ってこない**。ロガーのキューは
+`info()` を呼んだ擬似時間のゾーンに積まれ、そのマイクロタスクは**フレームを進めないと流れない**ため。
+
+`tester.runAsync()` で包んでも直らない。むしろ話が悪くなる — `runAsync` は擬似時間を止めて実時間で走らせるので、
+キューを流す側（擬似時間）と待つ側（実時間）が互いを待ってデッドロックする。
+
+正解は `await tester.pump()` を 1 つ挟むこと（`main_screen_logging_test.dart` の `flushLog` ヘルパ）。
+
+厄介なのは**失敗ではなくハングとして出る**こと。`pumpAndSettle` の既定タイムアウトが 10 分あるため、
+テストは落ちずに黙って止まり、「なぜか遅い」としか見えない。実際この形で 20 分以上ハングさせ、
+`runAsync` に替えてもう一度ハングさせた。
+
+`test()` で書く Provider のテスト（`provider_logging_test.dart`）は擬似時間を使わないので、
+そちらは素の `await logger.flush()` でよい。
+
+## 書き込みの失敗は CHECK 制約か FK 違反で起こす
+
+`create` / `update` / `delete` に足した `try` が `rethrow` しているかを見るには、DB に実際に失敗してもらう必要がある。
+使えるのは次の 2 つ。
+
+- **金額 0** — `Transactions.amount` の CHECK 制約に弾かれる（`kMaxAmount` 超えも同様）
+- **FK 違反** — 取引が紐づくカテゴリやメンバーの削除
+
+**閉じた DB への削除は使えない。** `deleteTransaction(1)` は存在しない行を 0 件削除しただけの扱いで
+正常終了し、`expectLater(..., throwsA(anything))` が「例外が飛ばなかった」で落ちる。

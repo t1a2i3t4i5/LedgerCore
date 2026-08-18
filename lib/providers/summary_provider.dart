@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 import '../db/database.dart';
 import '../models/summary.dart';
 import '../models/split.dart';
@@ -44,7 +42,7 @@ class SummaryProvider extends MonthScopedProvider {
   /// 化けた。ユーザーは割り勘タブで何も操作していないので理由が分からない。
   late int _yearAxis;
 
-  SummaryProvider(this._db, {super.clock}) {
+  SummaryProvider(this._db, {super.clock, super.logger}) {
     _yearAxis = year;
   }
 
@@ -75,9 +73,12 @@ class SummaryProvider extends MonthScopedProvider {
   /// 年を覚えていると、月モードで別の年へ移ったあとに年モードへ戻ったときへ
   /// 「今見ている月と無関係な年」が出る。
   Future<void> setPeriod(SummaryPeriod period) async {
+    // 同じモードを選び直したときは何も変わらないので、ログにも残さない
     if (_period == period) return;
+    final from = _period;
     _period = period;
     if (period == SummaryPeriod.year) _yearAxis = year;
+    logger.info('summary.period', detail: {'from': from, 'to': period});
     // 先に通知しておく。fetch の await を待つとセグメントの選択だけが
     // 一拍遅れて動き、押しても効かなかったように見える
     notifyListeners();
@@ -89,13 +90,19 @@ class SummaryProvider extends MonthScopedProvider {
   /// `goToMonth(year + delta, month)` にしてはいけない理由は [_yearAxis] を
   /// 参照。割り勘タブの表示期間ごと動く。
   Future<void> changeYear(int delta) async {
+    final from = _yearAxis;
     _yearAxis += delta;
+    // 表示月の `month.change` とは別の op にする。この 2 つは別の軸で、
+    // 同じ op にまとめるとログから「どちらが動いたのか」が読めなくなる
+    logger.info('summary.year', detail: {'from': from, 'to': _yearAxis});
     await fetch();
   }
 
   /// 年の軸を今年へ戻し、読み直す。**表示月には触らない。**
   Future<void> goToCurrentYear() async {
+    final from = _yearAxis;
     _yearAxis = now().year;
+    logger.info('summary.year', detail: {'from': from, 'to': _yearAxis});
     await fetch();
   }
 
@@ -128,7 +135,12 @@ class SummaryProvider extends MonthScopedProvider {
           : const [];
     } catch (e) {
       _error = e.toString();
-      debugPrint('SummaryProvider.fetch エラー: $e');
+      logger.error('summary.fetch', e, detail: {
+        'year': year,
+        'month': month,
+        'period': _period,
+        'yearAxis': _yearAxis,
+      });
     } finally {
       _loading = false;
       notifyListeners();

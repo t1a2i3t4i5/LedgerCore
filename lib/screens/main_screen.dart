@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../logging/operation_logger.dart';
 import 'summary_screen.dart';
 import 'transactions_screen.dart';
 import 'categories_screen.dart';
@@ -25,6 +27,11 @@ class _MainScreenState extends State<MainScreen> {
 
   final _titles = const ['月次サマリー', '取引一覧', 'カテゴリ', '割り勘'];
 
+  /// ログに載せるタブ名。**画面表示用の [_titles] とは別に持つ。**
+  /// op が英字なので detail も英字で揃え、画面の文言を変えてもログの
+  /// 集計が壊れないようにする
+  static const _logNames = ['summary', 'transactions', 'categories', 'split'];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -35,6 +42,9 @@ class _MainScreenState extends State<MainScreen> {
             icon: const Icon(Icons.people_outline),
             tooltip: 'メンバー管理',
             onPressed: () {
+              context
+                  .read<OperationLogger>()
+                  .info('screen.open', detail: {'name': 'members'});
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const MembersScreen()),
               );
@@ -52,6 +62,15 @@ class _MainScreenState extends State<MainScreen> {
           // 「その月を表示」をサマリータブで押すと、画面は何も変わらないまま
           // 取引一覧の表示月だけが裏で動く
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          // 選択中のタブを押し直したときは記録しない。NavigationBar は
+          // 同じ行き先でもこのコールバックを呼ぶので、素直に書くと
+          // from と to が同じ行がログに溜まる
+          if (index != _currentIndex) {
+            context.read<OperationLogger>().info('tab.change', detail: {
+              'from': _logNames[_currentIndex],
+              'to': _logNames[index],
+            });
+          }
           setState(() => _currentIndex = index);
         },
         destinations: const [
