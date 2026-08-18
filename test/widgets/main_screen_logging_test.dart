@@ -137,7 +137,10 @@ void main() {
     await tester.tap(find.text('取引'));
     await tester.pumpAndSettle();
 
+    // ロガーを渡さなくても LedgerApp がツリーへ 1 つ置くこと。
+    // 置き忘れると main_screen の context.read<OperationLogger>() が
+    // ProviderNotFoundException を投げ、タブが切り替わらなくなる
     expect(tester.takeException(), isNull);
-    expect(sink.lines, isEmpty);
+    expect(find.text('取引一覧'), findsOneWidget);
   });
 }

@@ -39,6 +39,14 @@ void main() {
   }, (error, stack) {
     // 非同期の未捕捉例外。スタックは error 側に載せて、長すぎるぶんは
     // LogEntry の truncate に任せる
+    //
+    // **コンソールにも出し直す。** runZonedGuarded を挟むと、それまで
+    // 未捕捉の非同期例外を stderr へ出していた Dart 既定のハンドラが
+    // このハンドラに置き換わる。ログに書くだけだと flutter run 中の
+    // コンソールから例外が消え、ロガーが noop に倒れた端末では
+    // どこにも残らなくなる。同期側の FlutterError.onError が
+    // presentError() を呼び直しているのと揃える
+    debugPrint('未捕捉の非同期例外: $error\n$stack');
     logger.error('app.uncaught', '$error\n$stack');
   });
 }

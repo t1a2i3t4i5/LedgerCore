@@ -133,3 +133,25 @@ const _maxNormalizeDepth = 8;
 String _truncate(String text) => text.length <= kMaxErrorLength
     ? text
     : '${text.substring(0, kMaxErrorLength)}…';
+
+/// 例外の文字列から、DB へ渡した値が混ざる部分だけを伏せる。**純関数**。
+///
+/// `sqlite3` の `SqliteException.toString()` は失敗した文に続けて
+/// `, parameters: 1, 1, 0.0, ..., ひみつの通院, ...` とバインド値を全部並べる。
+/// 取引のメモもそこに入るので、[LogEntry.detail] から本文を外して
+/// `memoLength` だけにしても、**同じ行の `error` 経由でメモ本文がログファイルへ
+/// 残ってしまう**（`detail` に `memoLength:6` と本文が並ぶ）。
+/// ログファイルは端末外へ持ち出されうる、というのがこの設計の前提なので、
+/// 守りたかったものがそのまま抜けていた。
+///
+/// 落とすのは値が並ぶ `, parameters:` から**その行の終わりまで**に限る。
+/// `Causing statement:` の文そのものはプレースホルダ（`VALUES (?, ?, ...)`）
+/// しか含まないので残す — どの文で落ちたかは失敗の追跡に要る。行末で止めるのは、
+/// `main.dart` の `app.uncaught` が例外の後ろにスタックトレースを繋げて
+/// 渡してくるため。例外以降を丸ごと捨てるとスタックまで消える。
+///
+/// 例外の型で判定せず文字列で見るのは、`sqlite3` が推移的依存で、
+/// `test/matchers.dart` が文言で判定しているのと同じ理由。
+String sanitizeError(Object error) => error
+    .toString()
+    .replaceAll(RegExp(r', parameters: [^\n]*'), ', parameters: <省略>');

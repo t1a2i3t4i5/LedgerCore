@@ -45,6 +45,28 @@ void main() {
     });
   });
 
+  group('既定の上限', () {
+    // ここまでのテストは全部 maxBytes を明示して渡すので、**既定値そのものは
+    // どのテストにも縛られていなかった。** 桁を 1 つ間違えても全部緑になり、
+    // 端末が抱えるログが上限なく膨らむ
+    test('shouldRotate の既定は 1MB 境界で切り替わる', () {
+      expect(
+        shouldRotate(currentBytes: kMaxLogFileBytes - 10, incomingBytes: 20),
+        isTrue,
+      );
+      expect(
+        shouldRotate(currentBytes: kMaxLogFileBytes - 100, incomingBytes: 20),
+        isFalse,
+      );
+    });
+
+    test('FileLogSink の既定も同じ上限を使う', () {
+      // 関数の既定引数とコンストラクタの既定引数は別物なので両方見る
+      expect(FileLogSink(dir).maxBytes, kMaxLogFileBytes);
+      expect(kMaxLogFileBytes, 1024 * 1024);
+    });
+  });
+
   group('追記', () {
     test('書いた行が順に増える', () async {
       final sink = FileLogSink(dir);

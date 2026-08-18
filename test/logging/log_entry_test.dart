@@ -220,4 +220,62 @@ void main() {
       );
     });
   });
+
+  group('sanitizeError', () {
+    /// sqlite3 が実際に出す形。`Causing statement:` の後ろにプレースホルダ入りの
+    /// 文が来て、さらにその行の末尾へバインド値が並ぶ
+    const sqliteMessage =
+        'SqliteException(275): while executing statement, CHECK constraint '
+        'failed: ("amount" > 0.0), constraint failed (code 275)\n'
+        '  Causing statement: INSERT INTO "transactions" ("member_id", "memo") '
+        'VALUES (?, ?), parameters: 1, ひみつの通院';
+
+    test('バインド値は伏せる', () {
+      final sanitized = sanitizeError(sqliteMessage);
+
+      expect(sanitized, isNot(contains('ひみつの通院')));
+      expect(sanitized, contains(', parameters: <省略>'));
+    });
+
+    test('失敗の理由と、どの文で落ちたかは残す', () {
+      // 伏せすぎると「なぜ消せなかったか」がログから読めなくなる。
+      // 文そのものはプレースホルダしか含まないので落とす理由がない
+      final sanitized = sanitizeError(sqliteMessage);
+
+      expect(sanitized, contains('CHECK constraint failed'));
+      expect(sanitized, contains('INSERT INTO "transactions"'));
+      expect(sanitized, contains('VALUES (?, ?)'));
+    });
+
+    test('parameters の後ろに続く行は消さない', () {
+      // main.dart の app.uncaught は例外の後ろにスタックを繋いで渡す。
+      // 例外以降を丸ごと捨てる実装にするとスタックまで消える
+      final sanitized = sanitizeError(
+        'SqliteException(19): ..., parameters: 1, ひみつの通院\n'
+        '#0      main (package:ledger_app/main.dart:12:3)\n'
+        '#1      _rootRun (dart:async/zone.dart:1391:13)',
+      );
+
+      expect(sanitized, isNot(contains('ひみつの通院')));
+      expect(sanitized, contains('#0      main'));
+      expect(sanitized, contains('#1      _rootRun'));
+    });
+
+    test('parameters を持たない例外はそのまま', () {
+      expect(
+        sanitizeError(StateError('Cannot operate on a closed database')),
+        contains('Cannot operate on a closed database'),
+      );
+    });
+
+    test('parameters が 2 回出てもどちらも伏せる', () {
+      final sanitized = sanitizeError(
+        'A, parameters: 1, ひみつ\nB, parameters: 2, ないしょ',
+      );
+
+      expect(sanitized, isNot(contains('ひみつ')));
+      expect(sanitized, isNot(contains('ないしょ')));
+      expect(sanitized, 'A, parameters: <省略>\nB, parameters: <省略>');
+    });
+  });
 }

@@ -67,11 +67,16 @@ void main() {
       expect(decode(sink.lines[1])['ts'], startsWith('2026-08-17T11:'));
     });
 
-    test('noop はどこにも書かない', () async {
+    test('noop は info も error も投げずに飲み込む', () async {
+      // **expect が 1 つも無いと「投げないこと」すら検証していない。**
+      // OperationLogger は sink の例外を握りつぶす設計なので、
+      // NoopLogSink が実際に投げるようになっても素通りしてしまう
       final logger = OperationLogger.noop();
       logger.info('transaction.create');
-      // 何も起きないこと（例外を投げないこと）が確かめたいこと
-      await logger.flush();
+      logger.error('transaction.create', StateError('boom'));
+
+      await expectLater(logger.flush(), completes);
+      await expectLater(const NoopLogSink().write('x'), completes);
     });
   });
 

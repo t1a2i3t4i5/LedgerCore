@@ -91,7 +91,9 @@ class OperationLogger {
         lv: lv,
         op: op,
         detail: detail,
-        error: error?.toString(),
+        // toString() をそのまま載せない。DB の例外はバインド値（取引のメモを
+        // 含む）を文字列に並べるので、sanitizeError で伏せてから渡す
+        error: error == null ? null : sanitizeError(error),
       ));
     } catch (e) {
       // 組み立てに失敗した 1 行はあきらめる。ログのために操作を壊さない

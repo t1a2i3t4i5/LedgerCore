@@ -94,6 +94,9 @@ screens → providers → AppDatabase（drift） → SQLite
   - `info()` / `error()` は `void`。呼び出し側に `await` させない（書き出しは内部の単一キューで直列化する）。待てるのは `flush()` だけで、production からは呼ばない
   - 書き込み系（`create` / `update` / `delete`）にログのために足した `try` は**必ず `rethrow` する**。例外は今までどおり画面の catch へ届かせる
   - **取引のメモ本文とフィルターの検索語はログに書かない**（`memoLength` と `hasMemoQuery` だけ）。カテゴリ名・メンバー名は書く
+    - `detail` から外すだけでは足りない。例外文字列は `log_entry.dart` の `sanitizeError()` を通してから載せる（DB の例外がバインド値ごと `error` に出て、メモ本文が漏れていた）
+    - 伏せるのは `, parameters:` からその行の終わりまで。`Causing statement:` の文とその後ろのスタックは残す
+  - `runZonedGuarded` のハンドラでは `debugPrint` も呼ぶ。ログに書くだけだと未捕捉の非同期例外がコンソールから消える
   - ログの年月は `2026-08`、時刻はミリ秒 3 桁固定。画面用の `formatPeriod()` を使い回さず、この書式を画面にも出さない
   - `op` は `<対象>.<動作>`、`lv` は `info` / `error` の 2 値だけ。レベルを増やさない
 
@@ -125,6 +128,11 @@ screens → providers → AppDatabase（drift） → SQLite
   - `FileLogSink` のテストは `Directory.systemTemp.createTemp()` を渡す（`path_provider` はプラグインなので素の `flutter test` では答えない）
   - **`testWidgets` の中で `logger.flush()` を待たない。** 擬似時間のゾーンに積まれたキューは返ってこず、失敗ではなく 10 分のハングになる。`await tester.pump()` を挟む（`tester.runAsync()` で包むのは逆効果でデッドロックする）
   - 書き込み系の失敗は、金額 0（DB の CHECK 制約）や FK 違反で起こす。閉じた DB への削除は例外にならない
+    - カテゴリ・メンバーの追加／改名は 51 文字の名前で落ちる（`withLength(max: 50)` の drift 側検証）。取引の削除だけは制約で落とせないので `customStatement` で `BEFORE DELETE` トリガを張る
+    - `fetch()` の失敗は DB を閉じて起こすが、**閉じる前に 1 度読んで開かせる**。一度も開いていない DB は `close()` しても開き直せてしまい失敗しない
+  - 失敗ログは `expect(entry['error'], isNotNull)` で終わらせない。理由（`CHECK constraint failed` など）まで見る。例外は `test/matchers.dart` のマッチャで型と文言を縛る
+  - 機微な値が漏れないことのテストは実 DB を失敗させて書く。手で組んだ例外文字列だけでは `sqlite3` の書式変更を捕まえられない
+  - sink を注入していない対象に `expect(sink.lines, isEmpty)` を書かない。実装が何をしても真になる
 
 ## git 運用
 

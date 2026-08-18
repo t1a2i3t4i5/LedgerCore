@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show InvalidDataException;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
@@ -10,6 +11,8 @@ import 'package:ledger_app/providers/category_provider.dart';
 import 'package:ledger_app/providers/member_provider.dart';
 import 'package:ledger_app/providers/summary_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
+
+import 'matchers.dart';
 
 /// Provider の操作がログにどう出るかを確かめる。
 ///
@@ -125,15 +128,54 @@ void main() {
       // ログのために足した try が握り潰していないことを見る
       await expectLater(
         provider.create(await anInput(amount: 0)),
-        throwsA(anything),
+        throwsAmountCheckViolation,
       );
       await logger.flush();
 
       final entry = entryOf('transaction.create');
       expect(entry['lv'], 'error');
-      expect(entry['error'], isNotNull);
+      // **何か入っていること（isNotNull）では守れない。** 失敗の理由が
+      // 定数文字列にすり替わっても通ってしまう
+      expect(entry['error'], contains('CHECK constraint failed'));
       // 失敗したのに info の行まで出ていないこと
       expect(ops().where((o) => o == 'transaction.create'), hasLength(1));
+    });
+
+    test('保存に失敗してもメモ本文は error 経由で漏れない', () async {
+      // detail から本文を外しても、DB の例外はバインド値を文字列に並べるので
+      // **同じ行の error にメモ本文が丸ごと載っていた**（detail の
+      // memoLength:6 と本文が並ぶ）。ログファイルは端末外へ持ち出されうる
+      await expectLater(
+        provider.create(await anInput(amount: 0, memo: 'ひみつの通院')),
+        throwsAmountCheckViolation,
+      );
+      await logger.flush();
+
+      expect(allText(), isNot(contains('ひみつ')));
+      expect(allText(), isNot(contains('通院')));
+      // 長さは今までどおり残る。伏せたのは値だけ
+      expect(detailOf('transaction.create')['memoLength'], 6);
+      // 失敗の理由とどの文で落ちたかは残す（伏せすぎの検出）
+      final error = entryOf('transaction.create')['error'] as String;
+      expect(error, contains('CHECK constraint failed'));
+      expect(error, contains('INSERT INTO "transactions"'));
+    });
+
+    test('更新の失敗でもメモ本文は漏れない', () async {
+      await provider.create(await anInput(amount: 1500));
+      final id = provider.transactions.single.id;
+
+      await expectLater(
+        provider.update(id, await anInput(amount: 0, memo: 'ひみつの通院')),
+        throwsAmountCheckViolation,
+      );
+      await logger.flush();
+
+      expect(allText(), isNot(contains('ひみつ')));
+      expect(
+        entryOf('transaction.update')['error'],
+        contains('CHECK constraint failed'),
+      );
     });
 
     test('更新の失敗も error として残り、例外は届く', () async {
@@ -142,7 +184,7 @@ void main() {
 
       await expectLater(
         provider.update(id, await anInput(amount: 0)),
-        throwsA(anything),
+        throwsAmountCheckViolation,
       );
       await logger.flush();
 
@@ -152,6 +194,26 @@ void main() {
       expect(updates.single['lv'], 'error');
       // 失敗した更新が一覧に反映されていないこと
       expect(provider.transactions.single.amount, 1500.0);
+    });
+
+    test('削除の失敗も error として残り、例外は届く', () async {
+      await provider.create(await anInput(amount: 1500));
+      final id = provider.transactions.single.id;
+      // 取引を参照する子テーブルが無いので、削除が落ちる経路は制約では作れない。
+      // DB 側から拒否させて、ログのために足した try が握り潰していないか見る
+      await db.customStatement(
+        "CREATE TRIGGER no_delete BEFORE DELETE ON transactions "
+        "BEGIN SELECT RAISE(ABORT, '削除できません'); END;",
+      );
+
+      await expectLater(provider.delete(id), throwsA(isA<Exception>()));
+      await logger.flush();
+
+      final entry = entryOf('transaction.delete');
+      expect(entry['lv'], 'error');
+      expect(entry['error'], contains('削除できません'));
+      // 失敗した削除が一覧から消えていないこと
+      expect(provider.transactions, hasLength(1));
     });
 
     test('並び替えと絞り込みが残る', () async {
@@ -174,6 +236,33 @@ void main() {
       expect(detail['hasMemoQuery'], isTrue);
       expect(detail['hasAmountRange'], isFalse);
       expect(allText(), isNot(contains('ひみつ')));
+    });
+
+    test('支払者と金額での絞り込みも軸ごとに残る', () async {
+      // memberIds を非空で、hasAmountRange を true で試す唯一のケース。
+      // 片側だけだと categoryIds とのコピペ違いや、activeFilterCount と
+      // 食い違う `&&` 判定が入っても気づけない
+      provider.setFilters(memberIds: {2}, minAmount: 1000);
+      await logger.flush();
+
+      final detail = detailOf('transaction.filter');
+      expect(detail['memberIds'], [2]);
+      expect(detail['hasAmountRange'], isTrue);
+      // 検索語なしなら false。true 固定になっていないこと
+      expect(detail['hasMemoQuery'], isFalse);
+      // 金額の下限だけでも「絞っている」と数える activeFilterCount と揃うこと
+      expect(detail['activeCount'], 2);
+      // 絞っていない軸のキーは出ない
+      expect(detail.containsKey('categoryIds'), isFalse);
+    });
+
+    test('金額の上限だけでも hasAmountRange は true', () async {
+      provider.setFilters(maxAmount: 5000);
+      await logger.flush();
+
+      final detail = detailOf('transaction.filter');
+      expect(detail['hasAmountRange'], isTrue);
+      expect(detail['activeCount'], 1);
     });
 
     test('絞り込んでいない軸はキーごと出ない', () async {
@@ -318,17 +407,57 @@ void main() {
       expect(detailOf('category.delete'), {'id': added.id});
     });
 
+    test('追加の失敗は error で残り、例外も届く', () async {
+      // Categories.name は withLength(max: 50) で drift のクライアント側検証が
+      // 効く。categories_screen.dart の TextField に maxLength が無いので、
+      // 51 文字を入力して「保存」を押せば実際にこの経路へ入る。
+      // **rethrow が落ちると画面の catch に届かず、追加できていないのに
+      // 「保存失敗」の SnackBar も出ない**
+      await expectLater(
+        provider.create('あ' * 51),
+        throwsA(isA<InvalidDataException>()),
+      );
+      await logger.flush();
+
+      final entry = entryOf('category.create');
+      expect(entry['lv'], 'error');
+      // 失敗したのに info の行まで出ていないこと
+      expect(ops().where((o) => o == 'category.create'), hasLength(1));
+    });
+
+    test('改名の失敗も error で残り、例外も届く', () async {
+      await provider.create('サブスク代');
+      final added = provider.categories.firstWhere((c) => c.name == 'サブスク代');
+
+      await expectLater(
+        provider.update(added.id, 'あ' * 51),
+        throwsA(isA<InvalidDataException>()),
+      );
+      await logger.flush();
+
+      final updates =
+          entries().where((e) => e['op'] == 'category.update').toList();
+      expect(updates, hasLength(1));
+      expect(updates.single['lv'], 'error');
+      // 失敗した改名が一覧に反映されていないこと
+      expect(
+        provider.categories.firstWhere((c) => c.id == added.id).name,
+        'サブスク代',
+      );
+    });
+
     test('取引が紐づくカテゴリの削除は error で残り、例外も届く', () async {
       final transactions = TransactionProvider(db)..setYearMonth(2026, 7);
       await transactions.create(await anInput());
       final used = (await db.getCategories()).first;
 
-      await expectLater(provider.delete(used.id), throwsA(anything));
+      await expectLater(provider.delete(used.id), throwsForeignKeyViolation);
       await logger.flush();
 
       final entry = entryOf('category.delete');
       expect(entry['lv'], 'error');
-      expect(entry['error'], isNotNull);
+      // 「なぜ消せなかったか」が残る数少ない経路なので、理由まで見る
+      expect(entry['error'], contains('FOREIGN KEY constraint failed'));
     });
   });
 
@@ -357,25 +486,130 @@ void main() {
       expect(detailOf('member.delete'), {'id': added.id});
     });
 
+    test('追加の失敗は error で残り、例外も届く', () async {
+      // Members.name も withLength(max: 50)。カテゴリと同じ経路
+      await expectLater(
+        provider.addMember('あ' * 51),
+        throwsA(isA<InvalidDataException>()),
+      );
+      await logger.flush();
+
+      expect(entryOf('member.create')['lv'], 'error');
+      expect(ops().where((o) => o == 'member.create'), hasLength(1));
+    });
+
+    test('改名の失敗も error で残り、例外も届く', () async {
+      await provider.addMember('同居人');
+      final added = provider.members.firstWhere((m) => m.name == '同居人');
+
+      await expectLater(
+        provider.updateMember(added.id, 'あ' * 51),
+        throwsA(isA<InvalidDataException>()),
+      );
+      await logger.flush();
+
+      final updates =
+          entries().where((e) => e['op'] == 'member.update').toList();
+      expect(updates, hasLength(1));
+      expect(updates.single['lv'], 'error');
+      // 失敗した改名が一覧に反映されていないこと
+      expect(
+        provider.members.firstWhere((m) => m.id == added.id).name,
+        '同居人',
+      );
+    });
+
     test('取引の支払者になっているメンバーの削除は error で残る', () async {
       final transactions = TransactionProvider(db)..setYearMonth(2026, 7);
       await transactions.create(await anInput());
       final used = (await db.getMembers()).first;
 
-      await expectLater(provider.deleteMember(used.id), throwsA(anything));
+      await expectLater(
+        provider.deleteMember(used.id),
+        throwsForeignKeyViolation,
+      );
       await logger.flush();
 
-      expect(entryOf('member.delete')['lv'], 'error');
+      final entry = entryOf('member.delete');
+      expect(entry['lv'], 'error');
+      expect(entry['error'], contains('FOREIGN KEY constraint failed'));
+    });
+  });
+
+  group('読み出しの失敗', () {
+    // fetch() は例外を握って _error に載せる（画面が「読み込めません」を出す）。
+    // **握るぶん、どこにも記録が残らないと後から追えない**ので、
+    // debugPrint を logger.error に置き換えたこの 4 経路を実際に通す。
+    // DB を閉じてから読むと、drift が閉じた DB への操作を拒否する。
+    // **閉じる前に 1 度読んで DB を開かせておく。** forTesting は遅延接続で、
+    // 一度も開いていない DB は close() しても開き直せてしまい失敗しない
+    Future<void> closeAfterOpening() async {
+      await db.getCategories();
+      await db.close();
+    }
+
+    test('取引の読み出し失敗が表示月つきで残る', () async {
+      final provider = TransactionProvider(db, logger: logger)
+        ..setYearMonth(2026, 7);
+      await closeAfterOpening();
+
+      await provider.fetch();
+      await logger.flush();
+
+      final entry = entryOf('transaction.fetch');
+      expect(entry['lv'], 'error');
+      expect(entry['detail'], {'year': 2026, 'month': 7});
+    });
+
+    test('集計の読み出し失敗はモードと年軸まで残る', () async {
+      final provider = SummaryProvider(db, logger: logger)
+        ..setYearMonth(2026, 7);
+      await closeAfterOpening();
+
+      await provider.fetch();
+      await logger.flush();
+
+      final entry = entryOf('summary.fetch');
+      expect(entry['lv'], 'error');
+      expect(detailOf('summary.fetch'), {
+        'year': 2026,
+        'month': 7,
+        'period': 'month',
+        'yearAxis': 2026,
+      });
+    });
+
+    test('カテゴリの読み出し失敗が残る', () async {
+      final provider = CategoryProvider(db, logger: logger);
+      await closeAfterOpening();
+
+      await provider.fetch();
+      await logger.flush();
+
+      expect(entryOf('category.fetch')['lv'], 'error');
+    });
+
+    test('メンバーの読み出し失敗が残る', () async {
+      final provider = MemberProvider(db, logger: logger);
+      await closeAfterOpening();
+
+      await provider.fetchMembers();
+      await logger.flush();
+
+      expect(entryOf('member.fetch')['lv'], 'error');
     });
   });
 
   group('ロガーを渡さない既定', () {
     test('Provider は logger 無しでも今までどおり動く', () async {
+      // **ここで sink を見ても意味が無い。** この Provider に sink は
+      // 繋がっていないので、`expect(sink.lines, isEmpty)` は実装が何をしても
+      // 真になる（既定がファイル書き込みに変わっても緑のまま通る）。
+      // 確かめられるのは「logger を省いても操作が今までどおり通ること」だけ
       final provider = TransactionProvider(db)..setYearMonth(2026, 7);
       await provider.create(await anInput());
 
       expect(provider.transactions, hasLength(1));
-      expect(sink.lines, isEmpty);
     });
   });
 }
