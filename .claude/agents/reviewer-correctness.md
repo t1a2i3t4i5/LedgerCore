@@ -1,6 +1,6 @@
 ---
 name: reviewer-correctness
-description: LedgerCore のコード差分を「正確性」の観点だけでレビューする。ロジックのバグ、境界値、null と例外、drift のスキーマとマイグレーションの整合を見る。/review3 から起動される専用レビュアーで、単独では使わない。
+description: LedgerCore のコード差分を「正確性」の観点だけでレビューする。ロジックのバグ、境界値、null と例外、drift のスキーマとマイグレーションの整合を見る。/independent-review から起動される専用レビュアーで、単独では使わない。
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: high

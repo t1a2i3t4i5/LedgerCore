@@ -1,9 +1,18 @@
 ---
+name: independent-review
 description: 観点を分けた 3 人の独立レビュアー（別コンテキスト）で作業差分または PR をレビューし、重い指摘を実測で検証してから報告する
 argument-hint: "[PR番号]"
 arguments: pr
 disable-model-invocation: true
-allowed-tools: Bash(git rev-parse:*), Bash(git merge-base:*), Bash(git diff:*), Bash(git log:*), Bash(git status:*), Bash(git branch:*), Bash(gh pr diff:*), Agent
+allowed-tools:
+  - Bash(git rev-parse:*)
+  - Bash(git merge-base:*)
+  - Bash(git diff:*)
+  - Bash(git log:*)
+  - Bash(git status:*)
+  - Bash(git branch:*)
+  - Bash(gh pr diff:*)
+  - Agent
 ---
 
 観点を分けた 3 人の独立レビュアーで、コード差分をレビューします。**報告して終わります** — 修正も PR へのコメント投稿もしません。
@@ -18,7 +27,7 @@ allowed-tools: Bash(git rev-parse:*), Bash(git merge-base:*), Bash(git diff:*), 
 
 引数: `$pr`
 
-先頭の `#` を落としてから判定します（`/review3 #35` は PR #35 です）。
+先頭の `#` を落としてから判定します（`/independent-review #35` は PR #35 です）。
 
 - **空** → **作業差分モード**。対象は `main...HEAD`（3 点表記。main 側の進行を混ぜないため）と、未コミットの変更の**両方**。未コミットの変更は `git diff HEAD`（追跡済みファイルの変更）と、`git status --porcelain` が `??` で返す**未追跡ファイル**の 2 つからなる。`git diff` は未追跡ファイルを一切出力しないので、`git diff HEAD` だけでは新規に足したウィジェットやテストが誰の目にも入らない
 - **数値** → **PR モード**。対象は `gh pr diff <番号>`
@@ -29,7 +38,7 @@ allowed-tools: Bash(git rev-parse:*), Bash(git merge-base:*), Bash(git diff:*), 
 
 ## 2. レビュー中に読まないもの
 
-**あなたも 3 体も、このコマンドが終わるまで次を実行しません。**
+**あなたも 3 体も、このスキルが終わるまで次を実行しません。**
 
 `gh pr view` / `gh pr comment` / `gh pr checks` / `gh issue`（全サブコマンド） / `gh api` / `gh browse`
 
