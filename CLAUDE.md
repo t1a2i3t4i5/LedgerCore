@@ -134,6 +134,15 @@ screens → providers → AppDatabase（drift） → SQLite
   - 機微な値が漏れないことのテストは実 DB を失敗させて書く。手で組んだ例外文字列だけでは `sqlite3` の書式変更を捕まえられない
   - sink を注入していない対象に `expect(sink.lines, isEmpty)` を書かない。実装が何をしても真になる
 
+## コード整形
+
+`dart format` のスタイルは、実行中の Dart SDK ではなく `pubspec.yaml` の `environment.sdk` の**下限**（language version）で決まる。現在は `>=3.7.0` なので Dart 3.7 の tall style で整形される。
+
+- **下限を動かすと全 `.dart` ファイルが再整形の対象になる**。依存更新のついでに触らない。変えるなら整形だけを独立した PR にする
+- 下限を下げると旧スタイルに戻る。`>=3.0.0` だった頃の名残でスタイルが混ざっている箇所を見つけても、そのファイルだけ手で直さない（`dart format` を通す）
+- 生成物（`lib/db/database.g.dart` / `test/generated_migrations/*.dart`）も同じ language version で整形されて出る。再生成しても差分は揺れない
+- Claude Code で作業する場合、`.claude/settings.json` の `PostToolUse` フックが `.dart` の編集直後に `dart format` を自動実行する。`jq` に依存している
+
 ## git 運用
 
 ブランチ命名・PR 運用・マージ方式は [docs/git-workflow.md](docs/git-workflow.md) を参照すること。

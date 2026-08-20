@@ -44,6 +44,7 @@ dart format lib test            # 整形
 - 既存の生成物と衝突する場合は `dart run build_runner build --delete-conflicting-outputs`
 - 初回起動で既定カテゴリと既定メンバー「自分」が投入され、すぐに入力を始められる
 - Claude Code で作業する場合、`.claude/settings.json` の `PostToolUse` フックが `.dart` ファイルの編集直後に `dart format` を自動実行する（`jq` が必要）
+- 整形スタイルは `pubspec.yaml` の SDK 制約の下限で決まる（注意点は [CLAUDE.md](CLAUDE.md)）
 
 `AppDatabase.schemaVersion` を上げたときは、固定スキーマと移行ヘルパを再生成して同じコミットに含める（理由と注意点は [CLAUDE.md](CLAUDE.md)）。
 
