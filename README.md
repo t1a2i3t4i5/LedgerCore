@@ -21,7 +21,7 @@
 
 ## 必要環境
 
-- [Flutter](https://docs.flutter.dev/get-started/install) 3.41 以上（Dart SDK `>=3.0.0 <4.0.0`）
+- [Flutter](https://docs.flutter.dev/get-started/install) 3.41 以上（Dart SDK `>=3.7.0 <4.0.0`）
 - iOS/macOS で動かす場合は Xcode（初回のみ `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` が必要なことがある）
 
 ### 対応プラットフォーム
@@ -44,7 +44,7 @@ dart format lib test            # 整形
 - 既存の生成物と衝突する場合は `dart run build_runner build --delete-conflicting-outputs`
 - 初回起動で既定カテゴリと既定メンバー「自分」が投入され、すぐに入力を始められる
 - Claude Code で作業する場合、`.claude/settings.json` の `PostToolUse` フックが `.dart` ファイルの編集直後に `dart format` を自動実行する（`jq` が必要）
-- 整形スタイルは `pubspec.yaml` の SDK 制約の下限で決まる（注意点は [CLAUDE.md](CLAUDE.md)）
+- 整形スタイルは `.dart_tool/package_config.json` の `languageVersion`（元は `pubspec.yaml` の SDK 制約の下限）で決まる。下限を変えたら `flutter pub get` を走らせるまで反映されない（注意点は [CLAUDE.md](CLAUDE.md)）
 
 `AppDatabase.schemaVersion` を上げたときは、固定スキーマと移行ヘルパを再生成して同じコミットに含める（理由と注意点は [CLAUDE.md](CLAUDE.md)）。
 
