@@ -25,27 +25,28 @@ class _MembersScreenState extends State<MembersScreen> {
     final isEdit = id != null;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(isEdit ? 'メンバーを編集' : 'メンバーを追加'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'メンバー名',
-            border: OutlineInputBorder(),
+      builder:
+          (_) => AlertDialog(
+            title: Text(isEdit ? 'メンバーを編集' : 'メンバーを追加'),
+            content: TextField(
+              controller: ctrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'メンバー名',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('保存'),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('キャンセル'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('保存'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed != true || !mounted) return;
@@ -61,36 +62,37 @@ class _MembersScreenState extends State<MembersScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失敗: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('保存失敗: $e')));
       }
     }
   }
 
   Future<void> _delete(int id, String name, int memberCount) async {
     if (memberCount <= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('最後のメンバーは削除できません')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('最後のメンバーは削除できません')));
       return;
     }
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('メンバーを削除'),
-        content: Text('「$name」を削除しますか？\nこのメンバーの取引が残っている場合は削除できません。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('キャンセル'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('メンバーを削除'),
+            content: Text('「$name」を削除しますか？\nこのメンバーの取引が残っている場合は削除できません。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('削除', style: TextStyle(color: Colors.red)),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('削除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
 
     if (confirmed == true && mounted) {
@@ -99,9 +101,7 @@ class _MembersScreenState extends State<MembersScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('削除できませんでした（取引が残っている可能性があります）'),
-            ),
+            const SnackBar(content: Text('削除できませんでした（取引が残っている可能性があります）')),
           );
         }
       }
@@ -134,8 +134,8 @@ class _MembersScreenState extends State<MembersScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.edit_outlined),
-                      onPressed: () =>
-                          _showEditDialog(id: m.id, currentName: m.name),
+                      onPressed:
+                          () => _showEditDialog(id: m.id, currentName: m.name),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.red),

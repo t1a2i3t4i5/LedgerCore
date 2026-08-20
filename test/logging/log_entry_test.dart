@@ -14,13 +14,15 @@ void main() {
 
   group('toJsonLine', () {
     test('キーは ts → lv → op → detail → error の順で並ぶ', () {
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.error,
-        op: 'transaction.delete',
-        detail: const {'id': 42},
-        error: 'SqliteException(787)',
-      ));
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.error,
+          op: 'transaction.delete',
+          detail: const {'id': 42},
+          error: 'SqliteException(787)',
+        ),
+      );
 
       expect(
         line,
@@ -31,13 +33,15 @@ void main() {
     });
 
     test('detail の null は キーごと落ちる', () {
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.info,
-        op: 'transaction.create',
-        // メモ無しの取引は memoLength が null になる
-        detail: const {'amount': 1200.0, 'memoLength': null},
-      ));
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.info,
+          op: 'transaction.create',
+          // メモ無しの取引は memoLength が null になる
+          detail: const {'amount': 1200.0, 'memoLength': null},
+        ),
+      );
 
       expect(line, contains('"amount":1200.0'));
       expect(line, isNot(contains('memoLength')));
@@ -56,35 +60,41 @@ void main() {
     });
 
     test('中身が全部 null の detail も detail キーごと出ない', () {
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.info,
-        op: 'transaction.create',
-        detail: const {'memoLength': null},
-      ));
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.info,
+          op: 'transaction.create',
+          detail: const {'memoLength': null},
+        ),
+      );
 
       expect(line, isNot(contains('detail')));
     });
 
     test('lv が info なら error は載らない', () {
       // 呼び出し側が誤って error を渡しても、info の行に error 列を作らない
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.info,
-        op: 'transaction.create',
-        error: '握りつぶされるべき',
-      ));
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.info,
+          op: 'transaction.create',
+          error: '握りつぶされるべき',
+        ),
+      );
 
       expect(line, isNot(contains('error')));
     });
 
     test('長すぎる error は頭を残して切る', () {
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.error,
-        op: 'app.uncaught',
-        error: 'あ' * (kMaxErrorLength + 500),
-      ));
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.error,
+          op: 'app.uncaught',
+          error: 'あ' * (kMaxErrorLength + 500),
+        ),
+      );
 
       // 1 行が長大になるとローテーションがその 1 行で起きてしまう
       expect(line.contains('あ' * kMaxErrorLength), isTrue);
@@ -93,12 +103,14 @@ void main() {
     });
 
     test('ちょうど上限の error は切らない', () {
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.error,
-        op: 'app.uncaught',
-        error: 'あ' * kMaxErrorLength,
-      ));
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.error,
+          op: 'app.uncaught',
+          error: 'あ' * kMaxErrorLength,
+        ),
+      );
 
       expect(line, isNot(contains('…')));
     });
@@ -108,52 +120,60 @@ void main() {
     test('Set は List になる', () {
       // TransactionProvider のフィルターが Set<int> を持つ。
       // 均さないと jsonEncode が実行時に落ち、その行が静かに消える
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.info,
-        op: 'transaction.filter',
-        detail: const {
-          'categoryIds': {3, 1}
-        },
-      ));
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.info,
+          op: 'transaction.filter',
+          detail: const {
+            'categoryIds': {3, 1},
+          },
+        ),
+      );
 
       expect(line, contains('"categoryIds":[3,1]'));
     });
 
     test('DateTime は時刻の書式になる', () {
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.info,
-        op: 'transaction.create',
-        detail: {'spentAt': DateTime(2026, 7, 10)},
-      ));
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.info,
+          op: 'transaction.create',
+          detail: {'spentAt': DateTime(2026, 7, 10)},
+        ),
+      );
 
       expect(line, contains('"spentAt":"2026-07-10T00:00:00.000"'));
     });
 
     test('enum は名前になる', () {
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.info,
-        op: 'transaction.sort',
-        detail: const {'order': LogLevel.error},
-      ));
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.info,
+          op: 'transaction.sort',
+          detail: const {'order': LogLevel.error},
+        ),
+      );
 
       expect(line, contains('"order":"error"'));
     });
 
     test('入れ子の Map の中も均される', () {
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.info,
-        op: 'x.y',
-        detail: {
-          'nested': {
-            'at': DateTime(2026, 1, 2),
-            'ids': const {9}
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.info,
+          op: 'x.y',
+          detail: {
+            'nested': {
+              'at': DateTime(2026, 1, 2),
+              'ids': const {9},
+            },
           },
-        },
-      ));
+        ),
+      );
 
       expect(line, contains('"at":"2026-01-02T00:00:00.000"'));
       expect(line, contains('"ids":[9]'));
@@ -176,12 +196,14 @@ void main() {
     test('想定外の型でも落ちずに文字列になる', () {
       // ここで例外を投げると OperationLogger がその行を捨てる。
       // 落ちるより「何か入っていた」ことが残るほうが調査に使える
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.info,
-        op: 'x.y',
-        detail: const {'weird': Object()},
-      ));
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.info,
+          op: 'x.y',
+          detail: const {'weird': Object()},
+        ),
+      );
 
       expect(line, contains('"weird":"Instance of \'Object\'"'));
     });
@@ -191,13 +213,15 @@ void main() {
     test('改行を含む値でも 1 行に収まる', () {
       // SqliteException のメッセージは複数行になることがある。
       // 行の区切りが崩れるとファイル全体が読めなくなる
-      final line = toJsonLine(LogEntry(
-        ts: ts,
-        lv: LogLevel.error,
-        op: 'transaction.create',
-        detail: const {'note': '1 行目\n2 行目'},
-        error: '例外の 1 行目\n例外の 2 行目',
-      ));
+      final line = toJsonLine(
+        LogEntry(
+          ts: ts,
+          lv: LogLevel.error,
+          op: 'transaction.create',
+          detail: const {'note': '1 行目\n2 行目'},
+          error: '例外の 1 行目\n例外の 2 行目',
+        ),
+      );
 
       expect(line.contains('\n'), isFalse);
       expect(line, contains(r'\n'));

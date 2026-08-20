@@ -25,8 +25,11 @@ void main() {
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
-  Future<void> seed(DateTime spentAt, double amount,
-      {int categoryIndex = 0}) async {
+  Future<void> seed(
+    DateTime spentAt,
+    double amount, {
+    int categoryIndex = 0,
+  }) async {
     final categories = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
     await db.insertTransaction(
@@ -76,10 +79,12 @@ void main() {
 
   bool todayIsEnabled(WidgetTester tester) =>
       tester
-          .widget<IconButton>(find.ancestor(
-            of: find.byIcon(Icons.today),
-            matching: find.byType(IconButton),
-          ))
+          .widget<IconButton>(
+            find.ancestor(
+              of: find.byIcon(Icons.today),
+              matching: find.byType(IconButton),
+            ),
+          )
           .onPressed !=
       null;
 
@@ -218,10 +223,20 @@ void main() {
 
       final data = tester.widget<BarChart>(find.byType(BarChart)).data;
       expect(data.barGroups.length, 12);
-      expect(
-        data.barGroups.map((g) => g.barRods.single.toY),
-        [0, 0, 300, 0, 0, 0, 700, 0, 0, 0, 0, 0],
-      );
+      expect(data.barGroups.map((g) => g.barRods.single.toY), [
+        0,
+        0,
+        300,
+        0,
+        0,
+        0,
+        700,
+        0,
+        0,
+        0,
+        0,
+        0,
+      ]);
     });
   });
 
@@ -285,12 +300,13 @@ void main() {
       await seedTwoYears();
       await pumpSummary(tester);
 
-      SummaryPeriod selected() => tester
-          .widget<SegmentedButton<SummaryPeriod>>(
-            find.byType(SegmentedButton<SummaryPeriod>),
-          )
-          .selected
-          .single;
+      SummaryPeriod selected() =>
+          tester
+              .widget<SegmentedButton<SummaryPeriod>>(
+                find.byType(SegmentedButton<SummaryPeriod>),
+              )
+              .selected
+              .single;
 
       expect(selected(), SummaryPeriod.month);
 

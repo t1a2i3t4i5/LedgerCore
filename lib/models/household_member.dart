@@ -3,8 +3,5 @@ class HouseholdMember {
   final int id;
   final String name;
 
-  const HouseholdMember({
-    required this.id,
-    required this.name,
-  });
+  const HouseholdMember({required this.id, required this.name});
 }

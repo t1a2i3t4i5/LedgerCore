@@ -23,8 +23,11 @@ void main() {
   });
   tearDown(() async => db.close());
 
-  Future<void> seed(DateTime spentAt, double amount,
-      {int categoryIndex = 0}) async {
+  Future<void> seed(
+    DateTime spentAt,
+    double amount, {
+    int categoryIndex = 0,
+  }) async {
     final categories = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
     await db.insertTransaction(

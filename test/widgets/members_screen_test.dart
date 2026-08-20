@@ -56,15 +56,18 @@ void main() {
     // 2 人にしておく。1 人だと「最後のメンバー」ガードで先に止まり、
     // FK 違反の経路まで届かない
     await db.insertMember('パートナー');
-    final partner =
-        (await db.getMembers()).firstWhere((m) => m.name == 'パートナー');
+    final partner = (await db.getMembers()).firstWhere(
+      (m) => m.name == 'パートナー',
+    );
     final cats = await db.getCategories();
-    await db.insertTransaction(TransactionInput(
-      memberId: partner.id,
-      categoryId: cats.first.id,
-      amount: 1200,
-      spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
-    ));
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: partner.id,
+        categoryId: cats.first.id,
+        amount: 1200,
+        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+      ),
+    );
 
     await pumpMembersScreen(tester);
     await tapDeleteOn(tester, 'パートナー');
@@ -72,10 +75,7 @@ void main() {
 
     expect(find.text(failureMessage), findsOneWidget);
     expect(find.text('パートナー'), findsOneWidget);
-    expect(
-      (await db.getMembers()).map((m) => m.name),
-      contains('パートナー'),
-    );
+    expect((await db.getMembers()).map((m) => m.name), contains('パートナー'));
   });
 
   testWidgets('最後のメンバーは確認ダイアログすら出さずに拒否される', (tester) async {

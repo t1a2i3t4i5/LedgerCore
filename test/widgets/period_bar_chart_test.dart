@@ -30,8 +30,9 @@ PeriodTotal _year(int year, double total) =>
     PeriodTotal(year: year, total: total);
 
 /// 1〜12 月ぶんの [PeriodTotal]。`totals` に渡した値がそのまま各月になる。
-List<PeriodTotal> _twelveMonths(List<double> totals) =>
-    [for (var i = 0; i < 12; i++) _month(i + 1, totals[i])];
+List<PeriodTotal> _twelveMonths(List<double> totals) => [
+  for (var i = 0; i < 12; i++) _month(i + 1, totals[i]),
+];
 
 Future<void> _pump(
   WidgetTester tester,
@@ -46,9 +47,10 @@ Future<void> _pump(
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  final chart = height == null
-      ? PeriodBarChart(items: items)
-      : PeriodBarChart(items: items, height: height);
+  final chart =
+      height == null
+          ? PeriodBarChart(items: items)
+          : PeriodBarChart(items: items, height: height);
 
   await tester.pumpWidget(
     MaterialApp(
@@ -227,10 +229,7 @@ void main() {
       expect(_data(tester).barGroups.length, 30);
 
       // 全部は載らないので間引かれているが、読めない図にもしない
-      expect(
-        _visibleXLabelRects(tester, items).length,
-        lessThan(items.length),
-      );
+      expect(_visibleXLabelRects(tester, items).length, lessThan(items.length));
       _expectLabelsReadable(tester, items, minVisible: 4);
     });
 
@@ -304,8 +303,12 @@ void main() {
 
       final data = _data(tester);
       final group = data.barGroups.single;
-      final item = data.barTouchData.touchTooltipData
-          .getTooltipItem(group, 0, group.barRods.single, 0);
+      final item = data.barTouchData.touchTooltipData.getTooltipItem(
+        group,
+        0,
+        group.barRods.single,
+        0,
+      );
 
       expect(item!.text, '2026年\n¥120,000');
     });
@@ -316,8 +319,12 @@ void main() {
 
       final data = _data(tester);
       final group = data.barGroups.single;
-      final item = data.barTouchData.touchTooltipData
-          .getTooltipItem(group, 0, group.barRods.single, 0);
+      final item = data.barTouchData.touchTooltipData.getTooltipItem(
+        group,
+        0,
+        group.barRods.single,
+        0,
+      );
 
       expect(
         item!.textStyle.color,
@@ -333,8 +340,9 @@ void main() {
 
       final data = _data(tester);
       expect(
-        data.barTouchData.touchTooltipData
-            .getTooltipColor(data.barGroups.single),
+        data.barTouchData.touchTooltipData.getTooltipColor(
+          data.barGroups.single,
+        ),
         trendColor(_theme.colorScheme),
       );
       // enabled を落とすとツールチップは二度と出ない

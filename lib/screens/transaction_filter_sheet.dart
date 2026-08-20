@@ -102,9 +102,7 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -160,8 +158,8 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                         ),
                       ],
                       selected: {_sortField},
-                      onSelectionChanged: (s) =>
-                          setState(() => _sortField = s.first),
+                      onSelectionChanged:
+                          (s) => setState(() => _sortField = s.first),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -172,11 +170,13 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                           ? Icons.arrow_downward
                           : Icons.arrow_upward,
                     ),
-                    onPressed: () => setState(() {
-                      _sortOrder = _sortOrder == SortOrder.desc
-                          ? SortOrder.asc
-                          : SortOrder.desc;
-                    }),
+                    onPressed:
+                        () => setState(() {
+                          _sortOrder =
+                              _sortOrder == SortOrder.desc
+                                  ? SortOrder.asc
+                                  : SortOrder.desc;
+                        }),
                   ),
                 ],
               ),
@@ -190,46 +190,52 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 4,
-                  children: categories.map((c) {
-                    final selected = _categoryIds.contains(c.id);
-                    return FilterChip(
-                      label: Text(c.name),
-                      selected: selected,
-                      onSelected: (v) => setState(() {
-                        if (v) {
-                          _categoryIds.add(c.id);
-                        } else {
-                          _categoryIds.remove(c.id);
-                        }
-                      }),
-                    );
-                  }).toList(),
+                  children:
+                      categories.map((c) {
+                        final selected = _categoryIds.contains(c.id);
+                        return FilterChip(
+                          label: Text(c.name),
+                          selected: selected,
+                          onSelected:
+                              (v) => setState(() {
+                                if (v) {
+                                  _categoryIds.add(c.id);
+                                } else {
+                                  _categoryIds.remove(c.id);
+                                }
+                              }),
+                        );
+                      }).toList(),
                 ),
               const SizedBox(height: 16),
 
               // ---- 登録者（複数選択） ----
               const _SectionLabel('登録者'),
               if (members.isEmpty)
-                const Text('メンバー情報を読み込み中...',
-                    style: TextStyle(color: Colors.grey))
+                const Text(
+                  'メンバー情報を読み込み中...',
+                  style: TextStyle(color: Colors.grey),
+                )
               else
                 Wrap(
                   spacing: 8,
                   runSpacing: 4,
-                  children: members.map((m) {
-                    final selected = _memberIds.contains(m.id);
-                    return FilterChip(
-                      label: Text(m.name),
-                      selected: selected,
-                      onSelected: (v) => setState(() {
-                        if (v) {
-                          _memberIds.add(m.id);
-                        } else {
-                          _memberIds.remove(m.id);
-                        }
-                      }),
-                    );
-                  }).toList(),
+                  children:
+                      members.map((m) {
+                        final selected = _memberIds.contains(m.id);
+                        return FilterChip(
+                          label: Text(m.name),
+                          selected: selected,
+                          onSelected:
+                              (v) => setState(() {
+                                if (v) {
+                                  _memberIds.add(m.id);
+                                } else {
+                                  _memberIds.remove(m.id);
+                                }
+                              }),
+                        );
+                      }).toList(),
                 ),
               const SizedBox(height: 16),
 

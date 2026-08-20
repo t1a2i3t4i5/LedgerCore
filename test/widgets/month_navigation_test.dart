@@ -34,12 +34,14 @@ void main() {
   Future<void> seed(int year, int month, double amount) async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionInput(
-      memberId: members.first.id,
-      categoryId: cats.first.id,
-      amount: amount,
-      spentAt: DateTime(year, month, 5),
-    ));
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: members.first.id,
+        categoryId: cats.first.id,
+        amount: amount,
+        spentAt: DateTime(year, month, 5),
+      ),
+    );
   }
 
   /// 6 月 = 600、7 月（今月）= 700、8 月 = 800
@@ -80,10 +82,12 @@ void main() {
   /// 「今月に戻る」ボタンが押せる状態か
   bool todayEnabled(WidgetTester tester) =>
       tester
-          .widget<IconButton>(find.ancestor(
-            of: find.byIcon(Icons.today),
-            matching: find.byType(IconButton),
-          ))
+          .widget<IconButton>(
+            find.ancestor(
+              of: find.byIcon(Icons.today),
+              matching: find.byType(IconButton),
+            ),
+          )
           .onPressed !=
       null;
 

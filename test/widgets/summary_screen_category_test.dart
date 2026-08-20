@@ -111,12 +111,14 @@ void main() {
 
     // 合計 6000 円。構成比が割り切れて重複しない配分にする
     for (final (i, cat) in cats.take(3).indexed) {
-      await db.insertTransaction(TransactionInput(
-        memberId: memberId,
-        categoryId: cat.id,
-        amount: (i + 1) * 1000,
-        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
-      ));
+      await db.insertTransaction(
+        TransactionInput(
+          memberId: memberId,
+          categoryId: cat.id,
+          amount: (i + 1) * 1000,
+          spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+        ),
+      );
     }
 
     await pumpSummary(tester);
@@ -135,12 +137,14 @@ void main() {
     final memberId = (await db.getMembers()).first.id;
 
     for (final (i, cat) in cats.take(3).indexed) {
-      await db.insertTransaction(TransactionInput(
-        memberId: memberId,
-        categoryId: cat.id,
-        amount: (i + 1) * 1000,
-        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
-      ));
+      await db.insertTransaction(
+        TransactionInput(
+          memberId: memberId,
+          categoryId: cat.id,
+          amount: (i + 1) * 1000,
+          spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+        ),
+      );
     }
 
     await pumpSummary(tester);
@@ -157,12 +161,14 @@ void main() {
     final memberId = (await db.getMembers()).first.id;
 
     for (final (i, cat) in cats.take(2).indexed) {
-      await db.insertTransaction(TransactionInput(
-        memberId: memberId,
-        categoryId: cat.id,
-        amount: (i + 1) * 1000,
-        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
-      ));
+      await db.insertTransaction(
+        TransactionInput(
+          memberId: memberId,
+          categoryId: cat.id,
+          amount: (i + 1) * 1000,
+          spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+        ),
+      );
     }
 
     await pumpSummary(tester);
@@ -214,12 +220,14 @@ void main() {
     Future<void> seed(String categoryName, double amount) async {
       final cats = await db.getCategories();
       final memberId = (await db.getMembers()).first.id;
-      await db.insertTransaction(TransactionInput(
-        memberId: memberId,
-        categoryId: cats.firstWhere((c) => c.name == categoryName).id,
-        amount: amount,
-        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
-      ));
+      await db.insertTransaction(
+        TransactionInput(
+          memberId: memberId,
+          categoryId: cats.firstWhere((c) => c.name == categoryName).id,
+          amount: amount,
+          spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+        ),
+      );
     }
 
     testWidgets('金額の下に構成比が並ぶ', (tester) async {

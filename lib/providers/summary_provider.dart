@@ -127,19 +127,24 @@ class SummaryProvider extends MonthScopedProvider {
       //
       // 使わないモードでは捨てる。残すと「年を送る → 月モードへ戻す →
       // また年モードへ」の途中で、前の年のグラフを一瞬描く経路ができる
-      _yearly = _period == SummaryPeriod.year
-          ? await _db.getYearlySummary(_yearAxis)
-          : null;
+      _yearly =
+          _period == SummaryPeriod.year
+              ? await _db.getYearlySummary(_yearAxis)
+              : null;
       _allYears =
           _period == SummaryPeriod.all ? await _db.getYearlyTotals() : const [];
     } catch (e) {
       _error = e.toString();
-      logger.error('summary.fetch', e, detail: {
-        'year': year,
-        'month': month,
-        'period': _period,
-        'yearAxis': _yearAxis,
-      });
+      logger.error(
+        'summary.fetch',
+        e,
+        detail: {
+          'year': year,
+          'month': month,
+          'period': _period,
+          'yearAxis': _yearAxis,
+        },
+      );
     } finally {
       _loading = false;
       notifyListeners();

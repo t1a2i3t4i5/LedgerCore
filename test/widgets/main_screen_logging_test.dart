@@ -77,13 +77,10 @@ void main() {
     await tester.pumpAndSettle();
     await flushLog(tester);
 
-    expect(
-      entriesOf('tab.change').map((e) => e['detail']).toList(),
-      [
-        {'from': 'summary', 'to': 'categories'},
-        {'from': 'categories', 'to': 'split'},
-      ],
-    );
+    expect(entriesOf('tab.change').map((e) => e['detail']).toList(), [
+      {'from': 'summary', 'to': 'categories'},
+      {'from': 'categories', 'to': 'split'},
+    ]);
   });
 
   testWidgets('選択中のタブを押し直しても残さない', (tester) async {
@@ -119,10 +116,11 @@ void main() {
     await tester.pumpAndSettle();
     await flushLog(tester);
 
-    expect(
-      entriesOf('month.change').last['detail'],
-      {'from': '2026-07', 'to': '2026-06', 'via': 'arrow'},
-    );
+    expect(entriesOf('month.change').last['detail'], {
+      'from': '2026-07',
+      'to': '2026-06',
+      'via': 'arrow',
+    });
   });
 
   testWidgets('ロガーを渡さなくても起動して操作できる', (tester) async {

@@ -34,12 +34,14 @@ void main() {
   }) async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionInput(
-      memberId: members.first.id,
-      categoryId: cats[categoryIndex].id,
-      amount: amount,
-      spentAt: DateTime(fixedNow.year, fixedNow.month, day),
-    ));
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: members.first.id,
+        categoryId: cats[categoryIndex].id,
+        amount: amount,
+        spentAt: DateTime(fixedNow.year, fixedNow.month, day),
+      ),
+    );
     return cats[categoryIndex].name;
   }
 

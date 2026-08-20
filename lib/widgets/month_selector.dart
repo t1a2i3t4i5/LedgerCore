@@ -67,10 +67,7 @@ class MonthSelector extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        IconButton(
-          icon: const Icon(Icons.chevron_left),
-          onPressed: onPrev,
-        ),
+        IconButton(icon: const Icon(Icons.chevron_left), onPressed: onPrev),
         // 年月は Flexible で包む。素の Text で置くと、端末の文字サイズを
         // 大きくしたときに Row が溢れて RenderFlex overflow になる。
         // 畳んででもレイアウトを崩さない側を選んでいる

@@ -50,7 +50,7 @@ class OperationLogger {
   Future<void>? _pending;
 
   OperationLogger(this._sink, {LogClock? clock})
-      : _clock = clock ?? DateTime.now;
+    : _clock = clock ?? DateTime.now;
 
   /// 何もどこにも書かないロガー。ロガーの初期化に失敗した端末や、
   /// ログを見ないテストの既定値に使う
@@ -86,15 +86,17 @@ class OperationLogger {
     try {
       // 時刻はここで確定させる。キューを消化する時点で読むと、書き込みが
       // 詰まったぶんだけ実際の操作時刻から後ろへずれる
-      line = toJsonLine(LogEntry(
-        ts: _clock(),
-        lv: lv,
-        op: op,
-        detail: detail,
-        // toString() をそのまま載せない。DB の例外はバインド値（取引のメモを
-        // 含む）を文字列に並べるので、sanitizeError で伏せてから渡す
-        error: error == null ? null : sanitizeError(error),
-      ));
+      line = toJsonLine(
+        LogEntry(
+          ts: _clock(),
+          lv: lv,
+          op: op,
+          detail: detail,
+          // toString() をそのまま載せない。DB の例外はバインド値（取引のメモを
+          // 含む）を文字列に並べるので、sanitizeError で伏せてから渡す
+          error: error == null ? null : sanitizeError(error),
+        ),
+      );
     } catch (e) {
       // 組み立てに失敗した 1 行はあきらめる。ログのために操作を壊さない
       debugPrint('OperationLogger: ログ行の組み立てに失敗 op=$op: $e');

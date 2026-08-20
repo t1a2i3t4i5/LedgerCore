@@ -25,8 +25,8 @@ abstract class MonthScopedProvider extends ChangeNotifier {
   late int _month;
 
   MonthScopedProvider({Clock? clock, OperationLogger? logger})
-      : _clock = clock ?? DateTime.now,
-        logger = logger ?? OperationLogger.noop() {
+    : _clock = clock ?? DateTime.now,
+      logger = logger ?? OperationLogger.noop() {
     final now = _clock();
     _year = now.year;
     _month = now.month;
@@ -70,11 +70,10 @@ abstract class MonthScopedProvider extends ChangeNotifier {
     setYearMonth(year, month);
     // 記録するのは丸めた**後**の月。setYearMonth は 13 月を翌年 1 月へ
     // 正規化するので、引数をそのまま書くとログだけ 2026-13 になる
-    logger.info('month.change', detail: {
-      'from': from,
-      'to': _logMonth(_year, _month),
-      'via': via,
-    });
+    logger.info(
+      'month.change',
+      detail: {'from': from, 'to': _logMonth(_year, _month), 'via': via},
+    );
     await fetch();
   }
 

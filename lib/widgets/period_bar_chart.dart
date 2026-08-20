@@ -41,11 +41,7 @@ class PeriodBarChart extends StatelessWidget {
   /// グラフ本体の高さ。
   final double height;
 
-  const PeriodBarChart({
-    super.key,
-    required this.items,
-    this.height = 200,
-  });
+  const PeriodBarChart({super.key, required this.items, this.height = 200});
 
   @override
   Widget build(BuildContext context) {
@@ -61,9 +57,9 @@ class PeriodBarChart extends StatelessWidget {
     }
 
     final barColor = trendColor(Theme.of(context).colorScheme);
-    final labelStyle =
-        (Theme.of(context).textTheme.bodySmall ?? const TextStyle())
-            .copyWith(fontSize: _labelFontSize);
+    final labelStyle = (Theme.of(context).textTheme.bodySmall ??
+            const TextStyle())
+        .copyWith(fontSize: _labelFontSize);
     final textScaler = MediaQuery.textScalerOf(context);
 
     // 目盛りを 1/2/5 × 10^n の倍数に丸める。formatYenAxis が小数第 1 位までで
@@ -99,12 +95,14 @@ class PeriodBarChart extends StatelessWidget {
           // 1 段階上げただけでラベルの下端が黙って切れる（fl_chart は
           // reservedSize で子の高さを tight に縛るので、はみ出す分は
           // ellipsis 指定の Text がクリップされ、例外も縞模様も出ない）
-          final xLabelHeight =
-              xLabelSizes.map((s) => s.height).reduce(math.max);
+          final xLabelHeight = xLabelSizes
+              .map((s) => s.height)
+              .reduce(math.max);
           // 隣のラベルと重なるなら間引く。fl_chart は重なっても例外を出さない
-          final stride = slot <= 0
-              ? items.length
-              : math.max(1, ((xLabelWidth + 4) / slot).ceil());
+          final stride =
+              slot <= 0
+                  ? items.length
+                  : math.max(1, ((xLabelWidth + 4) / slot).ceil());
           final barWidth = (slot * 0.5).clamp(3.0, 24.0);
 
           return BarChart(
@@ -144,15 +142,16 @@ class PeriodBarChart extends StatelessWidget {
                     showTitles: true,
                     interval: interval,
                     reservedSize: reserved,
-                    getTitlesWidget: (value, meta) => SideTitleWidget(
-                      meta: meta,
-                      child: Text(
-                        formatYenAxis(value),
-                        style: labelStyle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+                    getTitlesWidget:
+                        (value, meta) => SideTitleWidget(
+                          meta: meta,
+                          child: Text(
+                            formatYenAxis(value),
+                            style: labelStyle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                   ),
                 ),
                 bottomTitles: AxisTitles(
@@ -239,13 +238,14 @@ double _niceInterval(double rawMax) {
   final magnitude =
       math.pow(10, (math.log(raw) / math.ln10).floor()).toDouble();
   final n = raw / magnitude;
-  final step = n <= 1
-      ? 1.0
-      : n <= 2
+  final step =
+      n <= 1
+          ? 1.0
+          : n <= 2
           ? 2.0
           : n <= 5
-              ? 5.0
-              : 10.0;
+          ? 5.0
+          : 10.0;
   return math.max(1, step * magnitude);
 }
 

@@ -115,8 +115,9 @@ Object? _normalize(Object? value, [int depth = 0]) {
   if (value is num || value is bool || value is String) return value;
   if (depth >= _maxNormalizeDepth) return value.toString();
   if (value is Map) {
-    return value
-        .map((k, v) => MapEntry(k.toString(), _normalize(v, depth + 1)));
+    return value.map(
+      (k, v) => MapEntry(k.toString(), _normalize(v, depth + 1)),
+    );
   }
   if (value is Iterable) {
     return value.map((e) => _normalize(e, depth + 1)).toList();
@@ -130,9 +131,10 @@ Object? _normalize(Object? value, [int depth = 0]) {
 /// 紛れ込んだときだけ
 const _maxNormalizeDepth = 8;
 
-String _truncate(String text) => text.length <= kMaxErrorLength
-    ? text
-    : '${text.substring(0, kMaxErrorLength)}…';
+String _truncate(String text) =>
+    text.length <= kMaxErrorLength
+        ? text
+        : '${text.substring(0, kMaxErrorLength)}…';
 
 /// 例外の文字列から、DB へ渡した値が混ざる部分だけを伏せる。**純関数**。
 ///
@@ -152,6 +154,7 @@ String _truncate(String text) => text.length <= kMaxErrorLength
 ///
 /// 例外の型で判定せず文字列で見るのは、`sqlite3` が推移的依存で、
 /// `test/matchers.dart` が文言で判定しているのと同じ理由。
-String sanitizeError(Object error) => error
-    .toString()
-    .replaceAll(RegExp(r', parameters: [^\n]*'), ', parameters: <省略>');
+String sanitizeError(Object error) => error.toString().replaceAll(
+  RegExp(r', parameters: [^\n]*'),
+  ', parameters: <省略>',
+);

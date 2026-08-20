@@ -34,12 +34,14 @@ void main() {
   }) async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionInput(
-      memberId: members.first.id,
-      categoryId: cats[categoryIndex].id,
-      amount: amount,
-      spentAt: DateTime(2026, 7, 10),
-    ));
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: members.first.id,
+        categoryId: cats[categoryIndex].id,
+        amount: amount,
+        spentAt: DateTime(2026, 7, 10),
+      ),
+    );
     final txns = await db.getTransactionsByMonth(2026, 7);
     return txns.firstWhere((t) => t.amount == amount).id;
   }

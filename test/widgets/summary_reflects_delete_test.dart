@@ -39,12 +39,14 @@ void main() {
     // カテゴリ別の行には構成比も付くが、金額とは別の Text に分かれているので
     // （summary_screen.dart の trailing は Column）この衝突の勘定は変わらない。
     Future<void> seed(int memberId, int categoryIndex, double amount) =>
-        db.insertTransaction(TransactionInput(
-          memberId: memberId,
-          categoryId: cats[categoryIndex].id,
-          amount: amount,
-          spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
-        ));
+        db.insertTransaction(
+          TransactionInput(
+            memberId: memberId,
+            categoryId: cats[categoryIndex].id,
+            amount: amount,
+            spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+          ),
+        );
     await seed(me, 0, 1200); // 食費
     await seed(partner, 1, 3500); // 日用品
     await seed(me, 2, 300); // 交通費

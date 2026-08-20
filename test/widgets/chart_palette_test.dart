@@ -28,8 +28,9 @@ double _effectiveContrastRatio(Color foreground, Color background) {
 }
 
 /// パレットは private なので、ID を十分な数だけ回して実際に使われる色を集める。
-Set<Color> _allPaletteColors() =>
-    {for (var id = 0; id < 100; id++) categoryColor(id)};
+Set<Color> _allPaletteColors() => {
+  for (var id = 0; id < 100; id++) categoryColor(id),
+};
 
 void main() {
   group('categoryColor', () {
@@ -108,16 +109,21 @@ void main() {
       for (final brightness in Brightness.values) {
         final bar = trendColor(scheme(brightness));
         final ratio = _effectiveContrastRatio(labelColorOn(bar), bar);
-        expect(ratio, greaterThanOrEqualTo(4.5),
-            reason: '$brightness で $ratio');
+        expect(
+          ratio,
+          greaterThanOrEqualTo(4.5),
+          reason: '$brightness で $ratio',
+        );
       }
     });
 
     // カテゴリの色を流用すると、無関係なカテゴリと同色になって
     // 「この棒は食費」という誤った対応に見える
     test('ライトテーマでカテゴリ色をそのまま流用していない', () {
-      expect(_allPaletteColors(),
-          isNot(contains(trendColor(scheme(Brightness.light)))));
+      expect(
+        _allPaletteColors(),
+        isNot(contains(trendColor(scheme(Brightness.light)))),
+      );
     });
   });
 }

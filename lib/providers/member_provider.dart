@@ -15,7 +15,7 @@ class MemberProvider extends ChangeNotifier {
   bool _membersLoading = false;
 
   MemberProvider(this._db, {OperationLogger? logger})
-      : _logger = logger ?? OperationLogger.noop();
+    : _logger = logger ?? OperationLogger.noop();
 
   List<HouseholdMember> get members => _members;
   bool get membersLoading => _membersLoading;

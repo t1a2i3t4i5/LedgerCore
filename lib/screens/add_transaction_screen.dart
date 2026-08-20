@@ -46,10 +46,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final catProvider = context.read<CategoryProvider>();
       final memberProvider = context.read<MemberProvider>();
-      await Future.wait([
-        catProvider.fetch(),
-        memberProvider.fetchMembers(),
-      ]);
+      await Future.wait([catProvider.fetch(), memberProvider.fetchMembers()]);
       if (!mounted) return;
       // 新規登録時は先頭メンバーをデフォルト選択
       if (widget.existing == null && _selectedMemberId == null) {
@@ -81,15 +78,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCategoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('カテゴリを選択してください')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('カテゴリを選択してください')));
       return;
     }
     if (_selectedMemberId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('登録者を選択してください')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('登録者を選択してください')));
       return;
     }
 
@@ -132,9 +129,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('保存失敗: $e')),
-        );
+        messenger.showSnackBar(SnackBar(content: Text('保存失敗: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -165,13 +160,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ? '保存しました'
               : '${formatPeriod(savedAt.year, savedAt.month)}に保存しました',
         ),
-        action: inShownMonth
-            ? null
-            : SnackBarAction(
-                label: 'その月を表示',
-                onPressed: () =>
-                    provider.goToMonth(savedAt.year, savedAt.month),
-              ),
+        action:
+            inShownMonth
+                ? null
+                : SnackBarAction(
+                  label: 'その月を表示',
+                  onPressed:
+                      () => provider.goToMonth(savedAt.year, savedAt.month),
+                ),
         // 取引一覧の FAB は内側の Scaffold にあり、ルートの ScaffoldMessenger が
         // 出す SnackBar では押し上げられない。既定の fixed のままだと
         // 「その月を表示」が FAB にぴたりと重なり、続けてもう 1 件追加しようと
@@ -207,10 +203,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
             )
           else
-            TextButton(
-              onPressed: _save,
-              child: const Text('保存'),
-            ),
+            TextButton(onPressed: _save, child: const Text('保存')),
         ],
       ),
       body: SafeArea(
@@ -264,14 +257,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         prefixIcon: Icon(Icons.label_outline),
                         border: OutlineInputBorder(),
                       ),
-                      items: cats
-                          .map(
-                            (c) => DropdownMenuItem(
-                              value: c.id,
-                              child: Text(c.name),
-                            ),
-                          )
-                          .toList(),
+                      items:
+                          cats
+                              .map(
+                                (c) => DropdownMenuItem(
+                                  value: c.id,
+                                  child: Text(c.name),
+                                ),
+                              )
+                              .toList(),
                       onChanged: (v) => setState(() => _selectedCategoryId = v),
                       validator: (v) => v == null ? 'カテゴリを選択してください' : null,
                     );
@@ -285,8 +279,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     final members = memberProvider.members;
                     return FormField<int>(
                       initialValue: _selectedMemberId,
-                      validator: (_) =>
-                          _selectedMemberId == null ? '登録者を選択してください' : null,
+                      validator:
+                          (_) =>
+                              _selectedMemberId == null ? '登録者を選択してください' : null,
                       builder: (state) {
                         return InputDecorator(
                           decoration: InputDecoration(
@@ -300,51 +295,58 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                               vertical: 4,
                             ),
                           ),
-                          child: members.isEmpty
-                              ? const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                  child: Text(
-                                    'メンバー情報を読み込み中...',
-                                    style: TextStyle(color: Colors.grey),
-                                  ),
-                                )
-                              : Wrap(
-                                  spacing: 8,
-                                  runSpacing: 0,
-                                  children: members.map((m) {
-                                    return InkWell(
-                                      onTap: () {
-                                        setState(
-                                            () => _selectedMemberId = m.id);
-                                        state.didChange(m.id);
-                                      },
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Radio<int>(
-                                            value: m.id,
-                                            // ignore: deprecated_member_use
-                                            groupValue: _selectedMemberId,
-                                            // ignore: deprecated_member_use
-                                            onChanged: (v) {
+                          child:
+                              members.isEmpty
+                                  ? const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                    child: Text(
+                                      'メンバー情報を読み込み中...',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  )
+                                  : Wrap(
+                                    spacing: 8,
+                                    runSpacing: 0,
+                                    children:
+                                        members.map((m) {
+                                          return InkWell(
+                                            onTap: () {
                                               setState(
-                                                () => _selectedMemberId = v,
+                                                () => _selectedMemberId = m.id,
                                               );
-                                              state.didChange(v);
+                                              state.didChange(m.id);
                                             },
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              right: 4,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
                                             ),
-                                            child: Text(m.name),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Radio<int>(
+                                                  value: m.id,
+                                                  // ignore: deprecated_member_use
+                                                  groupValue: _selectedMemberId,
+                                                  // ignore: deprecated_member_use
+                                                  onChanged: (v) {
+                                                    setState(
+                                                      () =>
+                                                          _selectedMemberId = v,
+                                                    );
+                                                    state.didChange(v);
+                                                  },
+                                                ),
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        right: 4,
+                                                      ),
+                                                  child: Text(m.name),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList(),
+                                  ),
                         );
                       },
                     );
@@ -360,14 +362,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       labelText: '日付',
                       prefixIcon: const Icon(Icons.calendar_today),
                       border: const OutlineInputBorder(),
-                      helperText: savingToOtherMonth
-                          ? '表示中の${formatPeriod(shown.year, shown.month)}とは別の月です'
-                          : null,
+                      helperText:
+                          savingToOtherMonth
+                              ? '表示中の${formatPeriod(shown.year, shown.month)}とは別の月です'
+                              : null,
                       helperMaxLines: 2,
                     ),
-                    child: Text(
-                      DateFormat('yyyy年MM月dd日').format(_spentAt),
-                    ),
+                    child: Text(DateFormat('yyyy年MM月dd日').format(_spentAt)),
                   ),
                 ),
                 const SizedBox(height: 16),

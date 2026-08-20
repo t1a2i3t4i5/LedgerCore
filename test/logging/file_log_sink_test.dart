@@ -73,10 +73,7 @@ void main() {
       await sink.write('{"n":1}');
       await sink.write('{"n":2}');
 
-      expect(
-        await logFile().readAsString(),
-        '{"n":1}\n{"n":2}\n',
-      );
+      expect(await logFile().readAsString(), '{"n":1}\n{"n":2}\n');
     });
 
     test('改行は sink が付ける（呼び出し側は付けない）', () async {
