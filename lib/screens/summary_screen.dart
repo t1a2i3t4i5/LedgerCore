@@ -48,8 +48,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   ButtonSegment(value: SummaryPeriod.all, label: Text('全期間')),
                 ],
                 selected: {provider.period},
-                onSelectionChanged: (selected) =>
-                    provider.setPeriod(selected.first),
+                onSelectionChanged:
+                    (selected) => provider.setPeriod(selected.first),
               ),
               const SizedBox(height: 8),
 
@@ -61,7 +61,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   onPrev: () => provider.changeMonth(-1),
                   onNext: () => provider.changeMonth(1),
                   onToday:
-                      provider.isCurrentMonth ? null : provider.goToCurrentMonth,
+                      provider.isCurrentMonth
+                          ? null
+                          : provider.goToCurrentMonth,
                 ),
                 const SizedBox(height: 8),
               ] else if (provider.period == SummaryPeriod.year) ...[
@@ -166,9 +168,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
             Text(
               formatYen(total),
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Colors.teal,
-                    fontWeight: FontWeight.bold,
-                  ),
+                color: Colors.teal,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -205,10 +207,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
             ),
             // カテゴリ名は DB 上 50 文字まで入る。trailing が長くなった分
             // title の取り分が減るので ellipsis で畳む
-            title: Text(
-              item.categoryName,
-              overflow: TextOverflow.ellipsis,
-            ),
+            title: Text(item.categoryName, overflow: TextOverflow.ellipsis),
             // 金額と % を 1 行に並べない。ListTile は trailing を先に
             // 測って残りを title に配分するので、'¥50,000 (14.3%)' の
             // 1 行では 360px 幅で title に 43.5px しか残らず、全角 4 文字の
@@ -246,9 +245,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
       else
         ...items.map(
           (item) => ListTile(
-            leading: CircleAvatar(
-              child: Text(item.memberName[0]),
-            ),
+            leading: CircleAvatar(child: Text(item.memberName[0])),
             title: Text(item.memberName),
             trailing: Text(formatYen(item.total)),
             dense: true,
@@ -267,7 +264,7 @@ class _EmptySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: Text('データがありません')),
-      );
+    padding: EdgeInsets.symmetric(vertical: 24),
+    child: Center(child: Text('データがありません')),
+  );
 }

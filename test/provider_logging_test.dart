@@ -65,8 +65,7 @@ void main() {
     late TransactionProvider provider;
 
     setUp(() {
-      provider = TransactionProvider(db, logger: logger)
-        ..setYearMonth(2026, 7);
+      provider = TransactionProvider(db, logger: logger)..setYearMonth(2026, 7);
     });
 
     test('追加が info で残る', () async {
@@ -220,10 +219,7 @@ void main() {
       provider.setSort(TransactionSortField.amount, SortOrder.asc);
       await logger.flush();
 
-      expect(detailOf('transaction.sort'), {
-        'field': 'amount',
-        'order': 'asc',
-      });
+      expect(detailOf('transaction.sort'), {'field': 'amount', 'order': 'asc'});
     });
 
     test('絞り込みは検索語そのものを残さない', () async {
@@ -279,7 +275,10 @@ void main() {
       await logger.flush();
 
       expect(ops(), contains('transaction.filter.reset'));
-      expect(entryOf('transaction.filter.reset').containsKey('detail'), isFalse);
+      expect(
+        entryOf('transaction.filter.reset').containsKey('detail'),
+        isFalse,
+      );
     });
   });
 
@@ -513,10 +512,7 @@ void main() {
       expect(updates, hasLength(1));
       expect(updates.single['lv'], 'error');
       // 失敗した改名が一覧に反映されていないこと
-      expect(
-        provider.members.firstWhere((m) => m.id == added.id).name,
-        '同居人',
-      );
+      expect(provider.members.firstWhere((m) => m.id == added.id).name, '同居人');
     });
 
     test('取引の支払者になっているメンバーの削除は error で残る', () async {

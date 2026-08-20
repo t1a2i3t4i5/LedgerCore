@@ -30,8 +30,9 @@ PeriodTotal _year(int year, double total) =>
     PeriodTotal(year: year, total: total);
 
 /// 1〜12 月ぶんの [PeriodTotal]。`totals` に渡した値がそのまま各月になる。
-List<PeriodTotal> _twelveMonths(List<double> totals) =>
-    [for (var i = 0; i < 12; i++) _month(i + 1, totals[i])];
+List<PeriodTotal> _twelveMonths(List<double> totals) => [
+  for (var i = 0; i < 12; i++) _month(i + 1, totals[i]),
+];
 
 Future<void> _pump(
   WidgetTester tester,
@@ -46,9 +47,10 @@ Future<void> _pump(
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  final chart = height == null
-      ? PeriodBarChart(items: items)
-      : PeriodBarChart(items: items, height: height);
+  final chart =
+      height == null
+          ? PeriodBarChart(items: items)
+          : PeriodBarChart(items: items, height: height);
 
   await tester.pumpWidget(
     MaterialApp(
@@ -125,8 +127,7 @@ void _expectLabelsReadable(
 
 void main() {
   group('空の表示', () {
-    testWidgets('空リストのときは「データがありません」を出しグラフを描かない',
-        (tester) async {
+    testWidgets('空リストのときは「データがありません」を出しグラフを描かない', (tester) async {
       await _pump(tester, const []);
 
       expect(find.text('データがありません'), findsOneWidget);
@@ -156,7 +157,18 @@ void main() {
     // 0 の月を間引くと 12 本の軸が欠けて、隣り合う月が実際より近く見える
     testWidgets('12 件渡すと 0 の月も含めて 12 本になる', (tester) async {
       final totals = <double>[
-        1000, 0, 3000, 0, 0, 600, 700, 800, 0, 1000, 1100, 1200,
+        1000,
+        0,
+        3000,
+        0,
+        0,
+        600,
+        700,
+        800,
+        0,
+        1000,
+        1100,
+        1200,
       ];
       await _pump(tester, _twelveMonths(totals));
 
@@ -217,10 +229,7 @@ void main() {
       expect(_data(tester).barGroups.length, 30);
 
       // 全部は載らないので間引かれているが、読めない図にもしない
-      expect(
-        _visibleXLabelRects(tester, items).length,
-        lessThan(items.length),
-      );
+      expect(_visibleXLabelRects(tester, items).length, lessThan(items.length));
       _expectLabelsReadable(tester, items, minVisible: 4);
     });
 
@@ -249,8 +258,7 @@ void main() {
 
     // formatYen をそのまま軸に使うと ¥999,999,999,999 が 360px の 1/3 以上を
     // 占めてグラフ本体が潰れる。kMaxAmount は DB の CHECK が現に許す値
-    testWidgets('上限額でもレイアウトが崩れず、軸ラベルが畳まれない',
-        (tester) async {
+    testWidgets('上限額でもレイアウトが崩れず、軸ラベルが畳まれない', (tester) async {
       await _pump(tester, [_month(7, kMaxAmount)]);
 
       expect(tester.takeException(), isNull);
@@ -262,8 +270,7 @@ void main() {
 
     // 上の isFalse の対照。maxLines を外すと didExceedMaxLines は常に false を
     // 返すので、isFalse だけでは「畳まれない」ことを何も守れない
-    testWidgets('幅が足りなければ軸ラベルは 1 行のまま省略される',
-        (tester) async {
+    testWidgets('幅が足りなければ軸ラベルは 1 行のまま省略される', (tester) async {
       await _pump(tester, [_month(7, kMaxAmount)], width: 100);
 
       expect(tester.takeException(), isNull);
@@ -296,8 +303,12 @@ void main() {
 
       final data = _data(tester);
       final group = data.barGroups.single;
-      final item = data.barTouchData.touchTooltipData
-          .getTooltipItem(group, 0, group.barRods.single, 0);
+      final item = data.barTouchData.touchTooltipData.getTooltipItem(
+        group,
+        0,
+        group.barRods.single,
+        0,
+      );
 
       expect(item!.text, '2026年\n¥120,000');
     });
@@ -308,8 +319,12 @@ void main() {
 
       final data = _data(tester);
       final group = data.barGroups.single;
-      final item = data.barTouchData.touchTooltipData
-          .getTooltipItem(group, 0, group.barRods.single, 0);
+      final item = data.barTouchData.touchTooltipData.getTooltipItem(
+        group,
+        0,
+        group.barRods.single,
+        0,
+      );
 
       expect(
         item!.textStyle.color,
@@ -325,8 +340,9 @@ void main() {
 
       final data = _data(tester);
       expect(
-        data.barTouchData.touchTooltipData
-            .getTooltipColor(data.barGroups.single),
+        data.barTouchData.touchTooltipData.getTooltipColor(
+          data.barGroups.single,
+        ),
         trendColor(_theme.colorScheme),
       );
       // enabled を落とすとツールチップは二度と出ない

@@ -158,8 +158,11 @@ void main() {
       final db = AppDatabase.forTesting(schema.newConnection());
       addTearDown(db.close);
 
-      await verifier.migrateAndValidate(db, _latestVersion,
-          options: _validation);
+      await verifier.migrateAndValidate(
+        db,
+        _latestVersion,
+        options: _validation,
+      );
     });
   }
 
@@ -170,10 +173,12 @@ void main() {
     final txns = await db.getAllTransactions();
     // 負の値は絶対値に補正、0 は削除される。
     // -0.5 は 0.5 に補正されたあと v3 の四捨五入で 1 になる
-    expect(
-      txns.map((t) => t.amount).toList()..sort(),
-      [1.0, 800.0, 1500.0, 2000.0],
-    );
+    expect(txns.map((t) => t.amount).toList()..sort(), [
+      1.0,
+      800.0,
+      1500.0,
+      2000.0,
+    ]);
     // 金額以外の列は移行後も保持される
     final refund = txns.firstWhere((t) => t.amount == 2000);
     expect(refund.memo, '金額 -2000.0');
@@ -185,10 +190,7 @@ void main() {
     // id が保たれること。id は updateTransaction / deleteTransaction のキーで、
     // 振り直されると移行直後に「編集したら別の行が書き換わる」ことになる
     expect(refund.id, ids[-2000.0]);
-    expect(
-      txns.firstWhere((t) => t.amount == 1500).id,
-      ids[1500.0],
-    );
+    expect(txns.firstWhere((t) => t.amount == 1500).id, ids[1500.0]);
   });
 
   // 起点は `_oldVersions` 全部ではない。小数や上限超過を保存できたのは CHECK が
@@ -232,13 +234,13 @@ void main() {
     final categoryId = (await db.getCategories()).first.id;
     final memberId = (await db.getMembers()).first.id;
     Future<void> insert(double amount) => db.insertTransaction(
-          TransactionInput(
-            memberId: memberId,
-            categoryId: categoryId,
-            amount: amount,
-            spentAt: DateTime(2026, 7, 11),
-          ),
-        );
+      TransactionInput(
+        memberId: memberId,
+        categoryId: categoryId,
+        amount: amount,
+        spentAt: DateTime(2026, 7, 11),
+      ),
+    );
 
     await expectLater(insert(-1), throwsAmountCheckViolation);
     await expectLater(insert(0), throwsAmountCheckViolation);
@@ -258,12 +260,14 @@ void main() {
 
     final memberId = (await db.getMembers()).first.id;
     await expectLater(
-      db.insertTransaction(TransactionInput(
-        memberId: memberId,
-        categoryId: 9999, // 存在しないカテゴリ
-        amount: 100,
-        spentAt: DateTime(2026, 7, 11),
-      )),
+      db.insertTransaction(
+        TransactionInput(
+          memberId: memberId,
+          categoryId: 9999, // 存在しないカテゴリ
+          amount: 100,
+          spentAt: DateTime(2026, 7, 11),
+        ),
+      ),
       throwsForeignKeyViolation,
     );
   });
@@ -297,17 +301,17 @@ void main() {
       raw.execute('INSERT INTO categories (name) VALUES (?)', [_categoryName]);
       final categoryId = raw.lastInsertRowId;
       // mail に実際の値を入れられるのはこの版まで。値ごと消えることを確かめる
-      raw.execute(
-        'INSERT INTO members (name, mail) VALUES (?, ?)',
-        ['先住', 'old@example.com'],
-      );
+      raw.execute('INSERT INTO members (name, mail) VALUES (?, ?)', [
+        '先住',
+        'old@example.com',
+      ]);
       final firstId = raw.lastInsertRowId;
       // 2 人目を入れて、取引はこちらに紐づける。1 人だけだと id が
       // 振り直されても偶然一致してしまい、ずれを検出できない
-      raw.execute(
-        'INSERT INTO members (name, mail) VALUES (?, ?)',
-        [_memberName, null],
-      );
+      raw.execute('INSERT INTO members (name, mail) VALUES (?, ?)', [
+        _memberName,
+        null,
+      ]);
       final secondId = raw.lastInsertRowId;
 
       final at = DateTime(2026, 7, 10).millisecondsSinceEpoch ~/ 1000;
@@ -320,23 +324,26 @@ void main() {
 
       final db = AppDatabase.forTesting(schema.newConnection());
       addTearDown(db.close);
-      await verifier.migrateAndValidate(db, _latestVersion,
-          options: _validation);
+      await verifier.migrateAndValidate(
+        db,
+        _latestVersion,
+        options: _validation,
+      );
 
       // mail は列ごと消えている。migrateAndValidate もスキーマ一致で見るが、
       // このイシューの主題なので名指しで押さえる
       final columns = await db.customSelect('PRAGMA table_info(members)').get();
-      expect(
-        columns.map((r) => r.read<String>('name')).toList(),
-        ['id', 'name'],
-      );
+      expect(columns.map((r) => r.read<String>('name')).toList(), [
+        'id',
+        'name',
+      ]);
 
       // 行は 2 件とも残り、id も名前も保たれる
       final members = await db.getMembers();
-      expect(
-        members.map((m) => (m.id, m.name)).toList(),
-        [(firstId, '先住'), (secondId, _memberName)],
-      );
+      expect(members.map((m) => (m.id, m.name)).toList(), [
+        (firstId, '先住'),
+        (secondId, _memberName),
+      ]);
 
       // 取引は 2 人目に紐づいたまま JOIN できる
       final txns = await db.getAllTransactions();
@@ -363,12 +370,14 @@ void main() {
 
     final categoryId = (await db.getCategories()).first.id;
     await expectLater(
-      db.insertTransaction(TransactionInput(
-        memberId: 9999, // 存在しないメンバー
-        categoryId: categoryId,
-        amount: 100,
-        spentAt: DateTime(2026, 7, 11),
-      )),
+      db.insertTransaction(
+        TransactionInput(
+          memberId: 9999, // 存在しないメンバー
+          categoryId: categoryId,
+          amount: 100,
+          spentAt: DateTime(2026, 7, 11),
+        ),
+      ),
       throwsForeignKeyViolation,
     );
   });

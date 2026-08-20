@@ -20,13 +20,16 @@ MonthlySummary buildMonthlySummary(
 
   final byCategory = _buildCategoryItems(txns);
 
-  final byMember = memberTotals.entries
-      .map((e) => MemberSummaryItem(
-            memberId: e.key,
-            memberName: memberNames[e.key]!,
-            total: e.value,
-          ))
-      .toList();
+  final byMember =
+      memberTotals.entries
+          .map(
+            (e) => MemberSummaryItem(
+              memberId: e.key,
+              memberName: memberNames[e.key]!,
+              total: e.value,
+            ),
+          )
+          .toList();
 
   final total = byCategory.fold<double>(0, (s, i) => s + i.total);
 
@@ -42,10 +45,7 @@ MonthlySummary buildMonthlySummary(
 /// 指定年の年次サマリーを組み立てる。
 /// 月別合計は取引の無い月も 0 で埋めた 12 件を返す（グラフの X 軸を欠けさせないため）。
 /// txns に他の年の取引が混ざっていても、指定年のものだけを集計する。
-YearlySummary buildYearlySummary(
-  int year,
-  List<TransactionView> txns,
-) {
+YearlySummary buildYearlySummary(int year, List<TransactionView> txns) {
   final inYear = txns.where((t) => t.spentAt.year == year).toList();
 
   final monthTotals = List<double>.filled(12, 0);
@@ -55,11 +55,7 @@ YearlySummary buildYearlySummary(
 
   final byMonth = List.generate(
     12,
-    (i) => PeriodTotal(
-      year: year,
-      month: i + 1,
-      total: monthTotals[i],
-    ),
+    (i) => PeriodTotal(year: year, month: i + 1, total: monthTotals[i]),
   );
 
   return YearlySummary(
@@ -78,9 +74,7 @@ List<PeriodTotal> buildYearlyTotals(List<TransactionView> txns) {
   }
 
   final years = yearTotals.keys.toList()..sort();
-  return years
-      .map((y) => PeriodTotal(year: y, total: yearTotals[y]!))
-      .toList();
+  return years.map((y) => PeriodTotal(year: y, total: yearTotals[y]!)).toList();
 }
 
 /// カテゴリ別の合計を金額の降順で組み立てる（サーバの SUM(amount) DESC を踏襲）。
@@ -94,11 +88,13 @@ List<CategorySummaryItem> _buildCategoryItems(List<TransactionView> txns) {
   }
 
   return catTotals.entries
-      .map((e) => CategorySummaryItem(
-            categoryId: e.key,
-            categoryName: catNames[e.key]!,
-            total: e.value,
-          ))
+      .map(
+        (e) => CategorySummaryItem(
+          categoryId: e.key,
+          categoryName: catNames[e.key]!,
+          total: e.value,
+        ),
+      )
       .toList()
     ..sort((a, b) => b.total.compareTo(a.total));
 }
@@ -120,8 +116,8 @@ SplitResult buildSplit(
   final memberCount = members.isEmpty ? 1 : members.length;
   final fairShare = _roundHalfUp2(total / memberCount);
 
-  final balances = members
-      .map((m) {
+  final balances =
+      members.map((m) {
         final paid = paidByMember[m.id] ?? 0.0;
         return MemberBalance(
           memberId: m.id,
@@ -129,8 +125,7 @@ SplitResult buildSplit(
           paid: paid,
           balance: paid - fairShare,
         );
-      })
-      .toList();
+      }).toList();
 
   return SplitResult(
     year: year,
@@ -148,10 +143,12 @@ double _roundHalfUp2(double v) => (v * 100).roundToDouble() / 100;
 /// 精算メッセージを生成する。
 /// 正の残高（払い過ぎ）＝受け取り側、負の残高（払い不足）＝支払い側。
 String _buildSettlement(List<MemberBalance> balances) {
-  final creditors = balances.where((b) => b.balance > 0).toList()
-    ..sort((a, b) => b.balance.compareTo(a.balance));
-  final debtors = balances.where((b) => b.balance < 0).toList()
-    ..sort((a, b) => a.balance.compareTo(b.balance));
+  final creditors =
+      balances.where((b) => b.balance > 0).toList()
+        ..sort((a, b) => b.balance.compareTo(a.balance));
+  final debtors =
+      balances.where((b) => b.balance < 0).toList()
+        ..sort((a, b) => a.balance.compareTo(b.balance));
 
   if (creditors.isEmpty || debtors.isEmpty) {
     return '精算不要';

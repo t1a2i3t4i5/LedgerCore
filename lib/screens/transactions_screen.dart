@@ -60,29 +60,30 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Future<void> _delete(int transactionId) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('取引を削除'),
-        content: const Text('この取引を削除しますか？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('キャンセル'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('取引を削除'),
+            content: const Text('この取引を削除しますか？'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('削除', style: TextStyle(color: Colors.red)),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('削除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
     if (confirmed == true && mounted) {
       try {
         await context.read<TransactionProvider>().delete(transactionId);
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('削除失敗: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('削除失敗: $e')));
         }
       }
     }
@@ -106,9 +107,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                   onPrev: () => provider.changeMonth(-1),
                   onNext: () => provider.changeMonth(1),
-                  onToday: provider.isCurrentMonth
-                      ? null
-                      : provider.goToCurrentMonth,
+                  onToday:
+                      provider.isCurrentMonth
+                          ? null
+                          : provider.goToCurrentMonth,
                   actions: [
                     // フィルターボタン（適用中の数をバッジ表示）
                     IconButton(
@@ -158,78 +160,77 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
               const Divider(height: 1),
               Expanded(
-                child: provider.loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : provider.error != null
+                child:
+                    provider.loading
+                        ? const Center(child: CircularProgressIndicator())
+                        : provider.error != null
                         ? Center(
-                            child: Text(
-                              'エラー: ${provider.error}',
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                          )
+                          child: Text(
+                            'エラー: ${provider.error}',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        )
                         : filtered.isEmpty
-                            ? Center(
-                                child: Text(
-                                  provider.transactions.isEmpty
-                                      ? '取引がありません'
-                                      : '該当する取引がありません',
+                        ? Center(
+                          child: Text(
+                            provider.transactions.isEmpty
+                                ? '取引がありません'
+                                : '該当する取引がありません',
+                          ),
+                        )
+                        : RefreshIndicator(
+                          onRefresh: _fetch,
+                          child: ListView.separated(
+                            itemCount: filtered.length,
+                            separatorBuilder:
+                                (_, __) => const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final t = filtered[index];
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.teal.withValues(
+                                    alpha: 0.15,
+                                  ),
+                                  child: Text(
+                                    _dateFmt.format(t.spentAt),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.teal,
+                                    ),
+                                  ),
                                 ),
-                              )
-                            : RefreshIndicator(
-                                onRefresh: _fetch,
-                                child: ListView.separated(
-                                  itemCount: filtered.length,
-                                  separatorBuilder: (_, __) =>
-                                      const Divider(height: 1),
-                                  itemBuilder: (context, index) {
-                                    final t = filtered[index];
-                                    return ListTile(
-                                      leading: CircleAvatar(
-                                        backgroundColor:
-                                            Colors.teal.withValues(alpha: 0.15),
-                                        child: Text(
-                                          _dateFmt.format(t.spentAt),
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.teal,
-                                          ),
-                                        ),
-                                      ),
-                                      title: Text(t.categoryName),
-                                      subtitle: Text(
-                                        '${t.memberName}${t.memo != null && t.memo!.isNotEmpty ? ' · ${t.memo}' : ''}',
-                                      ),
-                                      trailing: Text(
-                                        formatYen(t.amount),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      onTap: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                AddTransactionScreen(
-                                              existing: t,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      onLongPress: () => _delete(t.id),
-                                    );
-                                  },
+                                title: Text(t.categoryName),
+                                subtitle: Text(
+                                  '${t.memberName}${t.memo != null && t.memo!.isNotEmpty ? ' · ${t.memo}' : ''}',
                                 ),
-                              ),
+                                trailing: Text(
+                                  formatYen(t.amount),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder:
+                                          (_) =>
+                                              AddTransactionScreen(existing: t),
+                                    ),
+                                  );
+                                },
+                                onLongPress: () => _delete(t.id),
+                              );
+                            },
+                          ),
+                        ),
               ),
             ],
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const AddTransactionScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const AddTransactionScreen()),
               );
             },
             child: const Icon(Icons.add),

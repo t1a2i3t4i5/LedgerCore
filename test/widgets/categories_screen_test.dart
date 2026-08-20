@@ -32,10 +32,12 @@ void main() {
 
     // 起動直後はサマリータブ。label_outline はサマリー画面のカテゴリ別リストの
     // leading にもあるので（実測で 2 件ヒットした）、ボトムナビの中に限って探す
-    await tester.tap(find.descendant(
-      of: find.byType(NavigationBar),
-      matching: find.byIcon(Icons.label_outline),
-    ));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.byIcon(Icons.label_outline),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -66,12 +68,14 @@ void main() {
     // タップが届かないので、先頭（食費）を対象にする
     final cats = await db.getCategories();
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionInput(
-      memberId: members.first.id,
-      categoryId: cats.first.id,
-      amount: 1200,
-      spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
-    ));
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: members.first.id,
+        categoryId: cats.first.id,
+        amount: 1200,
+        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+      ),
+    );
 
     await pumpCategoriesTab(tester);
     await tapDeleteOn(tester, cats.first.name);

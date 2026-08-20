@@ -31,11 +31,7 @@ class PeriodTotal {
   final int? month;
   final double total;
 
-  const PeriodTotal({
-    required this.year,
-    this.month,
-    required this.total,
-  });
+  const PeriodTotal({required this.year, this.month, required this.total});
 }
 
 class MonthlySummary {

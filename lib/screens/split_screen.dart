@@ -83,8 +83,10 @@ class _SplitScreenState extends State<SplitScreen> {
                         Expanded(
                           child: Column(
                             children: [
-                              const Text('一人当たり',
-                                  style: TextStyle(fontSize: 12)),
+                              const Text(
+                                '一人当たり',
+                                style: TextStyle(fontSize: 12),
+                              ),
                               Text(
                                 formatYen(provider.split!.fairShare),
                                 style: const TextStyle(
@@ -116,9 +118,7 @@ class _SplitScreenState extends State<SplitScreen> {
                             const SizedBox(width: 8),
                             Text(
                               '精算方法',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
+                              style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(color: Colors.teal),
                             ),
                           ],
@@ -132,8 +132,10 @@ class _SplitScreenState extends State<SplitScreen> {
                 const SizedBox(height: 16),
 
                 // メンバー別支払い
-                Text('メンバー別支払い状況',
-                    style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'メンバー別支払い状況',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 8),
                 ...provider.split!.members.map((m) {
                   final isOver = m.balance > 0;
@@ -155,15 +157,20 @@ class _SplitScreenState extends State<SplitScreen> {
                                 : formatYen(m.balance),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: isOver
-                                  ? Colors.green
-                                  : isUnder
+                              color:
+                                  isOver
+                                      ? Colors.green
+                                      : isUnder
                                       ? Colors.red
                                       : Colors.grey,
                             ),
                           ),
                           Text(
-                            isOver ? '受け取り' : isUnder ? '支払い' : '均等',
+                            isOver
+                                ? '受け取り'
+                                : isUnder
+                                ? '支払い'
+                                : '均等',
                             style: const TextStyle(fontSize: 11),
                           ),
                         ],

@@ -25,8 +25,11 @@ void main() {
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
-  Future<void> seed(DateTime spentAt, double amount,
-      {int categoryIndex = 0}) async {
+  Future<void> seed(
+    DateTime spentAt,
+    double amount, {
+    int categoryIndex = 0,
+  }) async {
     final categories = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
     await db.insertTransaction(
@@ -76,10 +79,12 @@ void main() {
 
   bool todayIsEnabled(WidgetTester tester) =>
       tester
-          .widget<IconButton>(find.ancestor(
-            of: find.byIcon(Icons.today),
-            matching: find.byType(IconButton),
-          ))
+          .widget<IconButton>(
+            find.ancestor(
+              of: find.byIcon(Icons.today),
+              matching: find.byType(IconButton),
+            ),
+          )
           .onPressed !=
       null;
 
@@ -151,8 +156,7 @@ void main() {
       expect(find.text('¥1,000'), findsWidgets);
     });
 
-    testWidgets('「今年に戻る」は今年では押せず、送った先では押せる',
-        (tester) async {
+    testWidgets('「今年に戻る」は今年では押せず、送った先では押せる', (tester) async {
       await seedTwoYears();
       await pumpSummary(tester);
       await tapPeriod(tester, '年');
@@ -219,10 +223,20 @@ void main() {
 
       final data = tester.widget<BarChart>(find.byType(BarChart)).data;
       expect(data.barGroups.length, 12);
-      expect(
-        data.barGroups.map((g) => g.barRods.single.toY),
-        [0, 0, 300, 0, 0, 0, 700, 0, 0, 0, 0, 0],
-      );
+      expect(data.barGroups.map((g) => g.barRods.single.toY), [
+        0,
+        0,
+        300,
+        0,
+        0,
+        0,
+        700,
+        0,
+        0,
+        0,
+        0,
+        0,
+      ]);
     });
   });
 
@@ -286,12 +300,13 @@ void main() {
       await seedTwoYears();
       await pumpSummary(tester);
 
-      SummaryPeriod selected() => tester
-          .widget<SegmentedButton<SummaryPeriod>>(
-            find.byType(SegmentedButton<SummaryPeriod>),
-          )
-          .selected
-          .single;
+      SummaryPeriod selected() =>
+          tester
+              .widget<SegmentedButton<SummaryPeriod>>(
+                find.byType(SegmentedButton<SummaryPeriod>),
+              )
+              .selected
+              .single;
 
       expect(selected(), SummaryPeriod.month);
 
@@ -385,8 +400,7 @@ void main() {
     // 実測で踏んだ事故。年を送ったら割り勘タブが 2026年7月 / ¥700 から
     // 2025年7月 / ¥250 に化けていた。割り勘タブでは何も操作していないので、
     // 金額が変わった理由が画面から分からない
-    testWidgets('サマリーで年を送っても割り勘タブの表示期間は動かない',
-        (tester) async {
+    testWidgets('サマリーで年を送っても割り勘タブの表示期間は動かない', (tester) async {
       tester.view.physicalSize = const Size(360, 690);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);

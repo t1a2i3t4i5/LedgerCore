@@ -27,9 +27,27 @@ void main() {
   group('buildMonthlySummary', () {
     test('カテゴリ別は合計の降順、totalは総和', () {
       final txns = [
-        _tx(memberId: 1, memberName: 'A', categoryId: 1, categoryName: '食費', amount: 500),
-        _tx(memberId: 1, memberName: 'A', categoryId: 2, categoryName: '交通費', amount: 1500),
-        _tx(memberId: 2, memberName: 'B', categoryId: 1, categoryName: '食費', amount: 300),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          categoryId: 1,
+          categoryName: '食費',
+          amount: 500,
+        ),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          categoryId: 2,
+          categoryName: '交通費',
+          amount: 1500,
+        ),
+        _tx(
+          memberId: 2,
+          memberName: 'B',
+          categoryId: 1,
+          categoryName: '食費',
+          amount: 300,
+        ),
       ];
 
       final s = buildMonthlySummary(2026, 7, txns);
@@ -66,9 +84,24 @@ void main() {
   group('buildYearlySummary', () {
     test('取引の無い月も 0 で埋めた12件を返す', () {
       final txns = [
-        _tx(memberId: 1, memberName: 'A', amount: 1000, spentAt: DateTime(2026, 3, 5)),
-        _tx(memberId: 1, memberName: 'A', amount: 500, spentAt: DateTime(2026, 3, 20)),
-        _tx(memberId: 1, memberName: 'A', amount: 2000, spentAt: DateTime(2026, 12, 31)),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          amount: 1000,
+          spentAt: DateTime(2026, 3, 5),
+        ),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          amount: 500,
+          spentAt: DateTime(2026, 3, 20),
+        ),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          amount: 2000,
+          spentAt: DateTime(2026, 12, 31),
+        ),
       ];
 
       final s = buildYearlySummary(2026, txns);
@@ -85,9 +118,24 @@ void main() {
 
     test('他の年の取引は集計に含めない', () {
       final txns = [
-        _tx(memberId: 1, memberName: 'A', amount: 1000, spentAt: DateTime(2025, 12, 31)),
-        _tx(memberId: 1, memberName: 'A', amount: 300, spentAt: DateTime(2026, 1, 1)),
-        _tx(memberId: 1, memberName: 'A', amount: 700, spentAt: DateTime(2027, 1, 1)),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          amount: 1000,
+          spentAt: DateTime(2025, 12, 31),
+        ),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          amount: 300,
+          spentAt: DateTime(2026, 1, 1),
+        ),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          amount: 700,
+          spentAt: DateTime(2027, 1, 1),
+        ),
       ];
 
       final s = buildYearlySummary(2026, txns);
@@ -99,9 +147,30 @@ void main() {
 
     test('カテゴリ別は年合計の降順', () {
       final txns = [
-        _tx(memberId: 1, memberName: 'A', categoryId: 1, categoryName: '食費', amount: 400, spentAt: DateTime(2026, 2, 1)),
-        _tx(memberId: 1, memberName: 'A', categoryId: 1, categoryName: '食費', amount: 400, spentAt: DateTime(2026, 9, 1)),
-        _tx(memberId: 1, memberName: 'A', categoryId: 2, categoryName: '交通費', amount: 500, spentAt: DateTime(2026, 5, 1)),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          categoryId: 1,
+          categoryName: '食費',
+          amount: 400,
+          spentAt: DateTime(2026, 2, 1),
+        ),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          categoryId: 1,
+          categoryName: '食費',
+          amount: 400,
+          spentAt: DateTime(2026, 9, 1),
+        ),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          categoryId: 2,
+          categoryName: '交通費',
+          amount: 500,
+          spentAt: DateTime(2026, 5, 1),
+        ),
       ];
 
       final s = buildYearlySummary(2026, txns);
@@ -122,9 +191,24 @@ void main() {
   group('buildYearlyTotals', () {
     test('取引のある年だけを昇順で返す', () {
       final txns = [
-        _tx(memberId: 1, memberName: 'A', amount: 100, spentAt: DateTime(2026, 5, 1)),
-        _tx(memberId: 1, memberName: 'A', amount: 200, spentAt: DateTime(2024, 8, 1)),
-        _tx(memberId: 1, memberName: 'A', amount: 300, spentAt: DateTime(2026, 1, 1)),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          amount: 100,
+          spentAt: DateTime(2026, 5, 1),
+        ),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          amount: 200,
+          spentAt: DateTime(2024, 8, 1),
+        ),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          amount: 300,
+          spentAt: DateTime(2026, 1, 1),
+        ),
       ];
 
       final totals = buildYearlyTotals(txns);

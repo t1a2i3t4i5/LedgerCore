@@ -34,12 +34,14 @@ void main() {
   Future<void> seed(int year, int month, double amount) async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionInput(
-      memberId: members.first.id,
-      categoryId: cats.first.id,
-      amount: amount,
-      spentAt: DateTime(year, month, 5),
-    ));
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: members.first.id,
+        categoryId: cats.first.id,
+        amount: amount,
+        spentAt: DateTime(year, month, 5),
+      ),
+    );
   }
 
   /// 6 月 = 600、7 月（今月）= 700、8 月 = 800
@@ -79,10 +81,14 @@ void main() {
 
   /// 「今月に戻る」ボタンが押せる状態か
   bool todayEnabled(WidgetTester tester) =>
-      tester.widget<IconButton>(find.ancestor(
-        of: find.byIcon(Icons.today),
-        matching: find.byType(IconButton),
-      )).onPressed !=
+      tester
+          .widget<IconButton>(
+            find.ancestor(
+              of: find.byIcon(Icons.today),
+              matching: find.byType(IconButton),
+            ),
+          )
+          .onPressed !=
       null;
 
   /// 3 画面に共通の月送りの検証。[amountOf] は月ごとに画面へ出る金額の文字列
@@ -124,8 +130,7 @@ void main() {
         expect(find.text(amountOf(7)), findsNothing);
       });
 
-      testWidgets('今月に戻るボタンは今月では押せず、送った先では押せる',
-          (tester) async {
+      testWidgets('今月に戻るボタンは今月では押せず、送った先では押せる', (tester) async {
         await seedThreeMonths();
         await pump(tester, buildScreen());
 
@@ -135,8 +140,7 @@ void main() {
         expect(todayEnabled(tester), isTrue);
       });
 
-      testWidgets('今月に戻るボタンで clock の月へ戻り、その月を読み直す',
-          (tester) async {
+      testWidgets('今月に戻るボタンで clock の月へ戻り、その月を読み直す', (tester) async {
         await seedThreeMonths();
         await pump(tester, buildScreen());
         await tapIcon(tester, Icons.chevron_left);

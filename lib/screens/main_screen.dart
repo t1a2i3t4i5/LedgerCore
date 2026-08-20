@@ -42,12 +42,13 @@ class _MainScreenState extends State<MainScreen> {
             icon: const Icon(Icons.people_outline),
             tooltip: 'メンバー管理',
             onPressed: () {
-              context
-                  .read<OperationLogger>()
-                  .info('screen.open', detail: {'name': 'members'});
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MembersScreen()),
+              context.read<OperationLogger>().info(
+                'screen.open',
+                detail: {'name': 'members'},
               );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const MembersScreen()));
             },
           ),
         ],
@@ -66,10 +67,13 @@ class _MainScreenState extends State<MainScreen> {
           // 同じ行き先でもこのコールバックを呼ぶので、素直に書くと
           // from と to が同じ行がログに溜まる
           if (index != _currentIndex) {
-            context.read<OperationLogger>().info('tab.change', detail: {
-              'from': _logNames[_currentIndex],
-              'to': _logNames[index],
-            });
+            context.read<OperationLogger>().info(
+              'tab.change',
+              detail: {
+                'from': _logNames[_currentIndex],
+                'to': _logNames[index],
+              },
+            );
           }
           setState(() => _currentIndex = index);
         },

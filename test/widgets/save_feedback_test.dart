@@ -47,10 +47,12 @@ void main() {
   /// カレンダーの升目を辿ると初期表示月が実時刻依存になるため、
   /// テキスト入力モードに切り替えて日付を直接打ち込む
   Future<void> pickDate(WidgetTester tester, DateTime date) async {
-    await tester.tap(find.ancestor(
-      of: find.byIcon(Icons.calendar_today),
-      matching: find.byType(InkWell),
-    ));
+    await tester.tap(
+      find.ancestor(
+        of: find.byIcon(Icons.calendar_today),
+        matching: find.byType(InkWell),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // カレンダー ⇄ テキスト入力の切り替えボタン
@@ -58,7 +60,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // ロケール未指定なので MaterialLocalizations の既定（en_US）の書式
-    final text = '${date.month.toString().padLeft(2, '0')}/'
+    final text =
+        '${date.month.toString().padLeft(2, '0')}/'
         '${date.day.toString().padLeft(2, '0')}/${date.year}';
     await tester.enterText(
       find.descendant(
@@ -86,8 +89,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('表示月と同じ月に保存すると一覧に出て、保存した旨が出る',
-      (tester) async {
+  testWidgets('表示月と同じ月に保存すると一覧に出て、保存した旨が出る', (tester) async {
     await pumpApp(tester);
     expect(find.text('2026年7月'), findsOneWidget);
 
@@ -103,8 +105,7 @@ void main() {
     expect(find.text('その月を表示'), findsNothing);
   });
 
-  testWidgets('表示月と違う月に保存すると、保存先の月を名指しした案内が出る',
-      (tester) async {
+  testWidgets('表示月と違う月に保存すると、保存先の月を名指しした案内が出る', (tester) async {
     await pumpApp(tester);
 
     await openAddScreen(tester);
@@ -243,10 +244,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // 飛んだ先は「今月」(2026年7月) ではないので、今月に戻るボタンが押せる
-    final todayButton = tester.widget<IconButton>(find.ancestor(
-      of: find.byIcon(Icons.today),
-      matching: find.byType(IconButton),
-    ));
+    final todayButton = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.byIcon(Icons.today),
+        matching: find.byType(IconButton),
+      ),
+    );
     expect(todayButton.onPressed, isNotNull);
 
     await tester.tap(find.byIcon(Icons.today));

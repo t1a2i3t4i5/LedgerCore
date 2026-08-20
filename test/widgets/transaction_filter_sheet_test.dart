@@ -45,13 +45,15 @@ void main() {
   }) async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionInput(
-      memberId: members[memberIndex].id,
-      categoryId: cats[categoryIndex].id,
-      amount: amount,
-      spentAt: DateTime(fixedNow.year, fixedNow.month, day),
-      memo: memo,
-    ));
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: members[memberIndex].id,
+        categoryId: cats[categoryIndex].id,
+        amount: amount,
+        spentAt: DateTime(fixedNow.year, fixedNow.month, day),
+        memo: memo,
+      ),
+    );
   }
 
   /// 実画面と同じく `showModalBottomSheet` で開く。
@@ -92,14 +94,16 @@ void main() {
         child: MaterialApp(
           home: Scaffold(
             body: Builder(
-              builder: (context) => ElevatedButton(
-                onPressed: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  builder: (_) => const TransactionFilterSheet(),
-                ),
-                child: const Text('シートを開く'),
-              ),
+              builder:
+                  (context) => ElevatedButton(
+                    onPressed:
+                        () => showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (_) => const TransactionFilterSheet(),
+                        ),
+                    child: const Text('シートを開く'),
+                  ),
             ),
           ),
         ),
@@ -155,8 +159,7 @@ void main() {
 
   Finder minField() => find.widgetWithText(TextFormField, '最小 (¥)');
   Finder maxField() => find.widgetWithText(TextFormField, '最大 (¥)');
-  Finder memoField() =>
-      find.widgetWithText(TextFormField, 'メモに含まれる文字列');
+  Finder memoField() => find.widgetWithText(TextFormField, 'メモに含まれる文字列');
 
   /// フォーマッタの桁数制限を抜ける経路（IME の変換確定前）で [text] を送る。
   ///
@@ -174,11 +177,13 @@ void main() {
   ) async {
     await tapInSheet(tester, field);
 
-    tester.testTextInput.updateEditingValue(TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
-      composing: TextRange(start: 0, end: text.length),
-    ));
+    tester.testTextInput.updateEditingValue(
+      TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+        composing: TextRange(start: 0, end: text.length),
+      ),
+    );
     await tester.pump();
   }
 
@@ -345,10 +350,10 @@ void main() {
     // 状態だけでなく、一覧が読む filteredTransactions の順番まで見る。
     // ただしここで描いているのはシートだけなので、この並びが実際に画面へ
     // 反映されるかは別（「適用した絞り込みが一覧に反映される」で見る）
-    expect(
-      provider.filteredTransactions.map((t) => t.amount).toList(),
-      [1000, 3000],
-    );
+    expect(provider.filteredTransactions.map((t) => t.amount).toList(), [
+      1000,
+      3000,
+    ]);
     // 適用したらシートは閉じる。閉じないと絞り込んだ一覧が見えない
     expect(find.byType(TransactionFilterSheet), findsNothing);
   });
@@ -494,7 +499,8 @@ void main() {
     expect(
       tester
           .widget<FilterChip>(
-              find.widgetWithText(FilterChip, members.first.name))
+            find.widgetWithText(FilterChip, members.first.name),
+          )
           .selected,
       isFalse,
     );
@@ -508,8 +514,9 @@ void main() {
 
     expect(provider.filterMinAmount, 2000);
     expect(provider.filterMaxAmount, 5000);
-    expect(provider.filterCategoryIds,
-        {cats.firstWhere((c) => c.name == '交通費').id});
+    expect(provider.filterCategoryIds, {
+      cats.firstWhere((c) => c.name == '交通費').id,
+    });
     expect(provider.filterMemberIds, {spouse.id});
     expect(provider.filterMemoQuery, 'コンビニ');
     expect(provider.sortField, TransactionSortField.amount);

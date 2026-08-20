@@ -134,6 +134,19 @@ screens → providers → AppDatabase（drift） → SQLite
   - 機微な値が漏れないことのテストは実 DB を失敗させて書く。手で組んだ例外文字列だけでは `sqlite3` の書式変更を捕まえられない
   - sink を注入していない対象に `expect(sink.lines, isEmpty)` を書かない。実装が何をしても真になる
 
+## コード整形
+
+`dart format` のスタイルは、実行中の Dart SDK ではなく **language version** で決まる。現在は Dart 3.7 の tall style。
+
+**`dart format` が読むのは `.dart_tool/package_config.json` の `languageVersion` であって `pubspec.yaml` ではない。** `pubspec.yaml` の `environment.sdk` の下限（現在 `>=3.7.0`）はその元になる値で、`flutter pub get` を通して初めて `package_config.json` に反映される。
+
+- **下限を動かしたら必ず `flutter pub get` を走らせる。** 飛ばすと `dart format` は古い `languageVersion` のまま整形する。`dart format` は `dart run` や `flutter test` と違って暗黙の pub get をしないので自己修復しない
+  - しばらく触っていないクローンでは `package_config.json` が古いことがある。`.dart` を編集する前に `flutter pub get` を通す。古いまま編集すると、`3.0` の頃の値で 63 ファイル中 30 ファイルが旧スタイルへ書き戻る
+- **下限を動かすと全 `.dart` ファイルが再整形の対象になる**。依存更新のついでに触らない。変えるなら整形だけを独立した PR にする
+- 下限を下げると旧スタイルに戻る。スタイルが混ざっている箇所を見つけても、そのファイルだけ手で直さない（`dart format` を通す）
+- 生成物（`lib/db/database.g.dart` / `test/generated_migrations/*.dart`）も同じ language version で整形されて出る。`build_runner build` と `drift_dev schema generate` のどちらを回しても差分は揺れない
+- Claude Code で作業する場合、`.claude/settings.json` の `PostToolUse` フックが `.dart` の編集直後に `dart format` を自動実行する。`jq` に依存している
+
 ## git 運用
 
 ブランチ命名・PR 運用・マージ方式は [docs/git-workflow.md](docs/git-workflow.md) を参照すること。

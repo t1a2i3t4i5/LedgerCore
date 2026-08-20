@@ -44,28 +44,29 @@ class TransactionProvider extends MonthScopedProvider {
 
   // フィルター・ソートを適用した取引リスト
   List<TransactionView> get filteredTransactions {
-    final filtered = _transactions.where((t) {
-      if (_filterCategoryIds.isNotEmpty &&
-          !_filterCategoryIds.contains(t.categoryId)) {
-        return false;
-      }
-      if (_filterMemberIds.isNotEmpty &&
-          !_filterMemberIds.contains(t.memberId)) {
-        return false;
-      }
-      if (_filterMinAmount != null && t.amount < _filterMinAmount!) {
-        return false;
-      }
-      if (_filterMaxAmount != null && t.amount > _filterMaxAmount!) {
-        return false;
-      }
-      if (_filterMemoQuery.isNotEmpty) {
-        final q = _filterMemoQuery.toLowerCase();
-        final memo = (t.memo ?? '').toLowerCase();
-        if (!memo.contains(q)) return false;
-      }
-      return true;
-    }).toList();
+    final filtered =
+        _transactions.where((t) {
+          if (_filterCategoryIds.isNotEmpty &&
+              !_filterCategoryIds.contains(t.categoryId)) {
+            return false;
+          }
+          if (_filterMemberIds.isNotEmpty &&
+              !_filterMemberIds.contains(t.memberId)) {
+            return false;
+          }
+          if (_filterMinAmount != null && t.amount < _filterMinAmount!) {
+            return false;
+          }
+          if (_filterMaxAmount != null && t.amount > _filterMaxAmount!) {
+            return false;
+          }
+          if (_filterMemoQuery.isNotEmpty) {
+            final q = _filterMemoQuery.toLowerCase();
+            final memo = (t.memo ?? '').toLowerCase();
+            if (!memo.contains(q)) return false;
+          }
+          return true;
+        }).toList();
 
     int cmp(TransactionView a, TransactionView b) {
       final c = switch (_sortField) {
@@ -97,10 +98,7 @@ class TransactionProvider extends MonthScopedProvider {
   void setSort(TransactionSortField field, SortOrder order) {
     _sortField = field;
     _sortOrder = order;
-    logger.info('transaction.sort', detail: {
-      'field': field,
-      'order': order,
-    });
+    logger.info('transaction.sort', detail: {'field': field, 'order': order});
     notifyListeners();
   }
 
@@ -117,16 +115,19 @@ class TransactionProvider extends MonthScopedProvider {
     _filterMinAmount = minAmount;
     _filterMaxAmount = maxAmount;
     _filterMemoQuery = memoQuery ?? '';
-    logger.info('transaction.filter', detail: {
-      'activeCount': activeFilterCount,
-      // 空の Set はキーごと落とす（絞っていない軸を毎行書いても読む情報が増えない）
-      'categoryIds': _filterCategoryIds.isEmpty ? null : _filterCategoryIds,
-      'memberIds': _filterMemberIds.isEmpty ? null : _filterMemberIds,
-      'hasAmountRange': _filterMinAmount != null || _filterMaxAmount != null,
-      // **検索語そのものは書かない。** メモ本文を書かないのと同じ理由で、
-      // 「◯◯病院」を検索した事実が残るのは本文が残るのとほぼ変わらない
-      'hasMemoQuery': _filterMemoQuery.isNotEmpty,
-    });
+    logger.info(
+      'transaction.filter',
+      detail: {
+        'activeCount': activeFilterCount,
+        // 空の Set はキーごと落とす（絞っていない軸を毎行書いても読む情報が増えない）
+        'categoryIds': _filterCategoryIds.isEmpty ? null : _filterCategoryIds,
+        'memberIds': _filterMemberIds.isEmpty ? null : _filterMemberIds,
+        'hasAmountRange': _filterMinAmount != null || _filterMaxAmount != null,
+        // **検索語そのものは書かない。** メモ本文を書かないのと同じ理由で、
+        // 「◯◯病院」を検索した事実が残るのは本文が残るのとほぼ変わらない
+        'hasMemoQuery': _filterMemoQuery.isNotEmpty,
+      },
+    );
     notifyListeners();
   }
 
@@ -151,10 +152,11 @@ class TransactionProvider extends MonthScopedProvider {
       _transactions = await _db.getTransactionsByMonth(year, month);
     } catch (e) {
       _error = e.toString();
-      logger.error('transaction.fetch', e, detail: {
-        'year': year,
-        'month': month,
-      });
+      logger.error(
+        'transaction.fetch',
+        e,
+        detail: {'year': year, 'month': month},
+      );
     } finally {
       _loading = false;
       notifyListeners();
@@ -210,10 +212,10 @@ class TransactionProvider extends MonthScopedProvider {
   /// ように機微になりうる一方、ログファイルは端末外へ持ち出されうる。
   /// 「メモを付けたか・どれくらいの長さか」は文字数で足りる
   Map<String, Object?> _inputDetail(TransactionInput input) => {
-        'amount': input.amount,
-        'categoryId': input.categoryId,
-        'memberId': input.memberId,
-        'spentAt': input.spentAt,
-        'memoLength': input.memo?.length,
-      };
+    'amount': input.amount,
+    'categoryId': input.categoryId,
+    'memberId': input.memberId,
+    'spentAt': input.spentAt,
+    'memoLength': input.memo?.length,
+  };
 }

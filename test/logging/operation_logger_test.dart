@@ -110,10 +110,10 @@ void main() {
       logger.info('second');
       await logger.flush();
 
-      expect(
-        sink.lines.map((l) => decode(l)['op']).toList(),
-        ['first', 'second'],
-      );
+      expect(sink.lines.map((l) => decode(l)['op']).toList(), [
+        'first',
+        'second',
+      ]);
     });
 
     test('連続して積んだ 10 件が順番どおりに並ぶ', () async {
@@ -171,10 +171,10 @@ void main() {
       logger.info('fine');
       await logger.flush();
 
-      expect(
-        sink.lines.map((l) => decode(l)['op']).toList(),
-        ['cyclic', 'fine'],
-      );
+      expect(sink.lines.map((l) => decode(l)['op']).toList(), [
+        'cyclic',
+        'fine',
+      ]);
     });
   });
 }

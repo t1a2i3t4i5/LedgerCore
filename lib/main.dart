@@ -23,32 +23,35 @@ void main() {
   // **`ensureInitialized()` はこのゾーンの中で呼ぶ。** 外で呼ぶと binding が
   // root zone に紐づき、別ゾーンから runApp することになって Flutter が
   // ゾーンの不一致を報告する
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    logger = await _createLogger();
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      logger = await _createLogger();
 
-    // 描画中の例外。presentError を呼び直して、今までどおり赤い画面と
-    // コンソール出力も出す（ログに移すのではなく、ログにも残す）
-    FlutterError.onError = (details) {
-      logger.error('app.uncaught', '${details.exception}\n${details.stack}');
-      FlutterError.presentError(details);
-    };
+      // 描画中の例外。presentError を呼び直して、今までどおり赤い画面と
+      // コンソール出力も出す（ログに移すのではなく、ログにも残す）
+      FlutterError.onError = (details) {
+        logger.error('app.uncaught', '${details.exception}\n${details.stack}');
+        FlutterError.presentError(details);
+      };
 
-    final db = AppDatabase();
-    runApp(LedgerApp(db: db, logger: logger));
-  }, (error, stack) {
-    // 非同期の未捕捉例外。スタックは error 側に載せて、長すぎるぶんは
-    // LogEntry の truncate に任せる
-    //
-    // **コンソールにも出し直す。** runZonedGuarded を挟むと、それまで
-    // 未捕捉の非同期例外を stderr へ出していた Dart 既定のハンドラが
-    // このハンドラに置き換わる。ログに書くだけだと flutter run 中の
-    // コンソールから例外が消え、ロガーが noop に倒れた端末では
-    // どこにも残らなくなる。同期側の FlutterError.onError が
-    // presentError() を呼び直しているのと揃える
-    debugPrint('未捕捉の非同期例外: $error\n$stack');
-    logger.error('app.uncaught', '$error\n$stack');
-  });
+      final db = AppDatabase();
+      runApp(LedgerApp(db: db, logger: logger));
+    },
+    (error, stack) {
+      // 非同期の未捕捉例外。スタックは error 側に載せて、長すぎるぶんは
+      // LogEntry の truncate に任せる
+      //
+      // **コンソールにも出し直す。** runZonedGuarded を挟むと、それまで
+      // 未捕捉の非同期例外を stderr へ出していた Dart 既定のハンドラが
+      // このハンドラに置き換わる。ログに書くだけだと flutter run 中の
+      // コンソールから例外が消え、ロガーが noop に倒れた端末では
+      // どこにも残らなくなる。同期側の FlutterError.onError が
+      // presentError() を呼び直しているのと揃える
+      debugPrint('未捕捉の非同期例外: $error\n$stack');
+      logger.error('app.uncaught', '$error\n$stack');
+    },
+  );
 }
 
 /// 端末内のログファイルへ書くロガーを組み立てる。
@@ -104,10 +107,7 @@ class LedgerApp extends StatelessWidget {
       child: MaterialApp(
         title: '家計簿',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorSchemeSeed: Colors.teal,
-          useMaterial3: true,
-        ),
+        theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
         // 認証は撤廃。起動後すぐにメイン画面へ。
         home: const MainScreen(),
       ),

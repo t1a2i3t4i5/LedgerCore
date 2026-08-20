@@ -127,12 +127,14 @@ void main() {
   testWidgets('取引を編集して保存し直しても金額が変わらない', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
-    await db.insertTransaction(TransactionInput(
-      memberId: memberId,
-      categoryId: cats.first.id,
-      amount: 1234,
-      spentAt: DateTime(2026, 7, 10),
-    ));
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: memberId,
+        categoryId: cats.first.id,
+        amount: 1234,
+        spentAt: DateTime(2026, 7, 10),
+      ),
+    );
     final existing = (await db.getAllTransactions()).single;
 
     await pumpScreen(tester, existing: existing);
@@ -153,12 +155,14 @@ void main() {
   testWidgets('整数の取引は編集画面で小数部を出さない', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
-    await db.insertTransaction(TransactionInput(
-      memberId: memberId,
-      categoryId: cats.first.id,
-      amount: 1000,
-      spentAt: DateTime(2026, 7, 10),
-    ));
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: memberId,
+        categoryId: cats.first.id,
+        amount: 1000,
+        spentAt: DateTime(2026, 7, 10),
+      ),
+    );
     final existing = (await db.getAllTransactions()).single;
 
     await pumpScreen(tester, existing: existing);
@@ -253,11 +257,13 @@ void main() {
 
     // enterText は composing を空で送るので、この経路は通らない。
     // 実機の IME を再現するには composing 範囲を明示して送る必要がある
-    tester.testTextInput.updateEditingValue(const TextEditingValue(
-      text: '１２３',
-      selection: TextSelection.collapsed(offset: 3),
-      composing: TextRange(start: 0, end: 3),
-    ));
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '１２３',
+        selection: TextSelection.collapsed(offset: 3),
+        composing: TextRange(start: 0, end: 3),
+      ),
+    );
     await tester.pump();
 
     // 確定前に本文だけ書き換えると IME 側のバッファと食い違う
@@ -265,10 +271,12 @@ void main() {
     expect(composing.controller!.text, '１２３');
 
     // 確定（composing が空）になった時点で正規化される
-    tester.testTextInput.updateEditingValue(const TextEditingValue(
-      text: '１２３',
-      selection: TextSelection.collapsed(offset: 3),
-    ));
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '１２３',
+        selection: TextSelection.collapsed(offset: 3),
+      ),
+    );
     await tester.pump();
 
     final committed = tester.widget<TextField>(find.byType(TextField).first);

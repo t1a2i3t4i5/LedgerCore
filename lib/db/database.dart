@@ -59,7 +59,8 @@ class Transactions extends Table {
   // check() の中で自分自身を参照するのは drift が定める書き方なので、
   // 再帰ゲッターの lint は無視する（実際には評価されず SQL の CHECK 句になる）
   // ignore: recursive_getters
-  RealColumn get amount => real().check(
+  RealColumn get amount =>
+      real().check(
         // ignore: recursive_getters
         amount.isBiggerThanValue(0) &
             // ignore: recursive_getters
@@ -86,143 +87,142 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          await m.createAll();
-          // デフォルトカテゴリと既定メンバーを投入
-          await batch((b) {
-            b.insertAll(
-              categories,
-              _defaultCategories
-                  .map((name) => CategoriesCompanion.insert(name: name)),
-            );
-            b.insert(members, MembersCompanion.insert(name: '自分'));
-          });
-        },
-        onUpgrade: (m, from, to) async {
-          // 未対応のバージョンを黙って素通りさせない。drift の既定 onUpgrade は
-          // 「移行が書かれていません」と例外を投げる安全網だが、それを上書きして
-          // しまうため、分岐から漏れたら気付けるようにここで落とす。
-          if (from < 1 || to > 4) {
-            throw StateError('未対応のマイグレーションです: v$from → v$to');
-          }
-          // drift は onUpgrade をトランザクションで包まない。包まないと
-          // customStatement の UPDATE / DELETE がそれぞれ autocommit され、
-          // 後続の alterTable（内部で独自のトランザクションを張る）が
-          // 容量不足などで失敗したとき、「データは書き換え済み・スキーマは
-          // 旧版のまま・user_version も旧版のまま」で固定されてしまう。
-          // 全体を 1 つのトランザクションにして全部成功か全部巻き戻しにする。
+    onCreate: (m) async {
+      await m.createAll();
+      // デフォルトカテゴリと既定メンバーを投入
+      await batch((b) {
+        b.insertAll(
+          categories,
+          _defaultCategories.map(
+            (name) => CategoriesCompanion.insert(name: name),
+          ),
+        );
+        b.insert(members, MembersCompanion.insert(name: '自分'));
+      });
+    },
+    onUpgrade: (m, from, to) async {
+      // 未対応のバージョンを黙って素通りさせない。drift の既定 onUpgrade は
+      // 「移行が書かれていません」と例外を投げる安全網だが、それを上書きして
+      // しまうため、分岐から漏れたら気付けるようにここで落とす。
+      if (from < 1 || to > 4) {
+        throw StateError('未対応のマイグレーションです: v$from → v$to');
+      }
+      // drift は onUpgrade をトランザクションで包まない。包まないと
+      // customStatement の UPDATE / DELETE がそれぞれ autocommit され、
+      // 後続の alterTable（内部で独自のトランザクションを張る）が
+      // 容量不足などで失敗したとき、「データは書き換え済み・スキーマは
+      // 旧版のまま・user_version も旧版のまま」で固定されてしまう。
+      // 全体を 1 つのトランザクションにして全部成功か全部巻き戻しにする。
+      //
+      // onUpgrade の時点では beforeOpen がまだ走っておらず
+      // PRAGMA foreign_keys は OFF なので、alterTable が
+      // トランザクション内で PRAGMA を切り替えようとする問題は起きない。
+      await transaction(() async {
+        // v2 / v3 はどちらも amount の CHECK 制約を変える移行で、SQLite は
+        // 既存カラムへの CHECK 追加をサポートしないためテーブルを作り直す。
+        // 作り直しは新テーブルへのコピーを伴うので、制約違反の行が残っていると
+        // 移行そのものが失敗する。先に既存データを制約に合う形へ整えておく。
+        //
+        // **データ整形をすべて済ませてから、テーブルごとに一度だけ作り直す。**
+        // TableMigration は「そのとき Dart 側に書かれている最新の定義」で
+        // テーブルを作るため、v1 の端末で from < 2 のブロック内から呼ぶと
+        // v3 の CHECK を持つテーブルに小数のまま流し込むことになり、
+        // v1 → 最新の直行だけが移行に失敗する。
+        if (from < 2) {
+          // 負の金額はマイナス記号の打ち間違いとみなして絶対値に補正し、
+          // 0 円は集計上意味を持たない（グラフでも幅 0 のセクションになる）ので削除する。
+          await customStatement(
+            'UPDATE transactions SET amount = abs(amount) WHERE amount < 0',
+          );
+          await customStatement('DELETE FROM transactions WHERE amount <= 0');
+        }
+        if (from < 3) {
+          // 上限超過は誤入力とみなして行ごと削除する。桁を打ち続けて
+          // Infinity になった行もここで一緒に落ちる（Infinity は
+          // どんな有限値より大きい）。NaN は SQLite が NULL として
+          // 保存するため、NOT NULL に弾かれて最初から存在しない。
+          await customStatement(
+            'DELETE FROM transactions WHERE amount > $kMaxAmount',
+          );
+          // 四捨五入で 0 になる行（0 < amount < 0.5）は v2 と同じ方針で
+          // 削除する。**四捨五入より先に消す**のがポイントで、逆順にすると
+          // v2 起点の移行が落ちる。v2 のテーブルには CHECK (amount > 0.0) が
+          // 付いており、テーブルを作り直す前の UPDATE の時点で 0 を書き込むと
+          // 自分自身の制約に弾かれるため（v1 には CHECK が無いので v1 起点
+          // では起きず、v2 起点だけが失敗する）。
+          await customStatement(
+            'DELETE FROM transactions WHERE ROUND(amount) <= 0',
+          );
+          // 小数は四捨五入する。SQLite の ROUND は half away from zero で、
+          // 表示側（widgets/amount_format.dart の formatYen()、書式 '#,###'）
+          // と同じ丸め方なので、**行ごとの表示額は変わらない**
+          // （1234.5 はどちらも 1,235）。
           //
-          // onUpgrade の時点では beforeOpen がまだ走っておらず
-          // PRAGMA foreign_keys は OFF なので、alterTable が
-          // トランザクション内で PRAGMA を切り替えようとする問題は起きない。
-          await transaction(() async {
-            // v2 / v3 はどちらも amount の CHECK 制約を変える移行で、SQLite は
-            // 既存カラムへの CHECK 追加をサポートしないためテーブルを作り直す。
-            // 作り直しは新テーブルへのコピーを伴うので、制約違反の行が残っていると
-            // 移行そのものが失敗する。先に既存データを制約に合う形へ整えておく。
-            //
-            // **データ整形をすべて済ませてから、テーブルごとに一度だけ作り直す。**
-            // TableMigration は「そのとき Dart 側に書かれている最新の定義」で
-            // テーブルを作るため、v1 の端末で from < 2 のブロック内から呼ぶと
-            // v3 の CHECK を持つテーブルに小数のまま流し込むことになり、
-            // v1 → 最新の直行だけが移行に失敗する。
-            if (from < 2) {
-              // 負の金額はマイナス記号の打ち間違いとみなして絶対値に補正し、
-              // 0 円は集計上意味を持たない（グラフでも幅 0 のセクションになる）ので削除する。
-              await customStatement(
-                'UPDATE transactions SET amount = abs(amount) WHERE amount < 0',
-              );
-              await customStatement(
-                'DELETE FROM transactions WHERE amount <= 0',
-              );
-            }
-            if (from < 3) {
-              // 上限超過は誤入力とみなして行ごと削除する。桁を打ち続けて
-              // Infinity になった行もここで一緒に落ちる（Infinity は
-              // どんな有限値より大きい）。NaN は SQLite が NULL として
-              // 保存するため、NOT NULL に弾かれて最初から存在しない。
-              await customStatement(
-                'DELETE FROM transactions WHERE amount > $kMaxAmount',
-              );
-              // 四捨五入で 0 になる行（0 < amount < 0.5）は v2 と同じ方針で
-              // 削除する。**四捨五入より先に消す**のがポイントで、逆順にすると
-              // v2 起点の移行が落ちる。v2 のテーブルには CHECK (amount > 0.0) が
-              // 付いており、テーブルを作り直す前の UPDATE の時点で 0 を書き込むと
-              // 自分自身の制約に弾かれるため（v1 には CHECK が無いので v1 起点
-              // では起きず、v2 起点だけが失敗する）。
-              await customStatement(
-                'DELETE FROM transactions WHERE ROUND(amount) <= 0',
-              );
-              // 小数は四捨五入する。SQLite の ROUND は half away from zero で、
-              // 表示側（widgets/amount_format.dart の formatYen()、書式 '#,###'）
-              // と同じ丸め方なので、**行ごとの表示額は変わらない**
-              // （1234.5 はどちらも 1,235）。
-              //
-              // ただし合計は変わりうる。「和を丸めた値」と「丸めた値の和」は
-              // 別物なので、100.6 が 2 件あると移行前の合計表示 ¥201 が
-              // 移行後は ¥202 になる。0 < amount < 0.5 の行は上で消えるため、
-              // その行が寄与していた分も合計から減る。
-              await customStatement(
-                'UPDATE transactions SET amount = ROUND(amount)',
-              );
-            }
-            // 作り直しは「参照する側（transactions）→ 参照される側（members）」の
-            // 順で行う。members を先に落とすと、その間 transactions の外部キーは
-            // 存在しないテーブルを指す（onUpgrade 中は PRAGMA foreign_keys が OFF
-            // なので実害は出ないが、順序を drift の推奨どおりにしておく）。
-            //
-            // experimental 扱いだが、制約変更を伴う移行はこれが drift の標準手段。
-            if (from < 3) {
-              // ignore: experimental_member_use
-              await m.alterTable(TableMigration(transactions));
-            }
-            if (from < 4) {
-              // v4 は未使用だった members.mail の削除。SQLite の DROP COLUMN は
-              // 3.35 以降にしか無く、端末の SQLite のバージョンは選べないので、
-              // ここも CHECK 追加と同じくテーブルの作り直しで落とす。
-              // mail は最新の定義に無いためコピー対象から外れ、そのまま消える。
-              // ignore: experimental_member_use
-              await m.alterTable(TableMigration(members));
-            }
-          });
-        },
-        beforeOpen: (details) async {
-          await customStatement('PRAGMA foreign_keys = ON');
-        },
-      );
+          // ただし合計は変わりうる。「和を丸めた値」と「丸めた値の和」は
+          // 別物なので、100.6 が 2 件あると移行前の合計表示 ¥201 が
+          // 移行後は ¥202 になる。0 < amount < 0.5 の行は上で消えるため、
+          // その行が寄与していた分も合計から減る。
+          await customStatement(
+            'UPDATE transactions SET amount = ROUND(amount)',
+          );
+        }
+        // 作り直しは「参照する側（transactions）→ 参照される側（members）」の
+        // 順で行う。members を先に落とすと、その間 transactions の外部キーは
+        // 存在しないテーブルを指す（onUpgrade 中は PRAGMA foreign_keys が OFF
+        // なので実害は出ないが、順序を drift の推奨どおりにしておく）。
+        //
+        // experimental 扱いだが、制約変更を伴う移行はこれが drift の標準手段。
+        if (from < 3) {
+          // ignore: experimental_member_use
+          await m.alterTable(TableMigration(transactions));
+        }
+        if (from < 4) {
+          // v4 は未使用だった members.mail の削除。SQLite の DROP COLUMN は
+          // 3.35 以降にしか無く、端末の SQLite のバージョンは選べないので、
+          // ここも CHECK 追加と同じくテーブルの作り直しで落とす。
+          // mail は最新の定義に無いためコピー対象から外れ、そのまま消える。
+          // ignore: experimental_member_use
+          await m.alterTable(TableMigration(members));
+        }
+      });
+    },
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA foreign_keys = ON');
+    },
+  );
 
   // ---- カテゴリ ----
   Future<List<CategoryView>> getCategories() async {
-    final rows = await (select(categories)
-          ..orderBy([(c) => OrderingTerm(expression: c.id)]))
-        .get();
+    final rows =
+        await (select(categories)
+          ..orderBy([(c) => OrderingTerm(expression: c.id)])).get();
     return rows.map((c) => CategoryView(id: c.id, name: c.name)).toList();
   }
 
   Future<void> insertCategory(String name) =>
       into(categories).insert(CategoriesCompanion.insert(name: name));
 
-  Future<void> updateCategoryName(int id, String name) =>
-      (update(categories)..where((c) => c.id.equals(id)))
-          .write(CategoriesCompanion(name: Value(name)));
+  Future<void> updateCategoryName(int id, String name) => (update(categories)
+    ..where(
+      (c) => c.id.equals(id),
+    )).write(CategoriesCompanion(name: Value(name)));
 
   Future<void> deleteCategory(int id) =>
       (delete(categories)..where((c) => c.id.equals(id))).go();
 
   // ---- メンバー ----
   Future<List<HouseholdMember>> getMembers() async {
-    final rows = await (select(members)
-          ..orderBy([(m) => OrderingTerm(expression: m.id)]))
-        .get();
+    final rows =
+        await (select(members)
+          ..orderBy([(m) => OrderingTerm(expression: m.id)])).get();
     return rows.map((m) => HouseholdMember(id: m.id, name: m.name)).toList();
   }
 
   Future<void> insertMember(String name) =>
       into(members).insert(MembersCompanion.insert(name: name));
 
-  Future<void> updateMemberName(int id, String name) =>
-      (update(members)..where((m) => m.id.equals(id)))
-          .write(MembersCompanion(name: Value(name)));
+  Future<void> updateMemberName(int id, String name) => (update(members)
+    ..where((m) => m.id.equals(id))).write(MembersCompanion(name: Value(name)));
 
   Future<void> deleteMember(int id) =>
       (delete(members)..where((m) => m.id.equals(id))).go();
@@ -230,10 +230,7 @@ class AppDatabase extends _$AppDatabase {
   // ---- 取引 ----
   /// 指定月の取引を、メンバー名・カテゴリ名を JOIN して取得する。
   /// 月レンジは半開区間 [月初, 翌月初)。
-  Future<List<TransactionView>> getTransactionsByMonth(
-    int year,
-    int month,
-  ) =>
+  Future<List<TransactionView>> getTransactionsByMonth(int year, int month) =>
       getTransactionsByRange(
         DateTime(year, month, 1),
         DateTime(year, month + 1, 1),
@@ -244,12 +241,10 @@ class AppDatabase extends _$AppDatabase {
   Future<List<TransactionView>> getTransactionsByRange(
     DateTime start,
     DateTime end,
-  ) =>
-      _selectTransactions(start: start, end: end);
+  ) => _selectTransactions(start: start, end: end);
 
   /// 全期間の取引を取得する（年別集計用）。
-  Future<List<TransactionView>> getAllTransactions() =>
-      _selectTransactions();
+  Future<List<TransactionView>> getAllTransactions() => _selectTransactions();
 
   /// 取引をメンバー名・カテゴリ名付きで取得する共通クエリ。
   /// start / end を渡すと半開区間 [start, end) で絞り込む。
@@ -293,13 +288,15 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> insertTransaction(TransactionInput input) =>
-      into(transactions).insert(TransactionsCompanion.insert(
-        memberId: input.memberId,
-        categoryId: input.categoryId,
-        amount: input.amount,
-        spentAt: input.spentAt,
-        memo: Value(input.memo),
-      ));
+      into(transactions).insert(
+        TransactionsCompanion.insert(
+          memberId: input.memberId,
+          categoryId: input.categoryId,
+          amount: input.amount,
+          spentAt: input.spentAt,
+          memo: Value(input.memo),
+        ),
+      );
 
   Future<void> updateTransaction(int id, TransactionInput input) =>
       (update(transactions)..where((t) => t.id.equals(id))).write(

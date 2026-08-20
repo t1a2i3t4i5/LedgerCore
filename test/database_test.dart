@@ -27,22 +27,31 @@ void main() {
     final catId = cats.first.id;
     final memberId = members.first.id;
 
-    await db.insertTransaction(TransactionInput(
+    await db.insertTransaction(
+      TransactionInput(
         memberId: memberId,
         categoryId: catId,
         amount: 1000,
-        spentAt: DateTime(2026, 7, 1)));
-    await db.insertTransaction(TransactionInput(
+        spentAt: DateTime(2026, 7, 1),
+      ),
+    );
+    await db.insertTransaction(
+      TransactionInput(
         memberId: memberId,
         categoryId: catId,
         amount: 2000,
-        spentAt: DateTime(2026, 7, 31, 23, 59)));
+        spentAt: DateTime(2026, 7, 31, 23, 59),
+      ),
+    );
     // 8/1 00:00 は 7月に含まれない（半開区間の上限）
-    await db.insertTransaction(TransactionInput(
+    await db.insertTransaction(
+      TransactionInput(
         memberId: memberId,
         categoryId: catId,
         amount: 9999,
-        spentAt: DateTime(2026, 8, 1)));
+        spentAt: DateTime(2026, 8, 1),
+      ),
+    );
 
     final julyTxns = await db.getTransactionsByMonth(2026, 7);
     expect(julyTxns.length, 2);
@@ -55,23 +64,28 @@ void main() {
   test('取引の更新と削除', () async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionInput(
+    await db.insertTransaction(
+      TransactionInput(
         memberId: members.first.id,
         categoryId: cats.first.id,
         amount: 500,
-        spentAt: DateTime(2026, 7, 10)));
+        spentAt: DateTime(2026, 7, 10),
+      ),
+    );
 
     var txns = await db.getTransactionsByMonth(2026, 7);
     expect(txns.length, 1);
     final id = txns.first.id;
 
     await db.updateTransaction(
-        id,
-        TransactionInput(
-            memberId: members.first.id,
-            categoryId: cats.first.id,
-            amount: 750,
-            spentAt: DateTime(2026, 7, 10)));
+      id,
+      TransactionInput(
+        memberId: members.first.id,
+        categoryId: cats.first.id,
+        amount: 750,
+        spentAt: DateTime(2026, 7, 10),
+      ),
+    );
     txns = await db.getTransactionsByMonth(2026, 7);
     expect(txns.first.amount, 750);
 
@@ -88,11 +102,14 @@ void main() {
     final m1 = members.first.id;
     final m2 = allMembers.firstWhere((m) => m.name == 'パートナー').id;
 
-    await db.insertTransaction(TransactionInput(
+    await db.insertTransaction(
+      TransactionInput(
         memberId: m1,
         categoryId: cats.first.id,
         amount: 1000,
-        spentAt: DateTime(2026, 7, 5)));
+        spentAt: DateTime(2026, 7, 5),
+      ),
+    );
 
     final summary = await db.getMonthlySummary(2026, 7);
     expect(summary.total, 1000);
@@ -116,8 +133,14 @@ void main() {
       DateTime(2026, 5, 31, 23, 59),
       DateTime(2026, 6, 1),
     ]) {
-      await db.insertTransaction(TransactionInput(
-          memberId: memberId, categoryId: catId, amount: 100, spentAt: d));
+      await db.insertTransaction(
+        TransactionInput(
+          memberId: memberId,
+          categoryId: catId,
+          amount: 100,
+          spentAt: d,
+        ),
+      );
     }
 
     // [3/1, 6/1) → 3/1 と 5/31 23:59 の2件。2/28 と 6/1 は範囲外
@@ -139,21 +162,30 @@ void main() {
     final food = cats.firstWhere((c) => c.name == '食費').id;
     final transport = cats.firstWhere((c) => c.name == '交通費').id;
 
-    await db.insertTransaction(TransactionInput(
+    await db.insertTransaction(
+      TransactionInput(
         memberId: memberId,
         categoryId: food,
         amount: 1000,
-        spentAt: DateTime(2026, 4, 10)));
-    await db.insertTransaction(TransactionInput(
+        spentAt: DateTime(2026, 4, 10),
+      ),
+    );
+    await db.insertTransaction(
+      TransactionInput(
         memberId: memberId,
         categoryId: transport,
         amount: 300,
-        spentAt: DateTime(2026, 4, 20)));
-    await db.insertTransaction(TransactionInput(
+        spentAt: DateTime(2026, 4, 20),
+      ),
+    );
+    await db.insertTransaction(
+      TransactionInput(
         memberId: memberId,
         categoryId: food,
         amount: 500,
-        spentAt: DateTime(2025, 11, 3)));
+        spentAt: DateTime(2025, 11, 3),
+      ),
+    );
 
     final yearly = await db.getYearlySummary(2026);
     expect(yearly.total, 1300);
@@ -181,8 +213,14 @@ void main() {
       DateTime(2026, 12, 31, 23, 59, 59),
       DateTime(2027, 1, 1),
     ]) {
-      await db.insertTransaction(TransactionInput(
-          memberId: memberId, categoryId: catId, amount: 100, spentAt: d));
+      await db.insertTransaction(
+        TransactionInput(
+          memberId: memberId,
+          categoryId: catId,
+          amount: 100,
+          spentAt: d,
+        ),
+      );
     }
 
     // 純関数側の年フィルタに頼らず、DAO のレンジ指定そのものを検証する
@@ -205,13 +243,13 @@ void main() {
     final members = await db.getMembers();
 
     Future<void> insert(double amount) => db.insertTransaction(
-          TransactionInput(
-            memberId: members.first.id,
-            categoryId: cats.first.id,
-            amount: amount,
-            spentAt: DateTime(2026, 7, 10),
-          ),
-        );
+      TransactionInput(
+        memberId: members.first.id,
+        categoryId: cats.first.id,
+        amount: amount,
+        spentAt: DateTime(2026, 7, 10),
+      ),
+    );
 
     // CHECK (amount > 0 AND amount <= kMaxAmount AND 整数) に弾かれる
     await expectLater(insert(-500), throwsAmountCheckViolation);
@@ -242,17 +280,21 @@ void main() {
     final members = await db.getMembers();
 
     await expectLater(
-      db.insertTransaction(TransactionInput(
-        memberId: members.first.id,
-        categoryId: cats.first.id,
-        amount: double.nan,
-        spentAt: DateTime(2026, 7, 10),
-      )),
-      throwsA(isA<Exception>().having(
-        (e) => e.toString(),
-        'メッセージ',
-        contains('NOT NULL constraint failed'),
-      )),
+      db.insertTransaction(
+        TransactionInput(
+          memberId: members.first.id,
+          categoryId: cats.first.id,
+          amount: double.nan,
+          spentAt: DateTime(2026, 7, 10),
+        ),
+      ),
+      throwsA(
+        isA<Exception>().having(
+          (e) => e.toString(),
+          'メッセージ',
+          contains('NOT NULL constraint failed'),
+        ),
+      ),
     );
     expect(await db.getAllTransactions(), isEmpty);
   });
@@ -260,22 +302,25 @@ void main() {
   test('0 以下・小数・上限超過の金額には update できない', () async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionInput(
+    await db.insertTransaction(
+      TransactionInput(
         memberId: members.first.id,
         categoryId: cats.first.id,
         amount: 500,
-        spentAt: DateTime(2026, 7, 10)));
+        spentAt: DateTime(2026, 7, 10),
+      ),
+    );
     final id = (await db.getAllTransactions()).single.id;
 
     Future<void> updateTo(double amount) => db.updateTransaction(
-          id,
-          TransactionInput(
-            memberId: members.first.id,
-            categoryId: cats.first.id,
-            amount: amount,
-            spentAt: DateTime(2026, 7, 10),
-          ),
-        );
+      id,
+      TransactionInput(
+        memberId: members.first.id,
+        categoryId: cats.first.id,
+        amount: amount,
+        spentAt: DateTime(2026, 7, 10),
+      ),
+    );
 
     await expectLater(updateTo(-1), throwsAmountCheckViolation);
     await expectLater(updateTo(0), throwsAmountCheckViolation);
@@ -304,15 +349,18 @@ void main() {
 
   test('取引を削除するとカテゴリが削除できるようになる', () async {
     await db.insertCategory('臨時費');
-    final target =
-        (await db.getCategories()).firstWhere((c) => c.name == '臨時費');
+    final target = (await db.getCategories()).firstWhere(
+      (c) => c.name == '臨時費',
+    );
     final members = await db.getMembers();
-    await db.insertTransaction(TransactionInput(
-      memberId: members.first.id,
-      categoryId: target.id,
-      amount: 500,
-      spentAt: DateTime(2026, 7, 10),
-    ));
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: members.first.id,
+        categoryId: target.id,
+        amount: 500,
+        spentAt: DateTime(2026, 7, 10),
+      ),
+    );
 
     // 取引が参照している間は ON DELETE 未指定（NO ACTION）で弾かれる
     await expectLater(db.deleteCategory(target.id), throwsForeignKeyViolation);
@@ -329,15 +377,16 @@ void main() {
 
   test('取引を削除するとメンバーが削除できるようになる', () async {
     await db.insertMember('パートナー');
-    final target =
-        (await db.getMembers()).firstWhere((m) => m.name == 'パートナー');
+    final target = (await db.getMembers()).firstWhere((m) => m.name == 'パートナー');
     final cats = await db.getCategories();
-    await db.insertTransaction(TransactionInput(
-      memberId: target.id,
-      categoryId: cats.first.id,
-      amount: 500,
-      spentAt: DateTime(2026, 7, 10),
-    ));
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: target.id,
+        categoryId: cats.first.id,
+        amount: 500,
+        spentAt: DateTime(2026, 7, 10),
+      ),
+    );
 
     await expectLater(db.deleteMember(target.id), throwsForeignKeyViolation);
 

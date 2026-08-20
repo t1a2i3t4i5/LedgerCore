@@ -16,7 +16,7 @@ class CategoryProvider extends ChangeNotifier {
   String? _error;
 
   CategoryProvider(this._db, {OperationLogger? logger})
-      : _logger = logger ?? OperationLogger.noop();
+    : _logger = logger ?? OperationLogger.noop();
 
   List<CategoryView> get categories => _categories;
   bool get loading => _loading;

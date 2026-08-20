@@ -46,9 +46,10 @@ void main() {
         home: Scaffold(
           body: MediaQuery(
             data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
-            child: width == null
-                ? selector
-                : SizedBox(width: width, child: selector),
+            child:
+                width == null
+                    ? selector
+                    : SizedBox(width: width, child: selector),
           ),
         ),
       ),
@@ -64,23 +65,25 @@ void main() {
   /// 「今月に戻る」ボタンが押せる状態か
   bool todayIsEnabled(WidgetTester tester) =>
       tester
-          .widget<IconButton>(find.ancestor(
-            of: find.byIcon(Icons.today),
-            matching: find.byType(IconButton),
-          ))
+          .widget<IconButton>(
+            find.ancestor(
+              of: find.byIcon(Icons.today),
+              matching: find.byType(IconButton),
+            ),
+          )
           .onPressed !=
       null;
 
   /// 取引一覧が右端に載せているのと同じフィルターボタン
   Widget filterButton() => IconButton(
-        tooltip: 'ソート・フィルター',
-        onPressed: () {},
-        icon: const Badge(
-          isLabelVisible: true,
-          label: Text('3'),
-          child: Icon(Icons.filter_list),
-        ),
-      );
+    tooltip: 'ソート・フィルター',
+    onPressed: () {},
+    icon: const Badge(
+      isLabelVisible: true,
+      label: Text('3'),
+      child: Icon(Icons.filter_list),
+    ),
+  );
 
   testWidgets('年月を「2026年7月」の書式で出す', (tester) async {
     await pump(tester, year: 2026, month: 7);
