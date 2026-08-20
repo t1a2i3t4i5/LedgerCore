@@ -1,9 +1,18 @@
 ---
+name: review3
 description: 観点を分けた 3 人の独立レビュアー（別コンテキスト）で作業差分または PR をレビューし、重い指摘を実測で検証してから報告する
 argument-hint: "[PR番号]"
 arguments: pr
 disable-model-invocation: true
-allowed-tools: Bash(git rev-parse:*), Bash(git merge-base:*), Bash(git diff:*), Bash(git log:*), Bash(git status:*), Bash(git branch:*), Bash(gh pr diff:*), Agent
+allowed-tools:
+  - Bash(git rev-parse:*)
+  - Bash(git merge-base:*)
+  - Bash(git diff:*)
+  - Bash(git log:*)
+  - Bash(git status:*)
+  - Bash(git branch:*)
+  - Bash(gh pr diff:*)
+  - Agent
 ---
 
 観点を分けた 3 人の独立レビュアーで、コード差分をレビューします。**報告して終わります** — 修正も PR へのコメント投稿もしません。
@@ -29,7 +38,7 @@ allowed-tools: Bash(git rev-parse:*), Bash(git merge-base:*), Bash(git diff:*), 
 
 ## 2. レビュー中に読まないもの
 
-**あなたも 3 体も、このコマンドが終わるまで次を実行しません。**
+**あなたも 3 体も、このスキルが終わるまで次を実行しません。**
 
 `gh pr view` / `gh pr comment` / `gh pr checks` / `gh issue`（全サブコマンド） / `gh api` / `gh browse`
 
