@@ -1,6 +1,6 @@
 ---
 name: reviewer-tests-docs
-description: LedgerCore のコード差分を「テスト・ドキュメント」の観点だけでレビューする。回帰テストの有無とそれが本当に欠陥を捕まえるか、docs の追従漏れを見る。/review3 から起動される専用レビュアーで、単独では使わない。
+description: LedgerCore のコード差分を「テスト・ドキュメント」の観点だけでレビューする。回帰テストの有無とそれが本当に欠陥を捕まえるか、docs の追従漏れを見る。/independent-review から起動される専用レビュアーで、単独では使わない。
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: high

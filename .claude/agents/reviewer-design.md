@@ -1,6 +1,6 @@
 ---
 name: reviewer-design
-description: LedgerCore のコード差分を「設計上の約束」の観点だけでレビューする。docs/design-notes.md に書かれた約束が守られているかを grep で機械的に確かめる。/review3 から起動される専用レビュアーで、単独では使わない。
+description: LedgerCore のコード差分を「設計上の約束」の観点だけでレビューする。docs/design-notes.md に書かれた約束が守られているかを grep で機械的に確かめる。/independent-review から起動される専用レビュアーで、単独では使わない。
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: high
