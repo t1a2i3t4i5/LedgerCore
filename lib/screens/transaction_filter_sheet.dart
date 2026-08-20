@@ -185,8 +185,7 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
               // ---- カテゴリ（複数選択） ----
               const _SectionLabel('カテゴリ'),
               if (categories.isEmpty)
-                const Text('カテゴリがありません',
-                    style: TextStyle(color: Colors.grey))
+                const Text('カテゴリがありません', style: TextStyle(color: Colors.grey))
               else
                 Wrap(
                   spacing: 8,

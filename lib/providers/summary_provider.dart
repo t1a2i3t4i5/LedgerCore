@@ -130,9 +130,8 @@ class SummaryProvider extends MonthScopedProvider {
       _yearly = _period == SummaryPeriod.year
           ? await _db.getYearlySummary(_yearAxis)
           : null;
-      _allYears = _period == SummaryPeriod.all
-          ? await _db.getYearlyTotals()
-          : const [];
+      _allYears =
+          _period == SummaryPeriod.all ? await _db.getYearlyTotals() : const [];
     } catch (e) {
       _error = e.toString();
       logger.error('summary.fetch', e, detail: {

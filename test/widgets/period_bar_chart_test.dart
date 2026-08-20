@@ -125,8 +125,7 @@ void _expectLabelsReadable(
 
 void main() {
   group('空の表示', () {
-    testWidgets('空リストのときは「データがありません」を出しグラフを描かない',
-        (tester) async {
+    testWidgets('空リストのときは「データがありません」を出しグラフを描かない', (tester) async {
       await _pump(tester, const []);
 
       expect(find.text('データがありません'), findsOneWidget);
@@ -156,7 +155,18 @@ void main() {
     // 0 の月を間引くと 12 本の軸が欠けて、隣り合う月が実際より近く見える
     testWidgets('12 件渡すと 0 の月も含めて 12 本になる', (tester) async {
       final totals = <double>[
-        1000, 0, 3000, 0, 0, 600, 700, 800, 0, 1000, 1100, 1200,
+        1000,
+        0,
+        3000,
+        0,
+        0,
+        600,
+        700,
+        800,
+        0,
+        1000,
+        1100,
+        1200,
       ];
       await _pump(tester, _twelveMonths(totals));
 
@@ -249,8 +259,7 @@ void main() {
 
     // formatYen をそのまま軸に使うと ¥999,999,999,999 が 360px の 1/3 以上を
     // 占めてグラフ本体が潰れる。kMaxAmount は DB の CHECK が現に許す値
-    testWidgets('上限額でもレイアウトが崩れず、軸ラベルが畳まれない',
-        (tester) async {
+    testWidgets('上限額でもレイアウトが崩れず、軸ラベルが畳まれない', (tester) async {
       await _pump(tester, [_month(7, kMaxAmount)]);
 
       expect(tester.takeException(), isNull);
@@ -262,8 +271,7 @@ void main() {
 
     // 上の isFalse の対照。maxLines を外すと didExceedMaxLines は常に false を
     // 返すので、isFalse だけでは「畳まれない」ことを何も守れない
-    testWidgets('幅が足りなければ軸ラベルは 1 行のまま省略される',
-        (tester) async {
+    testWidgets('幅が足りなければ軸ラベルは 1 行のまま省略される', (tester) async {
       await _pump(tester, [_month(7, kMaxAmount)], width: 100);
 
       expect(tester.takeException(), isNull);

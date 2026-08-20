@@ -78,9 +78,7 @@ List<PeriodTotal> buildYearlyTotals(List<TransactionView> txns) {
   }
 
   final years = yearTotals.keys.toList()..sort();
-  return years
-      .map((y) => PeriodTotal(year: y, total: yearTotals[y]!))
-      .toList();
+  return years.map((y) => PeriodTotal(year: y, total: yearTotals[y]!)).toList();
 }
 
 /// カテゴリ別の合計を金額の降順で組み立てる（サーバの SUM(amount) DESC を踏襲）。
@@ -120,17 +118,15 @@ SplitResult buildSplit(
   final memberCount = members.isEmpty ? 1 : members.length;
   final fairShare = _roundHalfUp2(total / memberCount);
 
-  final balances = members
-      .map((m) {
-        final paid = paidByMember[m.id] ?? 0.0;
-        return MemberBalance(
-          memberId: m.id,
-          memberName: m.name,
-          paid: paid,
-          balance: paid - fairShare,
-        );
-      })
-      .toList();
+  final balances = members.map((m) {
+    final paid = paidByMember[m.id] ?? 0.0;
+    return MemberBalance(
+      memberId: m.id,
+      memberName: m.name,
+      paid: paid,
+      balance: paid - fairShare,
+    );
+  }).toList();
 
   return SplitResult(
     year: year,

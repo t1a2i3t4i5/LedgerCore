@@ -163,7 +163,11 @@ class _SplitScreenState extends State<SplitScreen> {
                             ),
                           ),
                           Text(
-                            isOver ? '受け取り' : isUnder ? '支払い' : '均等',
+                            isOver
+                                ? '受け取り'
+                                : isUnder
+                                    ? '支払い'
+                                    : '均等',
                             style: const TextStyle(fontSize: 11),
                           ),
                         ],

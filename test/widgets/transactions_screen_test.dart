@@ -161,8 +161,7 @@ void main() {
   // kMaxAmount は「保存できる値」として DB の CHECK が認めている。
   // 短い金額しか描かないと、実機幅で最大金額が overflow するのを見逃す。
   // 金額はリテラルで持たず kMaxAmount から採る（上限を変えたら追随させる）。
-  testWidgets('上限いっぱいの金額でも一覧と合計パネルが overflow しない',
-      (tester) async {
+  testWidgets('上限いっぱいの金額でも一覧と合計パネルが overflow しない', (tester) async {
     await seedTransaction(amount: kMaxAmount);
     await pumpScreen(tester);
 
@@ -176,8 +175,7 @@ void main() {
 
   // 合計は 1 件あたりの上限より長くなる。上限額の行を並べるほど桁が増えるので、
   // 「1 件だけ最大」より合計パネルが厳しくなる
-  testWidgets('上限いっぱいの取引が複数あっても合計パネルが overflow しない',
-      (tester) async {
+  testWidgets('上限いっぱいの取引が複数あっても合計パネルが overflow しない', (tester) async {
     await seedTransaction(amount: kMaxAmount);
     await seedTransaction(amount: kMaxAmount, day: 6, categoryIndex: 1);
     await pumpScreen(tester);

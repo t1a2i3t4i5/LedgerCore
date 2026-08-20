@@ -60,8 +60,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   month: provider.month,
                   onPrev: () => provider.changeMonth(-1),
                   onNext: () => provider.changeMonth(1),
-                  onToday:
-                      provider.isCurrentMonth ? null : provider.goToCurrentMonth,
+                  onToday: provider.isCurrentMonth
+                      ? null
+                      : provider.goToCurrentMonth,
                 ),
                 const SizedBox(height: 8),
               ] else if (provider.period == SummaryPeriod.year) ...[

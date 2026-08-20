@@ -155,8 +155,7 @@ void main() {
 
   Finder minField() => find.widgetWithText(TextFormField, '最小 (¥)');
   Finder maxField() => find.widgetWithText(TextFormField, '最大 (¥)');
-  Finder memoField() =>
-      find.widgetWithText(TextFormField, 'メモに含まれる文字列');
+  Finder memoField() => find.widgetWithText(TextFormField, 'メモに含まれる文字列');
 
   /// フォーマッタの桁数制限を抜ける経路（IME の変換確定前）で [text] を送る。
   ///

@@ -112,7 +112,9 @@ void main() {
         ts: ts,
         lv: LogLevel.info,
         op: 'transaction.filter',
-        detail: const {'categoryIds': {3, 1}},
+        detail: const {
+          'categoryIds': {3, 1}
+        },
       ));
 
       expect(line, contains('"categoryIds":[3,1]'));
@@ -146,7 +148,10 @@ void main() {
         lv: LogLevel.info,
         op: 'x.y',
         detail: {
-          'nested': {'at': DateTime(2026, 1, 2), 'ids': const {9}},
+          'nested': {
+            'at': DateTime(2026, 1, 2),
+            'ids': const {9}
+          },
         },
       ));
 

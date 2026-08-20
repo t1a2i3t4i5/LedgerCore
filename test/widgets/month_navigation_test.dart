@@ -79,10 +79,12 @@ void main() {
 
   /// 「今月に戻る」ボタンが押せる状態か
   bool todayEnabled(WidgetTester tester) =>
-      tester.widget<IconButton>(find.ancestor(
-        of: find.byIcon(Icons.today),
-        matching: find.byType(IconButton),
-      )).onPressed !=
+      tester
+          .widget<IconButton>(find.ancestor(
+            of: find.byIcon(Icons.today),
+            matching: find.byType(IconButton),
+          ))
+          .onPressed !=
       null;
 
   /// 3 画面に共通の月送りの検証。[amountOf] は月ごとに画面へ出る金額の文字列
@@ -124,8 +126,7 @@ void main() {
         expect(find.text(amountOf(7)), findsNothing);
       });
 
-      testWidgets('今月に戻るボタンは今月では押せず、送った先では押せる',
-          (tester) async {
+      testWidgets('今月に戻るボタンは今月では押せず、送った先では押せる', (tester) async {
         await seedThreeMonths();
         await pump(tester, buildScreen());
 
@@ -135,8 +136,7 @@ void main() {
         expect(todayEnabled(tester), isTrue);
       });
 
-      testWidgets('今月に戻るボタンで clock の月へ戻り、その月を読み直す',
-          (tester) async {
+      testWidgets('今月に戻るボタンで clock の月へ戻り、その月を読み直す', (tester) async {
         await seedThreeMonths();
         await pump(tester, buildScreen());
         await tapIcon(tester, Icons.chevron_left);

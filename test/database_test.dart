@@ -329,8 +329,7 @@ void main() {
 
   test('取引を削除するとメンバーが削除できるようになる', () async {
     await db.insertMember('パートナー');
-    final target =
-        (await db.getMembers()).firstWhere((m) => m.name == 'パートナー');
+    final target = (await db.getMembers()).firstWhere((m) => m.name == 'パートナー');
     final cats = await db.getCategories();
     await db.insertTransaction(TransactionInput(
       memberId: target.id,

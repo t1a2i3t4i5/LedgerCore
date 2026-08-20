@@ -169,7 +169,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ? null
             : SnackBarAction(
                 label: 'その月を表示',
-                onPressed: () => provider.goToMonth(savedAt.year, savedAt.month),
+                onPressed: () =>
+                    provider.goToMonth(savedAt.year, savedAt.month),
               ),
         // 取引一覧の FAB は内側の Scaffold にあり、ルートの ScaffoldMessenger が
         // 出す SnackBar では押し上げられない。既定の fixed のままだと
@@ -284,9 +285,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     final members = memberProvider.members;
                     return FormField<int>(
                       initialValue: _selectedMemberId,
-                      validator: (_) => _selectedMemberId == null
-                          ? '登録者を選択してください'
-                          : null,
+                      validator: (_) =>
+                          _selectedMemberId == null ? '登録者を選択してください' : null,
                       builder: (state) {
                         return InputDecorator(
                           decoration: InputDecoration(

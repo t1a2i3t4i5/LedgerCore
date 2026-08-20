@@ -86,8 +86,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('表示月と同じ月に保存すると一覧に出て、保存した旨が出る',
-      (tester) async {
+  testWidgets('表示月と同じ月に保存すると一覧に出て、保存した旨が出る', (tester) async {
     await pumpApp(tester);
     expect(find.text('2026年7月'), findsOneWidget);
 
@@ -103,8 +102,7 @@ void main() {
     expect(find.text('その月を表示'), findsNothing);
   });
 
-  testWidgets('表示月と違う月に保存すると、保存先の月を名指しした案内が出る',
-      (tester) async {
+  testWidgets('表示月と違う月に保存すると、保存先の月を名指しした案内が出る', (tester) async {
     await pumpApp(tester);
 
     await openAddScreen(tester);

@@ -61,9 +61,9 @@ class PeriodBarChart extends StatelessWidget {
     }
 
     final barColor = trendColor(Theme.of(context).colorScheme);
-    final labelStyle = (Theme.of(context).textTheme.bodySmall ??
-            const TextStyle())
-        .copyWith(fontSize: _labelFontSize);
+    final labelStyle =
+        (Theme.of(context).textTheme.bodySmall ?? const TextStyle())
+            .copyWith(fontSize: _labelFontSize);
     final textScaler = MediaQuery.textScalerOf(context);
 
     // 目盛りを 1/2/5 × 10^n の倍数に丸める。formatYenAxis が小数第 1 位までで
@@ -94,8 +94,7 @@ class PeriodBarChart extends StatelessWidget {
             for (final item in items)
               _measureText(_shortLabel(item), labelStyle, textScaler),
           ];
-          final xLabelWidth =
-              xLabelSizes.map((s) => s.width).reduce(math.max);
+          final xLabelWidth = xLabelSizes.map((s) => s.width).reduce(math.max);
           // X 軸の帯の高さも実測する。定数にすると、端末の文字サイズを
           // 1 段階上げただけでラベルの下端が黙って切れる（fl_chart は
           // reservedSize で子の高さを tight に縛るので、はみ出す分は

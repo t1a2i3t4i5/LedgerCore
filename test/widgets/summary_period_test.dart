@@ -151,8 +151,7 @@ void main() {
       expect(find.text('¥1,000'), findsWidgets);
     });
 
-    testWidgets('「今年に戻る」は今年では押せず、送った先では押せる',
-        (tester) async {
+    testWidgets('「今年に戻る」は今年では押せず、送った先では押せる', (tester) async {
       await seedTwoYears();
       await pumpSummary(tester);
       await tapPeriod(tester, '年');
@@ -385,8 +384,7 @@ void main() {
     // 実測で踏んだ事故。年を送ったら割り勘タブが 2026年7月 / ¥700 から
     // 2025年7月 / ¥250 に化けていた。割り勘タブでは何も操作していないので、
     // 金額が変わった理由が画面から分からない
-    testWidgets('サマリーで年を送っても割り勘タブの表示期間は動かない',
-        (tester) async {
+    testWidgets('サマリーで年を送っても割り勘タブの表示期間は動かない', (tester) async {
       tester.view.physicalSize = const Size(360, 690);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);

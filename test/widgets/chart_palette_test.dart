@@ -8,8 +8,7 @@ import 'package:ledger_app/widgets/chart_palette.dart';
 /// 実際に描画されるより良い数値が出てしまう（teal で 7.00 対 6.19）。
 Color _composite(Color foreground, Color background) {
   final a = foreground.a;
-  int channel(double fg, double bg) =>
-      ((a * fg + (1 - a) * bg) * 255).round();
+  int channel(double fg, double bg) => ((a * fg + (1 - a) * bg) * 255).round();
   return Color.fromARGB(
     255,
     channel(foreground.r, background.r),
@@ -109,14 +108,16 @@ void main() {
       for (final brightness in Brightness.values) {
         final bar = trendColor(scheme(brightness));
         final ratio = _effectiveContrastRatio(labelColorOn(bar), bar);
-        expect(ratio, greaterThanOrEqualTo(4.5), reason: '$brightness で $ratio');
+        expect(ratio, greaterThanOrEqualTo(4.5),
+            reason: '$brightness で $ratio');
       }
     });
 
     // カテゴリの色を流用すると、無関係なカテゴリと同色になって
     // 「この棒は食費」という誤った対応に見える
     test('ライトテーマでカテゴリ色をそのまま流用していない', () {
-      expect(_allPaletteColors(), isNot(contains(trendColor(scheme(Brightness.light)))));
+      expect(_allPaletteColors(),
+          isNot(contains(trendColor(scheme(Brightness.light)))));
     });
   });
 }

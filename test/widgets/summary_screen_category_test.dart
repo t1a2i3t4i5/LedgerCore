@@ -179,8 +179,7 @@ void main() {
   // 文言が 1 個あることだけを見ると、summary ごと null になる実装に変わっても
   // 緑のまま通る（その場合は合計カードも見出しも消える）。カテゴリ別の中だけが
   // 空で、画面の骨格は残っていることまで見る
-  testWidgets('取引ゼロの月はどの見出しの下も「データがありません」になる',
-      (tester) async {
+  testWidgets('取引ゼロの月はどの見出しの下も「データがありません」になる', (tester) async {
     await pumpSummary(tester);
 
     expect(tester.takeException(), isNull);
@@ -283,8 +282,7 @@ void main() {
 
     // 上限額 + DB が許す最大長のカテゴリ名。金額を描くテストには kMaxAmount の
     // ケースを置く（docs/testing.md）
-    testWidgets('上限額と50文字のカテゴリ名でもレイアウトが崩れない',
-        (tester) async {
+    testWidgets('上限額と50文字のカテゴリ名でもレイアウトが崩れない', (tester) async {
       await db.insertCategory('あ' * 50);
       await seed('あ' * 50, kMaxAmount);
 

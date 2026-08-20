@@ -65,8 +65,7 @@ void main() {
     late TransactionProvider provider;
 
     setUp(() {
-      provider = TransactionProvider(db, logger: logger)
-        ..setYearMonth(2026, 7);
+      provider = TransactionProvider(db, logger: logger)..setYearMonth(2026, 7);
     });
 
     test('追加が info で残る', () async {
@@ -279,7 +278,8 @@ void main() {
       await logger.flush();
 
       expect(ops(), contains('transaction.filter.reset'));
-      expect(entryOf('transaction.filter.reset').containsKey('detail'), isFalse);
+      expect(
+          entryOf('transaction.filter.reset').containsKey('detail'), isFalse);
     });
   });
 

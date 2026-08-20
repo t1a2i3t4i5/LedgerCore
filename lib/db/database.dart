@@ -248,8 +248,7 @@ class AppDatabase extends _$AppDatabase {
       _selectTransactions(start: start, end: end);
 
   /// 全期間の取引を取得する（年別集計用）。
-  Future<List<TransactionView>> getAllTransactions() =>
-      _selectTransactions();
+  Future<List<TransactionView>> getAllTransactions() => _selectTransactions();
 
   /// 取引をメンバー名・カテゴリ名付きで取得する共通クエリ。
   /// start / end を渡すと半開区間 [start, end) で絞り込む。
