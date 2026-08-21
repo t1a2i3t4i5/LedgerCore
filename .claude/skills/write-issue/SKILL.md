@@ -1,9 +1,8 @@
 ---
 name: write-issue
-description: 要望を調査・実測・確認で詰め、実装担当 AI が追加の仕様確認なしで着手できる GitHub issue を書く
+description: 要望を調査・実測・確認で詰め、実装担当 AI が追加の仕様確認なしで着手できる GitHub issue を書く。ユーザーが機能追加・不具合・改善を「issue にして」「issue を作って」「起票して」と言ったときや、要望を issue の形に整理したいときに使う。
 argument-hint: "<要望・アイデア>"
 arguments: request
-disable-model-invocation: true
 ---
 
 要望を **実装着手できる粒度の issue** にします。**独立レビューを必ず通し**、**書いて提示するところまでで、承認なしに `gh issue create` を実行しません。**
