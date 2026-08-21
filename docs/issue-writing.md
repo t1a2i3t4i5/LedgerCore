@@ -115,8 +115,6 @@ gh issue create --title "..." --body-file /tmp/issue-body.md
 
 `/write-issue <要望>`（[`.claude/skills/write-issue/SKILL.md`](../.claude/skills/write-issue/SKILL.md)）は、この規約を満たす issue を書くための手順書。規約そのものはこのファイルが情報源で、スキル側には**材料の集め方**（調査・実測・確認・分割・自己点検）だけを置いてある。節の意味を変えるならこちらを直す。
 
-`/write-issue` と打っても起動するが、**明示起動に限定していない**（`disable-model-invocation` を付けていない）。「issue にして」と頼めば Claude 側から起動する。打ち忘れて手順を通さない issue が生まれるほうが損失が大きいという判断で、コストを避けたい `/independent-review` とは逆の設定になっている。
-
 運用上の要点は次のとおり。
 
 - **調査が質問より先。** `grep` と `gh issue` で埋まることをユーザーに聞かない。再利用できる既存の口（[#74](https://github.com/t1a2i3t4i5/LedgerCore/issues/74) にとっての `getTransactionsByRange`）は、聞く前に見つかる
