@@ -398,4 +398,51 @@ void main() {
       isNot(contains('パートナー')),
     );
   });
+
+  test('getSplit の月レンジは半開区間 [月初, 翌月初)', () async {
+    final cats = await db.getCategories();
+    final members = await db.getMembers();
+    for (final d in [
+      DateTime(2026, 6, 30, 23, 59, 59), // 前月末 → 含まない
+      DateTime(2026, 7, 1), // 月初 → 含む
+      DateTime(2026, 7, 31, 23, 59, 59), // 月末 → 含む
+      DateTime(2026, 8, 1), // 翌月初 → 含まない
+    ]) {
+      await db.insertTransaction(
+        TransactionInput(
+          memberId: members.first.id,
+          categoryId: cats.first.id,
+          amount: 100,
+          spentAt: d,
+        ),
+      );
+    }
+
+    final split = await db.getSplit(2026, 7);
+    expect(split.total, 200);
+  });
+
+  test('getSplit の12月は翌年1月を巻き込まない', () async {
+    final cats = await db.getCategories();
+    final members = await db.getMembers();
+    for (final e
+        in {
+          DateTime(2026, 12, 31): 300.0,
+          DateTime(2027, 1, 1): 700.0,
+        }.entries) {
+      await db.insertTransaction(
+        TransactionInput(
+          memberId: members.first.id,
+          categoryId: cats.first.id,
+          amount: e.value,
+          spentAt: e.key,
+        ),
+      );
+    }
+
+    final split = await db.getSplit(2026, 12);
+    expect(split.total, 300);
+    expect(split.year, 2026);
+    expect(split.month, 12);
+  });
 }
