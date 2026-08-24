@@ -291,5 +291,102 @@ void main() {
       // 100 / 3 = 33.333... -> 33.33
       expect(split.fairShare, 33.33);
     });
+
+    test('取引が無ければ全員 0、精算不要', () {
+      final split = buildSplit(2026, 7, [], members2);
+
+      expect(split.total, 0);
+      expect(split.fairShare, 0);
+      expect(split.members.map((m) => m.balance), everyElement(0));
+      expect(split.settlement, '精算不要');
+    });
+
+    test('メンバーが1人なら全額が自分の負担で精算不要', () {
+      final members1 = [const HouseholdMember(id: 1, name: 'A')];
+      final txns = [_tx(memberId: 1, memberName: 'A', amount: 1000)];
+      final split = buildSplit(2026, 7, txns, members1);
+
+      expect(split.fairShare, 1000);
+      expect(split.members.single.balance, 0);
+      expect(split.settlement, '精算不要');
+    });
+
+    test('上限額を割っても桁が落ちない', () {
+      final members3 = [
+        const HouseholdMember(id: 1, name: 'A'),
+        const HouseholdMember(id: 2, name: 'B'),
+        const HouseholdMember(id: 3, name: 'C'),
+      ];
+      final txns = [_tx(memberId: 1, memberName: 'A', amount: kMaxAmount)];
+      final split = buildSplit(2026, 7, txns, members3);
+
+      // 999,999,999,999 / 3 = 333,333,333,333（double でも整数のまま表せる）
+      expect(split.fairShare, 333333333333);
+      expect(split.members.first.balance, 666666666666);
+    });
+
+    // 端数の扱いは「fairShare を小数第2位まで持ち、表示と精算文だけを整数に
+    // 丸める」設計。**丸めた支払額の総和は受け取り側の過不足と一致しない**
+    // （下の例では支払 3 円 × 3 人 = 9 円に対し、A の払い過ぎは 7.5 円）。
+    // 1 円を誰が吸収するかは決めていない。現状の出力を記録として固定する。
+    test('端数は各自を四捨五入して配るので、支払総額は過不足と一致しない', () {
+      final members4 = [
+        const HouseholdMember(id: 1, name: 'A'),
+        const HouseholdMember(id: 2, name: 'B'),
+        const HouseholdMember(id: 3, name: 'C'),
+        const HouseholdMember(id: 4, name: 'D'),
+      ];
+      final txns = [_tx(memberId: 1, memberName: 'A', amount: 10)];
+      final split = buildSplit(2026, 7, txns, members4);
+
+      // 10 / 4 = 2.5
+      expect(split.fairShare, 2.5);
+      expect(split.members.first.balance, 7.5);
+
+      final lines = split.settlement.split('\n');
+      expect(lines.length, 3);
+      // 2.5 は half away from zero で 3 円になる（3 × 3 = 9 ≠ 7.5）
+      expect(lines, everyElement(endsWith(' は 3 円の支払いが必要')));
+    });
+
+    // 3人以上の精算文は債務者の支払額だけを並べる形式で、受取先は書かない。
+    // 債権者が1人のときは自明だが、複数いると「誰にいくら渡すか」が読めない。
+    test('3人以上で債権者が複数いても、精算文には受取先が出ない', () {
+      final members3 = [
+        const HouseholdMember(id: 1, name: 'A'),
+        const HouseholdMember(id: 2, name: 'B'),
+        const HouseholdMember(id: 3, name: 'C'),
+      ];
+      final txns = [
+        _tx(memberId: 1, memberName: 'A', amount: 5000),
+        _tx(memberId: 2, memberName: 'B', amount: 4000),
+      ];
+      final split = buildSplit(2026, 7, txns, members3);
+
+      // 9000 / 3 = 3000 → A は +2000、B は +1000 の債権者
+      expect(split.fairShare, 3000);
+      expect(split.members.firstWhere((m) => m.memberId == 1).balance, 2000);
+      expect(split.members.firstWhere((m) => m.memberId == 2).balance, 1000);
+
+      // 出るのは債務者 C の 1 行だけ。A に 2000 / B に 1000 という内訳は無い
+      expect(split.settlement, 'C は 3000 円の支払いが必要');
+    });
+
+    test('債務者が複数なら支払額の大きい順に並ぶ', () {
+      final members3 = [
+        const HouseholdMember(id: 1, name: 'A'),
+        const HouseholdMember(id: 2, name: 'B'),
+        const HouseholdMember(id: 3, name: 'C'),
+      ];
+      final txns = [
+        _tx(memberId: 1, memberName: 'A', amount: 5400),
+        _tx(memberId: 2, memberName: 'B', amount: 600),
+      ];
+      final split = buildSplit(2026, 7, txns, members3);
+
+      // 6000 / 3 = 2000 → B は -1400、C は -2000
+      final lines = split.settlement.split('\n');
+      expect(lines, ['C は 2000 円の支払いが必要', 'B は 1400 円の支払いが必要']);
+    });
   });
 }
