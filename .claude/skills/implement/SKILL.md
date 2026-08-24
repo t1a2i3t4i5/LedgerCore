@@ -29,7 +29,7 @@ issue: `$issue`
 
 - ブランチ: !`git branch --show-current`
 - 作業ツリー: !`git status --porcelain || echo "（クリーン）"`
-- 未 push のコミット: !`git log --oneline origin/main..HEAD || echo "（なし）"`
+- 未 push のコミット: !`git log --oneline HEAD --not --remotes || echo "（なし）"`
 - open な issue: !`gh issue list --state open --limit 20 --json number,title -q '.[] | "#\(.number) \(.title)"' || echo "（取得できず）"`
 
 ## 0. 作業ツリーを確かめる
@@ -71,9 +71,11 @@ gh issue view <番号> --comments
 gh issue view <番号> --json state
 gh pr list --state open --json number,title,body,closingIssuesReferences \
   --jq '.[] | select((.closingIssuesReferences | map(.number) | index(<番号>))
-                     or ((.body // "" | split("\n")[0]) | test("#<番号>([^0-9]|$)")))
+                     or (((.body // "") | split("\n") | .[0] // "") | test("#<番号>([^0-9]|$)")))
         | "#\(.number) \(.title)"'
 ```
+
+**`.[0] // ""` を省かないこと。** 本文が空文字の PR が 1 本でもあると `"" | split("\n")` は `[""]` ではなく **`[]`** を返し、`.[0]` が `null` になって `test` が `null (null) cannot be matched` で落ちます（実測: `exit=5`）。`gh pr list` は新しい順に返すので、**そこで評価が止まり、後ろにある本物の重複 PR が見つからないまま「重複なし」と判定されます** — 中断条件 4 が丸ごと死んで、同じ issue に 2 本目の PR を作ります。
 
 - **`gh issue view` が失敗する**（番号が存在しない） → 中断して報告し、**open issue の一覧を添えます**
 - **`state` が `CLOSED`** → 中断して報告し、**クローズコメントを添えます**。勝手に着手しません（見送りの判断が済んでいることがあります）
@@ -211,7 +213,9 @@ flutter analyze
 そのテストが守るつもりの実装行（保存処理・バリデーション・整形関数のいずれか 1 行）を消すか反転させて、**そのテストが赤くなることを実測します**。緑のまま通るなら、そのテストは何も守っていません。
 
 - **落ちた** → 元に戻して進みます
-- **壊しても落ちない** → **テストを書き直してから進みます**（中断しません）
+- **壊しても落ちない** → **テストを書き直してから進みます**（中断しません）。**書き直しは 2 回まで。3 回目も緑なら中断して報告します** — 何をどう壊し、どのアサーションが動かなかったかを添えます
+
+**上限を置くのは、書き直しても永久に緑のままになる形が実在するためです。** `CLAUDE.md` の「テストの書き方」が実測として記録しているとおり、`titlesData` の 4 辺・`gridData`・ツールチップの背景色は消しても緑のままで、`BarChart.data` に直接 expect しない限り拾えません。承認ゲートが無いので、上限が無いと報告の出ないまま書き直しを続けます。
 
 issue の「テスト」節に壊し方が書かれていたら、**そのとおりの壊し方でも**確かめます。書かれていない場合でも**質問に回しません** — 上のとおり自分で壊し方を決めて実測し、**PR 本文には「issue に壊し方の記載が無かったので、どこを壊して赤を確認したか」を書きます**。「記載が無かった」だけで終えると、読み手には「壊して確かめていない」と区別が付きません。
 
@@ -246,16 +250,20 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 git push -u origin <branch>
 ```
 
-**rejected されたら、まず原因を切り分けます。** 手順 3 で `origin/main` 起点に切っている以上、原因は 2 つに分かれます。
+**rejected されたら、まず原因を切り分けます。**
 
-| 原因 | 見分け方 | やること |
+```bash
+git ls-remote --heads origin <branch>
+```
+
+| 見分け方 | 原因 | やること |
 | --- | --- | --- |
-| リモートに**同名ブランチ**が残っていて、自分の履歴を含まない | `git ls-remote --heads origin <branch>` が 1 行返る | **中断して報告します。** 前回の実行が残した跡なので、上書き（`--force`）も別名への逃げも勝手にやりません |
-| `origin/main` が進んだ | 上が空 | `git pull --rebase origin main` して再 push します |
+| 1 行返る | リモートに**同名ブランチ**が残っていて、自分の履歴を含まない | **中断して報告します。** 前回の実行が残した跡なので、上書き（`--force`）も別名への逃げも勝手にやりません |
+| 空 | **`origin/main` の進行ではありません。** push protection（秘密検出）・ブランチ保護・権限不足・pre-receive フックのいずれか | **中断して、`git push` の出力をそのまま添えて報告します。** どれも手元では直せません |
 
-**`git pull --rebase origin main` を反射的に打たないこと。** 同名ブランチが原因のときは `origin/main` を取り込むだけなので再 push もまた rejected になり、conflict も起きないので中断条件にも当たらず、どこにも着地しません。
+**`git pull --rebase origin main` を打たないこと。** 手順 3 で `origin/main` 起点の**新しい**ブランチを切っている以上、`origin/main` が進んだことで push が rejected されることはありません（新規 ref の作成に fast-forward 判定は掛からない。実測: `origin/main` を 2 コミット進めた状態でも新ブランチの push は `exit=0`）。打っても原因は何も直らず、再 push もまた rejected になり、conflict が起きないので中断条件にも当たらず、**リトライを繰り返したまま報告も出ません。**
 
-**rebase が conflict したら `git rebase --abort` して中断・報告します。自動で解決しません。**
+`git pull --rebase` を走らせるのは、ユーザーの指示で明示的に main を取り込むときだけです。**その rebase が conflict したら `git rebase --abort` して中断・報告します。自動で解決しません。**
 
 ### PR を作成する
 
@@ -293,15 +301,15 @@ PR 番号と URL、そして**次に打つコマンド**を報告します。
 | 1   | 引数なし                                 | —                                                                 | 0 件 / 1〜4 件 / 5 件以上で分岐（手順 1）。勝手に選ばない     |
 | 2   | issue 番号が存在しない                   | `gh issue view <番号>` が失敗                                     | 中断・報告。open issue の一覧を添える                          |
 | 3   | issue が closed                          | `gh issue view <番号> --json state`                               | 中断・報告。クローズコメントを添える                           |
-| 4   | 同じ issue の PR が既に open             | `gh pr list --state open --json number,title,body,closingIssuesReferences` を `closingIssuesReferences` と**本文 1 行目**で絞る（手順 1 の式。`--search` は使わない） | 中断・報告。PR 番号を添える |
+| 4   | 同じ issue の PR が既に open             | `gh pr list --state open --json number,title,body,closingIssuesReferences` を `closingIssuesReferences` と**本文 1 行目**で絞る（手順 1 の式。`--search` は使わない。`.[0] // ""` を省くと空本文の PR で式ごと落ちる） | 中断・報告。PR 番号を添える |
 | 5   | 作業ツリーが汚れている                   | `git status --porcelain` の先頭が `??` でない行が 1 行以上        | 中断・報告。`git stash` も `git commit` もしない               |
 | 6   | 未 push のコミットがある                 | `git log --oneline HEAD --not --remotes` が 1 行以上（`origin/main..HEAD` で数えない） | 中断・報告                              |
 | 7   | 仕様に穴がある                           | 手順 2 の 3 条件                                                   | `AskUserQuestion` で 1 バッチ（最大 4 問）。回答を待つあいだコードを書かない |
 | 8   | テーブル定義を変えたのに生成物に差分が出ない | `git status` に `lib/db/database.g.dart` が出ない（**`kMaxAmount` だけ変えた回は差分が出ないのが正常**） | 中断・報告。`build_runner` のキャッシュを疑う |
 | 9   | テストが落ちる・**返ってこない** / `error` が出る | `flutter test`（10 分を超えたら打ち切る）と `flutter analyze`（`error` だけを見る） | 直せなければ中断・報告。落ちたまま PR を作らない |
 | 10  | issue に壊し方の記載が無い               | —                                                                 | 質問に回さない。**自分で壊し方を決めて赤を実測し**、何を壊したかを PR 本文に書く |
-| 11  | 壊してもテストが落ちない                 | —                                                                 | テストを書き直してから進む（中断しない）                       |
-| 12  | push が rejected / rebase が conflict    | `git ls-remote --heads origin <branch>` で原因を切り分ける        | 同名ブランチが残っているなら中断・報告。conflict は `git rebase --abort` して中断・報告。自動で解決しない |
+| 11  | 壊してもテストが落ちない                 | —                                                                 | 書き直してから進む。**3 回目も緑なら中断・報告**               |
+| 12  | push が rejected / rebase が conflict    | `git ls-remote --heads origin <branch>` で原因を切り分ける        | **どちらの結果でも中断・報告**（1 行返る＝同名ブランチ残存／空＝push protection や権限。`git pull --rebase origin main` は打たない）。conflict は `git rebase --abort` して中断・報告。自動で解決しない |
 
 ## 規約はここに写さない
 
