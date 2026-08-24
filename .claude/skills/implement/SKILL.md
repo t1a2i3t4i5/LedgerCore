@@ -16,12 +16,12 @@ issue: `$issue`
 | 0   | **作業ツリーを確かめる** — `flutter pub get` より前に見る                                     | 作業ツリーが汚れている・現在のブランチに未 push のコミットがある     |
 | 1   | **issue と規約を読む** — 全文とコメント、`CLAUDE.md`、領域に応じた `docs/*.md`。最後に `flutter pub get` を 1 回通す | issue が存在しない・closed・同じ issue の PR が既に open              |
 | 2   | **着手可否を判定する** — 「対象外」と「受け入れ条件」を作業リストに写し、仕様の穴だけを聞く   | （なし。穴は質問で埋める）                                            |
-| 3   | **ブランチを切る** — `origin/main` 起点                                                        | `git fetch` が失敗                                                    |
+| 3   | **ブランチを切る** — `origin/main` 起点                                                        | `git fetch` が失敗・同名ブランチが既にある                            |
 | 4   | **実装する** — 既存の口を再利用する                                                            | 仕様の穴が新たに出た（追加の質問バッチを 1 回だけ許す）              |
-| 5   | **生成物を再生成する** — DB 定義を触った場合のみ                                               | 定義を変えたのに生成物に差分が出ない                                  |
-| 6   | **テストする** — 壊し方があれば実際に落ちることを確かめる                                      | 落ちるテスト・`error` を直せなかった                                  |
+| 5   | **生成物を再生成する** — スキーマ定義を触った場合のみ                                          | テーブル定義を変えたのに生成物に差分が出ない                          |
+| 6   | **テストする** — 書いたテストを壊して赤くなることを確かめる                                    | 落ちるテスト・`error` を直せなかった・テストが返ってこない            |
 | 7   | **docs を追従させる**                                                                          | （なし）                                                              |
-| 8   | **コミット → push → PR 作成 → 報告**                                                        | rebase が conflict した                                               |
+| 8   | **コミット → push → PR 作成 → 報告**                                                        | 同名ブランチで rejected・rebase が conflict した                      |
 
 **承認ゲートは置きません**（既定値。変更する場合はコメントで指示）。止まるのは中断条件と、仕様の穴を聞くときだけです。
 
@@ -38,11 +38,13 @@ issue: `$issue`
 
 ```bash
 git status --porcelain
-git log --oneline origin/main..HEAD
+git log --oneline HEAD --not --remotes
 ```
 
 - **`git status --porcelain` の先頭が `??` でない行が 1 行以上** → 中断して報告します。**`git stash` も `git commit` も勝手にしません**（ユーザーが作業中の変更を勝手に動かさない）
-- **`git log --oneline origin/main..HEAD` が 1 行以上** → 中断して報告します。手順 3 でブランチを切ると、そのコミットが置き去りになります。`origin/main` との差分で見るので、upstream の設定に依存しません
+- **`git log --oneline HEAD --not --remotes` が 1 行以上** → 中断して報告します。まだ PR になっていない作業が残っている状態で別の issue に着手すると、どのブランチに何を残したか分からなくなります
+
+**`origin/main..HEAD` で数えないこと。** それは「未 push のコミット」ではなく「`origin/main` に無いコミット」で、**push 済みの feature ブランチでも必ず 1 行以上返ります**（前の PR がマージ待ちのあいだ、次の issue に一切着手できなくなる）。`HEAD --not --remotes` は「どのリモート追跡ブランチにも無いコミット」なので、push 済みなら空になり、upstream の設定にも依存しません。
 
 未追跡ファイル（`??`）だけがある状態は「汚れている」に**含めません**。一時ファイルが 1 つ残っているだけで着手できなくなるためです。ただし**報告にはパスを列挙します**。
 
@@ -52,7 +54,7 @@ worktree の中で動いている場合は、そのまま使います。新し�
 
 ### 引数を解決する
 
-先頭の `#` と全角 `＃` を落とします（`＃7着手してください` の形で来ます）。
+**先頭に現れる連続した数字だけを取り出します。** 前後の記号（`#` / 全角 `＃`）も、後ろに続く日本語も落とします。自然文がそのまま渡ることがあるためで、`＃7着手してください` は `7`、`issue#52 着手して` は `52` です。**落とし損ねると `gh issue view 7着手してください` を実行して失敗し、実在する issue を「番号が存在しない」と誤って報告します。**
 
 **引数が無いとき**は open な issue を**番号の昇順**で出し、次のとおり分岐します。**勝手に選びません。**
 
@@ -67,12 +69,17 @@ worktree の中で動いている場合は、そのまま使います。新し�
 ```bash
 gh issue view <番号> --comments
 gh issue view <番号> --json state
-gh pr list --state open --search "<番号>"
+gh pr list --state open --json number,title,body,closingIssuesReferences \
+  --jq '.[] | select((.closingIssuesReferences | map(.number) | index(<番号>))
+                     or ((.body // "" | split("\n")[0]) | test("#<番号>([^0-9]|$)")))
+        | "#\(.number) \(.title)"'
 ```
 
 - **`gh issue view` が失敗する**（番号が存在しない） → 中断して報告し、**open issue の一覧を添えます**
 - **`state` が `CLOSED`** → 中断して報告し、**クローズコメントを添えます**。勝手に着手しません（見送りの判断が済んでいることがあります）
-- **同じ issue の PR が既に open** → 中断して報告し、**PR 番号を添えます**
+- **同じ issue の PR が既に open**（上のコマンドが 1 行以上返す） → 中断して報告し、**PR 番号を添えます**
+
+**`gh pr list --search "<番号>"` で判定しないこと。** `--search` は番号ではなく全文検索なので、**本文のどこかにその数字が現れるだけの無関係な PR に当たります**（open な PR が 1 本あるだけで `/implement 52` も `/implement 7` も「PR が既に open」で止まる）。上の式は GitHub が正式に紐付けた `closingIssuesReferences` と、**本文 1 行目**の参照だけを見ます（手順 8 で 1 行目に `Closes #<番号>` か `#<番号>` を書くと決めているため）。
 
 コメントまで読みます。仕様の変更や追加の判断が、コメント側にだけ書かれていることがあります。
 
@@ -82,13 +89,15 @@ gh pr list --state open --search "<番号>"
 
 | 触る領域                        | 追加で読む                                                     |
 | ------------------------------- | -------------------------------------------------------------- |
-| 常に                            | `CLAUDE.md`、`docs/issue-writing.md` の別名表（14-20 行）      |
+| 常に                            | `CLAUDE.md`、`docs/issue-writing.md` の別名表（11-19 行）      |
+| **テストを 1 行でも書くなら**   | **`docs/testing.md`**                                           |
 | `lib/db/`                       | `docs/db-schema.md`                                             |
-| `test/`                         | `docs/testing.md`                                               |
 | `lib/` の `db/` 以外            | `docs/design-notes.md`                                          |
 | `docs/` / `.github/` の issue 関連 | `docs/issue-writing.md`                                      |
 
-「触る領域」は issue の「追加・変更するファイル」（ツリー図）を根拠に決めます。**それが無い issue では 4 つとも読みます。** この時点では領域が確定していないので、狭く見積もると `test/` を書くのに `docs/testing.md` を読まない経路ができます。
+「触る領域」は issue の「追加・変更するファイル」（ツリー図）を根拠に決めます。**それが無い issue では 4 つとも読みます。**
+
+**`docs/testing.md` だけは「ツリー図に `test/` があるか」で判定しないこと。** issue のツリー図は実装ファイルだけを挙げ、テストは「テスト」節に文章で書くのが普通なので、ツリー図で判定すると**テストを書く回のほとんどで読まれません**。読み落とすと抜けるのは「破っても静かに緑になる」規約ばかりで（画面サイズ、`didExceedMaxLines`、幅テストのカテゴリ名、行の束ね方、`clock` の注入）、手順 6 は全件緑なので中断しません。**テストを書く可能性が少しでもあるなら読みます。**
 
 ### `flutter pub get` を通す
 
@@ -108,7 +117,7 @@ flutter pub get
 
 節の骨格を定めた `docs/issue-writing.md` より前に書かれた issue が大半です。**節名のリテラル一致で分岐すると、issue が既に答えていることを聞き直したうえで、範囲指定を捨てることになります。**
 
-別名の唯一の情報源は `docs/issue-writing.md:14-20` の表です。そこに載っていないものだけをここに足します。
+別名の唯一の情報源は `docs/issue-writing.md:11-19` の表です（11 がヘッダ、12 が区切り、13-19 が本体）。そこに載っていないものだけをここに足します。**14 行目から読み始めると、最頻の別名群を持つ 1 行目（`事象` ← `背景` / `問題` / `現状` ほか。`背景` だけで既存 22 件）とヘッダが範囲から落ちます。**
 
 | 役割       | 正式名     | 表に無い別名        |
 | ---------- | ---------- | ------------------- |
@@ -143,7 +152,10 @@ flutter pub get
 git fetch origin && git switch -c <prefix>/<kebab-case> origin/main
 ```
 
-`git fetch` が失敗したら中断して報告します。
+中断する条件は 2 つです。
+
+- **`git fetch` が失敗した** → 中断して報告します
+- **`git switch -c` が `a branch named '...' already exists` で落ちた** → 中断して報告します。同じ issue を前に途中まで進めた跡なので、**勝手に `-B` で上書きしたり、別名に逃がしたりしません**。残っているブランチの中身（`git log --oneline origin/main..<branch>`）を添えて、続きからやるか作り直すかをユーザーに決めてもらいます
 
 **`main` に切り替えず、`origin/main` から直接切ります。** worktree の中では `main` が親 worktree に占有されていて `git switch main` が落ちるためです（`docs/git-workflow.md` の「worktree から `gh pr merge` すると…」と同じ制約）。`origin/main` 起点なら worktree でも通常の作業ツリーでも同じ 1 行で済み、分岐が要りません。
 
@@ -158,19 +170,25 @@ git fetch origin && git switch -c <prefix>/<kebab-case> origin/main
 
 実装中に**新たな仕様の穴**（手順 2 の 3 条件）が出たら、そこで止めて `AskUserQuestion` を **1 回だけ**追加で出します。それ以外は既定値で決めて進み、決めたことは PR 本文に残します。
 
+**`pubspec.yaml` を触ったら、その場ですぐ `flutter pub get` を走らせます**（手順 5 まで待たない）。依存や SDK 下限を変えた直後に `.dart` を編集すると、`PostToolUse` フックの `dart format` が `.dart_tool/package_config.json` の**古い `languageVersion`** で整形し、旧スタイルへ書き戻った差分が PR に混ざります。
+
 ## 5. 生成物を再生成する
 
-**`lib/db/database.dart` のテーブル定義か `@DriftDatabase` を触った場合だけ**走らせます。触っていないなら飛ばします。
+**スキーマ定義を触った場合だけ**走らせます。触っていないなら飛ばします。スキーマ定義は 2 か所にあります。
 
-| 触ったもの                      | 走らせるもの                                                    |
-| ------------------------------- | ---------------------------------------------------------------- |
-| テーブル定義 / `@DriftDatabase` | `dart run build_runner build`                                     |
-| `schemaVersion` を上げた        | 上に加えて `drift_dev schema dump` / `drift_dev schema generate` |
-| `pubspec.yaml`                  | `flutter pub get`（手順 1 とは別にもう一度）                     |
+| 触ったもの                                          | 走らせるもの                                                     |
+| --------------------------------------------------- | ----------------------------------------------------------------- |
+| `lib/db/database.dart` のテーブル定義 / `@DriftDatabase` | `dart run build_runner build`                                 |
+| **`lib/models/transaction.dart` の `kMaxAmount`**    | **`build_runner` では差分が出ない。**下の注意を読む               |
+| `schemaVersion` を上げた                            | `drift_dev schema dump` / `drift_dev schema generate`             |
 
 コマンドの正確な形は `README.md` の「開発コマンド」、生成物を git に含める条件は `CLAUDE.md` の「drift のコード生成」にあります。
 
-**定義を変えたのに `git status` に `lib/db/database.g.dart` が出てこないときは中断して報告します。** `build_runner` のキャッシュが古い成功表示を返している可能性があります（成功と出ても `.g.dart` が古いままになる）。
+**`kMaxAmount` はスキーマ定義値です**（根拠は `docs/design-notes.md` の金額の節。CHECK 制約にリテラルとして焼き込まれます）。`database.dart` を 1 行も触らずに上限だけ変える issue でも、**`schemaVersion` のインクリメント・`onUpgrade`・固定スキーマの再生成が要ります**。`lib/db/database.dart` に差分が出ないことを理由にこの手順を飛ばさないこと。
+
+**中断するのは、テーブル定義か `@DriftDatabase` を変えたのに `git status` に `lib/db/database.g.dart` が出てこないときだけです。** `build_runner` のキャッシュが古い成功表示を返している可能性があります（成功と出ても `.g.dart` が古いままになる）。
+
+**`kMaxAmount` だけを変えた回はここで中断しないこと。** `database.g.dart` は `kMaxAmount` を**シンボルのまま**参照しているので、値を変えても生成物に差分は出ません（実測: `build_runner build` を回しても `git status` に `.g.dart` は出ない）。差分が出ないのが正常で、キャッシュの不整合ではありません。この回に効くのは固定スキーマの再生成のほうで、怠ると `test/database_migration_test.dart` が 11 件赤くなります（実測）。
 
 ## 6. テストする
 
@@ -184,26 +202,33 @@ flutter analyze
 
 直せなかったとき（落ちるテスト・残った `error`）に中断して報告します。**落ちたまま PR を作りません。**
 
+**`flutter test` には上限時間を決めて実行します。** 全件でも 1 分程度で終わるので、**10 分を超えたら中断して報告します**。落ちるのではなく**返ってこない**失敗があるためです — 代表例は `testWidgets` の中で `logger.flush()` を待つ形で、擬似時間のゾーンに積まれたキューは返らず、赤にもならずに沈黙します（`docs/testing.md`）。承認ゲートを置かない設計なので、上限を決めないとユーザーには何の報告も出ないまま数十分止まります。
+
 ### 壊して確かめる
 
-issue の「テスト」節に壊し方が書かれていたら、**実際にそのとおり壊して、テストが落ちることを確かめてから元に戻します。**
+**自分が新しく書いたテストは、issue に壊し方の記載があるかに関わらず、必ず壊して確かめます。**
 
-- **落ちた** → そのまま進みます
-- **壊しても落ちない** → そのテストは何も守っていません。**テストを書き直してから進みます**（中断しません）
+そのテストが守るつもりの実装行（保存処理・バリデーション・整形関数のいずれか 1 行）を消すか反転させて、**そのテストが赤くなることを実測します**。緑のまま通るなら、そのテストは何も守っていません。
 
-**壊し方が書かれていない issue では、質問に回しません。** `flutter test` と `flutter analyze` の全件通過で進み、**PR 本文に「issue に壊し方の記載が無かった」と書きます**。
+- **落ちた** → 元に戻して進みます
+- **壊しても落ちない** → **テストを書き直してから進みます**（中断しません）
 
-壊したら必ず元に戻します。戻し方は「壊す前の内容を控えておき、`Edit` で書き戻す」です。**`git checkout -- <file>` を使わないこと** — 同じファイルにある実装中の変更ごと消え、復元できません。
+issue の「テスト」節に壊し方が書かれていたら、**そのとおりの壊し方でも**確かめます。書かれていない場合でも**質問に回しません** — 上のとおり自分で壊し方を決めて実測し、**PR 本文には「issue に壊し方の記載が無かったので、どこを壊して赤を確認したか」を書きます**。「記載が無かった」だけで終えると、読み手には「壊して確かめていない」と区別が付きません。
+
+壊したら必ず元に戻します。戻し方は「壊す前の内容を控えておき、`Edit` で書き戻す」です。**`git checkout -- <file>` を使わないこと** — 同じファイルにある実装中の変更ごと消え、復元できません。最後に `git status` が壊す前と一致することを確認します。
 
 ## 7. docs を追従させる
 
-| 変えたもの             | 追従先                                  |
-| ---------------------- | ---------------------------------------- |
-| スキーマ               | `docs/db-schema.md`                      |
-| 新しい設計上の約束     | `docs/design-notes.md` と `CLAUDE.md`   |
-| git / issue の運用     | `docs/git-workflow.md` / `docs/issue-writing.md` |
+| 変えたもの                                       | 追従先                                            |
+| ------------------------------------------------ | -------------------------------------------------- |
+| スキーマ                                         | `docs/db-schema.md`                                |
+| 新しい設計上の約束                               | `docs/design-notes.md` と `CLAUDE.md`             |
+| **新しいテスト規約**（共通ヘルパ、「〜を使わない」、今回踏んだ罠） | **`docs/testing.md` と `CLAUDE.md`** |
+| git / issue の運用                               | `docs/git-workflow.md` / `docs/issue-writing.md`  |
 
 条件は `CLAUDE.md` の各節にあります。**同じコミットに含めます。**
+
+**テスト規約の行を忘れないこと。** `CLAUDE.md` の「テストの書き方」は `docs/testing.md` へのリンク付き要約で、根拠は `testing.md` にだけ置く約束です。両方に書き足さないと、次に `/implement` や `/independent-review` が `testing.md` を唯一の情報源として読んだとき、その約束は存在しないものとして扱われ、同じ事故が再発します。
 
 ## 8. コミット → push → PR 作成 → 報告
 
@@ -221,7 +246,16 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 git push -u origin <branch>
 ```
 
-**rejected されたら `git pull --rebase origin main` して再 push します。** **conflict したら `git rebase --abort` して中断・報告します。自動で解決しません。**
+**rejected されたら、まず原因を切り分けます。** 手順 3 で `origin/main` 起点に切っている以上、原因は 2 つに分かれます。
+
+| 原因 | 見分け方 | やること |
+| --- | --- | --- |
+| リモートに**同名ブランチ**が残っていて、自分の履歴を含まない | `git ls-remote --heads origin <branch>` が 1 行返る | **中断して報告します。** 前回の実行が残した跡なので、上書き（`--force`）も別名への逃げも勝手にやりません |
+| `origin/main` が進んだ | 上が空 | `git pull --rebase origin main` して再 push します |
+
+**`git pull --rebase origin main` を反射的に打たないこと。** 同名ブランチが原因のときは `origin/main` を取り込むだけなので再 push もまた rejected になり、conflict も起きないので中断条件にも当たらず、どこにも着地しません。
+
+**rebase が conflict したら `git rebase --abort` して中断・報告します。自動で解決しません。**
 
 ### PR を作成する
 
@@ -259,15 +293,15 @@ PR 番号と URL、そして**次に打つコマンド**を報告します。
 | 1   | 引数なし                                 | —                                                                 | 0 件 / 1〜4 件 / 5 件以上で分岐（手順 1）。勝手に選ばない     |
 | 2   | issue 番号が存在しない                   | `gh issue view <番号>` が失敗                                     | 中断・報告。open issue の一覧を添える                          |
 | 3   | issue が closed                          | `gh issue view <番号> --json state`                               | 中断・報告。クローズコメントを添える                           |
-| 4   | 同じ issue の PR が既に open             | `gh pr list --state open --search "<番号>"`                       | 中断・報告。PR 番号を添える                                    |
+| 4   | 同じ issue の PR が既に open             | `gh pr list --state open --json number,title,body,closingIssuesReferences` を `closingIssuesReferences` と**本文 1 行目**で絞る（手順 1 の式。`--search` は使わない） | 中断・報告。PR 番号を添える |
 | 5   | 作業ツリーが汚れている                   | `git status --porcelain` の先頭が `??` でない行が 1 行以上        | 中断・報告。`git stash` も `git commit` もしない               |
-| 6   | 未 push のコミットがある                 | `git log --oneline origin/main..HEAD` が 1 行以上                 | 中断・報告                                                     |
+| 6   | 未 push のコミットがある                 | `git log --oneline HEAD --not --remotes` が 1 行以上（`origin/main..HEAD` で数えない） | 中断・報告                              |
 | 7   | 仕様に穴がある                           | 手順 2 の 3 条件                                                   | `AskUserQuestion` で 1 バッチ（最大 4 問）。回答を待つあいだコードを書かない |
-| 8   | 定義を変えたのに生成物に差分が出ない     | `git status` に `lib/db/database.g.dart` が出ない                 | 中断・報告。`build_runner` のキャッシュを疑う                  |
-| 9   | テストが落ちる / `error` が出る          | `flutter test` と `flutter analyze`（`error` だけを見る）         | 直せなければ中断・報告。落ちたまま PR を作らない               |
-| 10  | issue に壊し方の記載が無い               | —                                                                 | 質問に回さない。全件通過で進み、PR 本文に書く                  |
+| 8   | テーブル定義を変えたのに生成物に差分が出ない | `git status` に `lib/db/database.g.dart` が出ない（**`kMaxAmount` だけ変えた回は差分が出ないのが正常**） | 中断・報告。`build_runner` のキャッシュを疑う |
+| 9   | テストが落ちる・**返ってこない** / `error` が出る | `flutter test`（10 分を超えたら打ち切る）と `flutter analyze`（`error` だけを見る） | 直せなければ中断・報告。落ちたまま PR を作らない |
+| 10  | issue に壊し方の記載が無い               | —                                                                 | 質問に回さない。**自分で壊し方を決めて赤を実測し**、何を壊したかを PR 本文に書く |
 | 11  | 壊してもテストが落ちない                 | —                                                                 | テストを書き直してから進む（中断しない）                       |
-| 12  | rebase が conflict                       | —                                                                 | `git rebase --abort` して中断・報告。自動で解決しない          |
+| 12  | push が rejected / rebase が conflict    | `git ls-remote --heads origin <branch>` で原因を切り分ける        | 同名ブランチが残っているなら中断・報告。conflict は `git rebase --abort` して中断・報告。自動で解決しない |
 
 ## 規約はここに写さない
 
