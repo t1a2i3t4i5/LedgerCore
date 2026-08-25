@@ -153,6 +153,12 @@ Provider にも `LedgerApp` にも `logger` を任意引数で渡せるので、
 コンストラクタ引数にしてあるのは、**`path_provider` がプラグインで素の `flutter test` では答えない**ため。
 パスの解決は `main.dart` の `_createLogger` に閉じてあり、そこはテストしない。
 
+失敗ログは `expect(entry['error'], isNotNull)` で終わらせない。理由（`CHECK constraint failed` など）まで見る。例外は `test/matchers.dart` のマッチャで型と文言を縛る。
+
+機微な値が漏れないことのテストは実 DB を失敗させて書く。手で組んだ例外文字列だけでは `sqlite3` の書式変更を捕まえられない。
+
+sink を注入していない対象に `expect(sink.lines, isEmpty)` を書かない。実装が何をしても真になる。
+
 ## 行の書式は文字列そのものを期待値に置く
 
 `toJsonLine()` の検証で `jsonDecode` して `Map` を比べると、**キーの順が入れ替わっても通ってしまう**。
@@ -189,3 +195,7 @@ Provider にも `LedgerApp` にも `logger` を任意引数で渡せるので、
 
 **閉じた DB への削除は使えない。** `deleteTransaction(1)` は存在しない行を 0 件削除しただけの扱いで
 正常終了し、`expectLater(..., throwsA(anything))` が「例外が飛ばなかった」で落ちる。
+
+カテゴリ・メンバーの追加／改名は 51 文字の名前で落ちる（`withLength(max: 50)` の drift 側検証）。取引の削除だけは制約で落とせないので `customStatement` で `BEFORE DELETE` トリガを張る。
+
+`fetch()` の失敗は DB を閉じて起こすが、**閉じる前に 1 度読んで開かせる**。一度も開いていない DB は `close()` しても開き直せてしまい失敗しない。

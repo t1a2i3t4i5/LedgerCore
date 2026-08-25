@@ -91,7 +91,7 @@ gh pr list --state open --json number,title,body,closingIssuesReferences \
 
 | 触る領域                        | 追加で読む                                                     |
 | ------------------------------- | -------------------------------------------------------------- |
-| 常に                            | `CLAUDE.md`、`docs/issue-writing.md` の別名表（11-19 行）      |
+| 常に                            | `CLAUDE.md`、`docs/issue-writing.md` の「本文」                |
 | **テストを 1 行でも書くなら**   | **`docs/testing.md`**                                           |
 | `lib/db/`                       | `docs/db-schema.md`                                             |
 | `lib/` の `db/` 以外            | `docs/design-notes.md`                                          |
@@ -119,7 +119,7 @@ flutter pub get
 
 節の骨格を定めた `docs/issue-writing.md` より前に書かれた issue が大半です。**節名のリテラル一致で分岐すると、issue が既に答えていることを聞き直したうえで、範囲指定を捨てることになります。**
 
-別名の唯一の情報源は `docs/issue-writing.md:11-19` の表です（11 がヘッダ、12 が区切り、13-19 が本体）。そこに載っていないものだけをここに足します。**14 行目から読み始めると、最頻の別名群を持つ 1 行目（`事象` ← `背景` / `問題` / `現状` ほか。`背景` だけで既存 22 件）とヘッダが範囲から落ちます。**
+現行の本文形式は `docs/issue-writing.md` の「本文」を正本とします。古い issue で使われている別名のうち、そこに無いものだけをここに足します。
 
 | 役割       | 正式名     | 表に無い別名        |
 | ---------- | ---------- | ------------------- |
@@ -161,7 +161,7 @@ git fetch origin && git switch -c <prefix>/<kebab-case> origin/main
 
 **`main` に切り替えず、`origin/main` から直接切ります。** worktree の中では `main` が親 worktree に占有されていて `git switch main` が落ちるためです（`docs/git-workflow.md` の「worktree から `gh pr merge` すると…」と同じ制約）。`origin/main` 起点なら worktree でも通常の作業ツリーでも同じ 1 行で済み、分岐が要りません。
 
-- **接頭辞** — `docs/git-workflow.md:67-74` のブランチ命名規則の表から、issue の内容で選びます
+- **接頭辞** — `docs/git-workflow.md` の「ブランチ命名規則」の表から、issue の内容で選びます
 - **ブランチ名** — `kebab-case`。**issue 番号は付けません**（既定値）。例外は 1 つの issue を複数 PR に分けるときだけです（`feat/9-period-bar-chart` / `feat/9-summary-period-ui`）
 
 ## 4. 実装する
