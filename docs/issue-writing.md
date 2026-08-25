@@ -51,10 +51,10 @@ DB移行などの高リスク変更では、移行後のデータ、失敗時の
 
 ## 作成時の確認
 
-ユーザーが「issueを作って」「起票して」と明示した依頼は、issue作成までを承認済みとして扱う。重要な仕様判断が残っていなければ、本文を再掲してもう一度承認を求めない。
+ユーザーが「issueにして」「issueを作って」「起票して」と明示した依頼は、issue作成までを承認済みとして扱う。重要な仕様判断が残っていなければ、本文を再掲してもう一度承認を求めない。
 
 「issueの形に整理したい」「案を見たい」という依頼では作成せず、本文案を提示する。
 
 明らかな重複がないかは作成前に確認する。ただし、過去の全issue・PRを網羅的に調査することは通常の必須工程にしない。
 
-テンプレートは [`.github/ISSUE_TEMPLATE/issue.md`](../.github/ISSUE_TEMPLATE/issue.md)、AIからの起票手順は [`.agents/skills/write-issue/SKILL.md`](../.agents/skills/write-issue/SKILL.md) に置く。
+テンプレートは [`.github/ISSUE_TEMPLATE/issue.md`](../.github/ISSUE_TEMPLATE/issue.md)、AIからの起票手順は [`.claude/skills/write-issue/SKILL.md`](../.claude/skills/write-issue/SKILL.md) に置く。
