@@ -7,7 +7,7 @@
 - **GitHub Flow** を採用
 - `main` は常にデプロイ可能な状態を保つ(直接 push しない)
 - 機能・修正ごとにブランチを切る
-- PR を作成して **Claude にレビュー** させる
+- PR を作成し、**変更リスクに応じた方式でレビュー**する
 - マージは **squash merge + ブランチ自動削除**
 
 ## issue は必須ではない
@@ -114,23 +114,47 @@ gh pr create --title "予算アラート機能の追加" --body "..."
 
 PR を作成・更新すると GitHub Actions の `Analyze` と `Test` が並列に動き、静的解析と全テストを確認する。通常のローカル開発では変更に関係するテストを優先し、全体確認は PR 上の CI に任せる。CI の結果を待つ間もローカル作業を続けてよいが、失敗したチェックはマージ前に原因を確認して修正する。
 
-### Step 6. Claude にレビューさせる
+### Step 6. レビューする — 変更リスクで方式を選ぶ
+
+変更内容を次の 3 段階に分けて、レビュー方式を選びます。**この表と直後の高リスク条件が、リスク判定の唯一の情報源です。** 高リスク条件を先に確認し、1 つでも該当すれば高リスク、該当しなければ通常とします。
+
+| 段階 | レビュー方式 | 実行者 |
+| --- | --- | --- |
+| 軽微 | レビューなし（CI のみ） | — |
+| 通常 | 別コンテキストのレビュアー 1 名（`/quick-review`） | Claude が自発起動してよい |
+| 高リスク | 3 者独立レビュー（`/independent-review`） | ユーザーが明示的に実行する |
+
+#### 高リスク条件
+
+次のどれか 1 つでも該当する変更は、高リスクとして扱います。
+
+- **DB スキーマ・マイグレーション**: `lib/db/database.dart` / `lib/db/database.g.dart` / `drift_schemas/**` / `test/generated_migrations/**` のいずれかに差分がある。`schemaVersion` の変更を含む場合は無条件で該当する
+- **金額・集計・割り勘の計算**: `lib/db/summary_calculator.dart` / `lib/models/summary.dart` / `lib/models/split.dart` / `lib/models/transaction.dart` に差分がある。`lib/models/transaction.dart` の `kMaxAmount` は DB の CHECK 制約の根拠でもある
+- **金額の整形**: `lib/widgets/amount_format.dart` に差分がある。`formatYen()` の書式を DB の整数 CHECK 制約が根拠にしている
+- **既存データの削除・上書き**: `lib/db/database.dart` の `deleteTransaction` / `deleteCategory` / `deleteMember`、またはそれを呼ぶ Provider の `delete*` / `update*` を追加・変更する
+- **プライバシー**: `lib/logging/log_entry.dart` の `sanitizeError`、または `OperationLogger` の `detail` に載せる値を追加・変更する。メモ本文と検索語をログに出さない約束に直結する
+- **Dart SDK の下限**: `pubspec.yaml` の `environment.sdk` 下限を変更する。全 `.dart` ファイルの再整形を招くため、コード変更がなくても高リスクとする（`CLAUDE.md` の「コード整形」参照）
+
+上記に該当しない `lib/**` / `test/**` のコード変更と、`.github/workflows/**` / `.claude/**` / `docs/**` / `README.md` / `CLAUDE.md` / `pubspec.yaml` / `pubspec.lock` の変更は通常です。ただし、意味を変えない Markdown 修正（typo、リンク切れ、表記ゆれ、整形）だけの差分と、高リスク条件に該当しない生成物の再生成だけで手書きコードに差分がない回は軽微です。軽微でも PR は作り、`.github/workflows/ci.yml` の `Analyze` / `Test` を従来どおり通します。
 
 Claude Code 内で次のスラッシュコマンドを実行します。
 
-| コマンド              | 用途                                       |
-| --------------------- | ------------------------------------------ |
-| `/independent-review` | 観点を分けた 3 人の独立レビュアーで多角レビュー(正確性 / 設計上の約束 / テスト・ドキュメント) |
-| `/review <PR 番号>`   | GitHub 上の PR をレビュー                  |
-| `/code-review`        | 手元の作業差分を軽量レビュー(コード品質・可読性) |
-| `/code-review ultra`  | 多角的レビュー(複数エージェントによるクラウドレビュー、課金あり) |
-| `/security-review`    | セキュリティ観点のレビュー                 |
+| コマンド | いつ使うか |
+| --- | --- |
+| `/quick-review` | 通常リスクの変更を、別コンテキストの 1 名でレビューする |
+| `/independent-review` | 高リスクの変更、またはユーザーが明示的に依頼した変更を、観点を分けた 3 名でレビューする |
+| `/review <PR 番号>` | GitHub 上の PR をレビューする |
+| `/code-review` | 手元の作業差分を軽量レビューする（コード品質・可読性） |
+| `/code-review ultra` | 複数エージェントで多角的にレビューする（課金あり） |
+| `/security-review` | セキュリティ観点でレビューする |
 
 `/code-review ultra` は引数なしで現在のブランチ全体、`/code-review ultra <PR 番号>` で GitHub 上の PR を対象にできます。課金が発生するためユーザー自身が実行する必要があり、Claude 側から起動することはできません。
 
 > かつての `/ultrareview` は `/code-review ultra` の非推奨エイリアスです。新しく書く場合は `/code-review ultra` を使ってください。
 
 #### `/independent-review` — 別コンテキストの 3 人でレビューする
+
+これは全 PR の標準工程ではなく、**高リスク段階の変更、またはユーザーが明示的に依頼したとき**に使います。
 
 自分が書いたコードを同じ文脈でレビューしても、自分の前提をなぞるだけで欠陥が出にくいという問題があります。`/independent-review` は観点を分けた 3 体のサブエージェント(`.claude/agents/reviewer-*.md`)を並列に起動し、それぞれ**独立したコンテキスト**で差分だけを見せてレビューさせ、結果を統合します。
 
@@ -152,6 +176,15 @@ Claude Code 内で次のスラッシュコマンドを実行します。
 - **再現しなかった指摘も報告に残します。** もっともらしいが誤った指摘は必ず混ざるので、黙って消さず理由とともに残し、同じ誤指摘の再発を防ぎます
 
 `/code-review ultra` は課金が発生するためユーザー自身が実行する必要があります。`/independent-review` は通常のサブエージェントで動きますが、こちらも **`disable-model-invocation: true` を付けてあるので Claude 側からは起動できません**（`.claude/skills/independent-review/SKILL.md`）。レビューを頼むタイミングが明確で、かつ 3 体同時起動のコストが読みにくいため、ユーザーが `/independent-review` と打って明示的に起動する形にしてあります。
+
+#### `/quick-review` — 別コンテキストの 1 人でレビューする
+
+`/quick-review` は通常段階の標準工程です。正確性・設計上の約束・テスト／ドキュメントを、別コンテキストのレビュアー 1 名がまとめて見ます。手順の詳細は、プロジェクトスキルの本体である [`.claude/skills/quick-review/SKILL.md`](../.claude/skills/quick-review/SKILL.md) が唯一の情報源です。
+
+- **別コンテキストの AI 1 名に固定します。** 同一セッションの AI は自分の前提をなぞるだけで欠陥が出にくく、人間の担当者を固定すると待ちが入って軽量化になりません。PR #82 では、別コンテキストの 1 名が中程度の不整合を 2 件見つけた実績があります
+- **Claude が自発的に起動できます。** 標準工程を自然文の依頼でも動かすため、`/implement` と同じ判断で `disable-model-invocation` を付けません
+- **実測はしません。** 報告だけで終わり、[致命] または [重大] が出た場合は `/independent-review` へ引き上げます。実測が必要な指摘は、そちらで直列に検証します
+- **高リスク差分はレビューしません。** 渡された対象が高リスク条件に該当したら、`/independent-review` を案内して終了します
 
 > `.claude/agents/` や `.claude/skills/` を**新しく追加した直後**は、Claude Code の再起動が必要です。セッション開始時に存在しなかったディレクトリは監視対象にならないためです。ただし `.claude/skills/` は一度監視下に入れば、以後の `SKILL.md` の編集は再起動なしで反映されます。
 
@@ -190,7 +223,7 @@ Step の列に割り込ませていないのは、`/implement` が Step 2〜5 �
 - **`/implement 52` と打っても、「issue#52 着手して」と自然文で頼んでも動きます。** 実際の着手指示 9 件はすべて自然文で、スラッシュコマンドが打たれた回は 0 でした。`disable-model-invocation` を付けると、その 9 件をすべて取りこぼします（`/independent-review` に付けているのは、あちらが「頼むタイミングが明確」かつ「3 体起動のコストが読めない」ためで、`/implement` はどちらにも当たりません）
 - **入力は issue 番号 1 つだけです。** 引数なしで呼ばれたときは open な issue を出して選ばせ、**勝手に着手しません** — どの issue に着手するかは実装ではなく優先順位の判断で、スキルの担当外だからです
 - **どこで止まるかの一覧は `.claude/skills/implement/SKILL.md` が唯一の情報源で、ここには書きません。** 中断条件は 12 個あって実装の細部と一緒に動くので、2 か所に置くと片方だけが更新されて陳腐化します
-- **終端は PR の作成までです。** 作成後は PR 番号と、次に打つ `/independent-review <番号>` を報告して終わります。レビューは別スキルの担当で、指摘を直すかどうかは人が番号で返す運用のため、繋げても結局そこで止まります
+- **終端は PR の作成までです。** 作成後は PR 番号と、上のリスク段階に応じたレビュー方法（軽微ならレビュー不要、通常なら `/quick-review <番号>`、高リスクなら `/independent-review <番号>`）を報告して終わります。レビューは別スキルの担当で、指摘を直すかどうかは人が番号で返す運用のため、繋げても結局そこで止まります
 - **規約の本文を SKILL.md へ写しません。** `CLAUDE.md` や `docs/design-notes.md` へのリンクと「読め」だけを置いています。理由は `/independent-review` の「観点リストは `docs/design-notes.md` と `docs/testing.md` が唯一の情報源です」と同じで、実装スキルは触れる規約の量が最も多いぶん、写すと最も速く陳腐化します
 - **PR の本文は `--body-file` で組み立てます。** `.github/` に PR テンプレートは無く（issue #54 で「型を固定する必要性が薄い」として `not planned`）、非対話の `gh pr create` ではそもそもテンプレートが発火しないためです
 

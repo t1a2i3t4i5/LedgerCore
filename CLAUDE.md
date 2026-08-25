@@ -151,6 +151,8 @@ screens → providers → AppDatabase（drift） → SQLite
 
 ブランチ命名・PR 運用・マージ方式は [docs/git-workflow.md](docs/git-workflow.md) を参照すること。
 
+レビュー方式は変更リスクの 3 段階で選ぶ。判定表は [docs/git-workflow.md](docs/git-workflow.md) を参照すること。
+
 issue の書き方は [docs/issue-writing.md](docs/issue-writing.md) を参照すること。
 
 ## 言語設定
