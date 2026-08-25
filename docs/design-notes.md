@@ -1,6 +1,6 @@
-# 設計上の約束の根拠
+# 設計上の約束と根拠
 
-[CLAUDE.md](../CLAUDE.md) の「設計上の約束」に並べたルールについて、なぜそうしているか・破ると何が起きるかを書く。ルールの一覧は CLAUDE.md、根拠はこちらにだけ置く。
+設計上の約束の本文（現在有効なもの）と、なぜそうしているか・破ると何が起きるかはこの文書を正本とする。[CLAUDE.md](../CLAUDE.md) は、コードを書く前に必要な結論だけを抜き出した索引。
 
 ## 集計ロジックは純関数に置く
 
@@ -97,7 +97,7 @@ SnackBar が出るのは `MainScreen` の Scaffold（ルートの `ScaffoldMesse
 
 入力側（`add_transaction_screen.dart` の validator）と DB の CHECK 制約の二重で守る。上限は `models/transaction.dart` の `kMaxAmount` を両方が参照し、入力欄の桁数制限も同じ値から導出しているので、変えるときはそこだけを直す。片方にしか無い条件を足すと「画面では通るのに保存で落ちる」か、その逆になる。ただし割り勘の `fairShare` は `合計 ÷ 人数` の導出値なので小数のまま。
 
-**`kMaxAmount` はスキーマ定義値でもある。** CHECK 制約にリテラルとして焼き込まれるため、値を変えるだけでは済まない。`schemaVersion` のインクリメントと移行、固定スキーマの再生成まで必要（CLAUDE.md の「DB スキーマ変更時の注意」）。
+**`kMaxAmount` はスキーマ定義値でもある。** CHECK 制約にリテラルとして焼き込まれるため、値を変えるだけでは済まない。`schemaVersion` のインクリメントと移行、固定スキーマの再生成まで必要（[db-schema.md](db-schema.md) の「スキーマを変更するとき」）。
 
 金額を描くウィジェットテストには `kMaxAmount` を使ったケースを置く（[testing.md](testing.md) 参照）。
 
@@ -332,3 +332,18 @@ SnackBar になる。**失敗をログに残すために足した `try` は、�
 タブ名も画面の文言（`_titles`）とは別に英字の `_logNames` を持つ。`op` が英字なので detail も英字で揃い、
 画面の文言を変えてもログの集計が壊れない。**この書式を画面に出さないこと** — 年月の表示は今までどおり
 `period_format.dart` に寄せる。
+
+`op` は `<対象>.<動作>`、`lv` は `info` / `error` の 2 値だけ。レベルを増やさない。
+
+## コード整形は language version で決まる
+
+`dart format` のスタイルは、実行中の Dart SDK ではなく **language version** で決まる。現在は Dart 3.7 の tall style。
+
+**`dart format` が読むのは `.dart_tool/package_config.json` の `languageVersion` であって `pubspec.yaml` ではない。** `pubspec.yaml` の `environment.sdk` の下限（現在 `>=3.7.0`）はその元になる値で、`flutter pub get` を通して初めて `package_config.json` に反映される。
+
+- **下限を動かしたら必ず `flutter pub get` を走らせる。** 飛ばすと `dart format` は古い `languageVersion` のまま整形する。`dart format` は `dart run` や `flutter test` と違って暗黙の pub get をしないので自己修復しない
+  - しばらく触っていないクローンでは `package_config.json` が古いことがある。`.dart` を編集する前に `flutter pub get` を通す。古いまま編集すると、`3.0` の頃の値で 63 ファイル中 30 ファイルが旧スタイルへ書き戻る
+- **下限を動かすと全 `.dart` ファイルが再整形の対象になる**。依存更新のついでに触らない。変えるなら整形だけを独立した PR にする
+- 下限を下げると旧スタイルに戻る。スタイルが混ざっている箇所を見つけても、そのファイルだけ手で直さない（`dart format` を通す）
+- 生成物（`lib/db/database.g.dart` / `test/generated_migrations/*.dart`）も同じ language version で整形されて出る。`build_runner build` と `drift_dev schema generate` のどちらを回しても差分は揺れない
+- Claude Code で作業する場合、`.claude/settings.json` の `PostToolUse` フックが `.dart` の編集直後に `dart format` を自動実行する。`jq` に依存している

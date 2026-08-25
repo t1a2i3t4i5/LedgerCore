@@ -18,8 +18,8 @@ import 'matchers.dart';
 /// 「ほかのテーブルは最新・transactions だけ v1」という実在しない状態になる。
 /// 変更していないテーブルの移行漏れを、作り直しが成功することで見逃す。
 ///
-/// 固定スキーマと移行ヘルパの再生成手順は CLAUDE.md の
-/// 「スキーマ検証用の生成物」を参照（コマンドの正本はそちら）。
+/// 固定スキーマと移行ヘルパの再生成手順は docs/db-schema.md の
+/// 「スキーマを変更するとき」を参照（コマンドの正本はそちら）。
 ///
 /// このファイルは移行の終点をリテラルで持たない。起点は
 /// [GeneratedHelper.versions]（生成物）を回し、終点は常にその最新版にする。
@@ -127,7 +127,8 @@ void main() {
     expect(
       _latestVersion,
       db.schemaVersion,
-      reason: 'drift_schemas/ の再生成が漏れている。CLAUDE.md の手順を実行すること',
+      reason:
+          'drift_schemas/ の再生成が漏れている。docs/db-schema.md の「スキーマを変更するとき」を実行すること',
     );
   });
 
