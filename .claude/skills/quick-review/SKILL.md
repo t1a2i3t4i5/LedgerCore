@@ -4,6 +4,7 @@ description: 別コンテキストのレビュアー 1 名で作業差分また�
 argument-hint: "[PR番号]"
 arguments: pr
 allowed-tools:
+  - Read
   - Bash(git rev-parse:*)
   - Bash(git merge-base:*)
   - Bash(git diff:*)
