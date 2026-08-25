@@ -45,6 +45,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Codex のローカル設定・プロジェクトスキル。共有せず、各環境で管理する。
+.agents/
+.codex/
+AGENTS.md
+
 # Claude Code
 # 作業用の一時 worktree。共有しない。
 # .claude/ 配下でも commands/ agents/ settings.json はレビュー体制の定義なので
