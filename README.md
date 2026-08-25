@@ -123,9 +123,12 @@ screens → providers → AppDatabase（drift） → SQLite
 
 ## テスト
 
+普段のローカル開発では、変更に関係するテストを優先して素早く確認する。PR を作成・更新すると GitHub Actions が `flutter analyze` と全テストを並列に実行するため、全体確認を待たずに次の作業へ進める。
+
 ```bash
-flutter test
-flutter analyze
+flutter test test/providers/transaction_provider_test.dart # 関連テストの例
+flutter test                                               # 全テスト（必要に応じてローカルでも実行）
+flutter analyze                                            # 静的解析（必要に応じてローカルでも実行）
 ```
 
 `test/` の構成は検証したい層ごとに分かれている。
