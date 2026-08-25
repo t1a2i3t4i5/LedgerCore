@@ -109,7 +109,7 @@ gh pr list --state open --json number,title,body,closingIssuesReferences \
 flutter pub get
 ```
 
-`dart format` が読むのは `.dart_tool/package_config.json` の `languageVersion` で、しばらく触っていないクローンでは古いままです。編集より前に通しておかないと、`.dart` の編集直後に走る `PostToolUse` フックの `dart format` が旧スタイルで整形します（`CLAUDE.md` の「コード整形」）。DB を触るかどうかとは無関係なので、手順 5 の条件付き実行に混ぜません。
+`dart format` が読むのは `.dart_tool/package_config.json` の `languageVersion` で、しばらく触っていないクローンでは古いままです。編集より前に通しておかないと、`.dart` の編集直後に走る `PostToolUse` フックの `dart format` が旧スタイルで整形します（`docs/design-notes.md` の「コード整形は language version で決まる」）。DB を触るかどうかとは無関係なので、手順 5 の条件付き実行に混ぜません。
 
 ## 2. 着手可否を判定する
 
@@ -184,7 +184,7 @@ git fetch origin && git switch -c <prefix>/<kebab-case> origin/main
 | **`lib/models/transaction.dart` の `kMaxAmount`**    | **`build_runner` では差分が出ない。**下の注意を読む               |
 | `schemaVersion` を上げた                            | `drift_dev schema dump` / `drift_dev schema generate`             |
 
-コマンドの正確な形は `README.md` の「開発コマンド」、生成物を git に含める条件は `CLAUDE.md` の「drift のコード生成」にあります。
+コマンドの正確な形は `README.md` の「開発コマンド」、生成物を git に含める条件は `docs/db-schema.md` の「スキーマを変更するとき」にあります。
 
 **`kMaxAmount` はスキーマ定義値です**（根拠は `docs/design-notes.md` の金額の節。CHECK 制約にリテラルとして焼き込まれます）。`database.dart` を 1 行も触らずに上限だけ変える issue でも、**`schemaVersion` のインクリメント・`onUpgrade`・固定スキーマの再生成が要ります**。`lib/db/database.dart` に差分が出ないことを理由にこの手順を飛ばさないこと。
 
@@ -215,7 +215,7 @@ flutter analyze
 - **落ちた** → 元に戻して進みます
 - **壊しても落ちない** → **テストを書き直してから進みます**（中断しません）。**書き直しは 2 回まで。3 回目も緑なら中断して報告します** — 何をどう壊し、どのアサーションが動かなかったかを添えます
 
-**上限を置くのは、書き直しても永久に緑のままになる形が実在するためです。** `CLAUDE.md` の「テストの書き方」が実測として記録しているとおり、`titlesData` の 4 辺・`gridData`・ツールチップの背景色は消しても緑のままで、`BarChart.data` に直接 expect しない限り拾えません。承認ゲートが無いので、上限が無いと報告の出ないまま書き直しを続けます。
+**上限を置くのは、書き直しても永久に緑のままになる形が実在するためです。** `docs/testing.md` の「`BarChartData` の設定は『消しても緑』になりやすい」が実測として記録しているとおり、`titlesData` の 4 辺・`gridData`・ツールチップの背景色は消しても緑のままで、`BarChart.data` に直接 expect しない限り拾えません。承認ゲートが無いので、上限が無いと報告の出ないまま書き直しを続けます。
 
 issue の「テスト」節に壊し方が書かれていたら、**そのとおりの壊し方でも**確かめます。書かれていない場合でも**質問に回しません** — 上のとおり自分で壊し方を決めて実測し、**PR 本文には「issue に壊し方の記載が無かったので、どこを壊して赤を確認したか」を書きます**。「記載が無かった」だけで終えると、読み手には「壊して確かめていない」と区別が付きません。
 
@@ -227,12 +227,12 @@ issue の「テスト」節に壊し方が書かれていたら、**そのとお
 | ------------------------------------------------ | -------------------------------------------------- |
 | スキーマ                                         | `docs/db-schema.md`                                |
 | 新しい設計上の約束                               | `docs/design-notes.md` と `CLAUDE.md`             |
-| **新しいテスト規約**（共通ヘルパ、「〜を使わない」、今回踏んだ罠） | **`docs/testing.md` と `CLAUDE.md`** |
+| **新しいテスト規約**（共通ヘルパ、「〜を使わない」、今回踏んだ罠） | **`docs/testing.md`** |
 | git / issue の運用                               | `docs/git-workflow.md` / `docs/issue-writing.md`  |
 
-条件は `CLAUDE.md` の各節にあります。**同じコミットに含めます。**
+条件は各正本にあります。**同じコミットに含めます。**
 
-**テスト規約の行を忘れないこと。** `CLAUDE.md` の「テストの書き方」は `docs/testing.md` へのリンク付き要約で、根拠は `testing.md` にだけ置く約束です。両方に書き足さないと、次に `/implement` や `/independent-review` が `testing.md` を唯一の情報源として読んだとき、その約束は存在しないものとして扱われ、同じ事故が再発します。
+**テスト規約の行を忘れないこと。** 規約の正本は `docs/testing.md` です。ここへ書き足さないと、次に `/implement` や `/independent-review` が読んだとき、その約束は存在しないものとして扱われ、同じ事故が再発します。
 
 ## 8. コミット → push → PR 作成 → 報告
 

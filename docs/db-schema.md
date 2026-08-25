@@ -166,10 +166,10 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 
 `lib/models/` のクラスは DB の行そのものではなく、JOIN 結果や計算結果を保持する表示用モデル。
 **このアプリに HTTP は一切介在しない**ので、名前も読み出し用（`*View`）と
-書き込み用（`*Input`）の区別だけを表す。
+書き込み用（`*Input`）の区別だけを表す。かつて使っていた `Response` / `Request` を復活させない。
 
 `Category` / `Member` / `Transaction` という素の名前は drift が `database.g.dart` に生成する
-データクラスが既に使っている。表示用モデルに `View` を付けているのはそれと衝突しないため。
+データクラスが既に使っているので避ける。表示用モデルに `View` を付けているのはそれと衝突しないため。
 
 | 表示用モデル | 対応するテーブル | 備考 |
 | --- | --- | --- |
@@ -195,16 +195,18 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 
 ## スキーマを変更するとき
 
-手順の正本は [CLAUDE.md](../CLAUDE.md) の「DB スキーマ変更時の注意」。
-コード生成物（`lib/db/database.g.dart` / `drift_schemas/` / `test/generated_migrations/`）を
-どう再生成するかもそちらに書いてある。**このドキュメントに手順を書き写さないこと** —
-二重管理になり、片方だけ更新されて食い違う。
+テーブルやカラムを変更するときは、次を同じコミットに含める。
 
-このドキュメント側でやることは 1 つだけ。**上のテーブル定義・ER 図・マイグレーション履歴を、
-スキーマ変更と同じコミットで更新する。**
+1. `AppDatabase.schemaVersion` をインクリメントする
+2. `MigrationStrategy.onUpgrade` に移行処理を書く
+3. `dart run build_runner build` を実行し、git 管理対象の `lib/db/database.g.dart` を更新する（直接編集しない）
+4. `dart run drift_dev schema dump lib/db/database.dart drift_schemas/` を実行し、新しいバージョンの JSON を追加する
+5. `dart run drift_dev schema generate drift_schemas/ test/generated_migrations/` を実行し、移行ヘルパを更新する
+6. この文書のテーブル定義・ER 図・マイグレーション履歴を更新する
 
-既にアプリを起動したことのある端末には旧スキーマの DB ファイルが残っているので、
-`onUpgrade` を書かないと実行時エラーになる。
+`drift_schemas/*.json` と `test/generated_migrations/*.dart` は生成物だが git 管理対象。**過去バージョンの JSON は書き換えない。** 書き換えると、その版の DB がどんな形だったかという記録が失われ、移行テストが変更後のスキーマに追従してグリーンのままになる。
+
+既にアプリを起動したことのある端末には旧スキーマの DB ファイルが残っているので、`schemaVersion` と `onUpgrade` を更新しないと実行時エラーになる。
 
 ### マイグレーション履歴
 

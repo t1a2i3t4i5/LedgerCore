@@ -44,9 +44,9 @@ dart format lib test            # 整形
 - 既存の生成物と衝突する場合は `dart run build_runner build --delete-conflicting-outputs`
 - 初回起動で既定カテゴリと既定メンバー「自分」が投入され、すぐに入力を始められる
 - Claude Code で作業する場合、`.claude/settings.json` の `PostToolUse` フックが `.dart` ファイルの編集直後に `dart format` を自動実行する（`jq` が必要）
-- 整形スタイルは `.dart_tool/package_config.json` の `languageVersion`（元は `pubspec.yaml` の SDK 制約の下限）で決まる。下限を変えたら `flutter pub get` を走らせるまで反映されない（注意点は [CLAUDE.md](CLAUDE.md)）
+- 整形スタイルと SDK 下限を変える際の注意点は [docs/design-notes.md](docs/design-notes.md) の「コード整形は language version で決まる」を参照
 
-`AppDatabase.schemaVersion` を上げたときは、固定スキーマと移行ヘルパを再生成して同じコミットに含める（理由と注意点は [CLAUDE.md](CLAUDE.md)）。
+`AppDatabase.schemaVersion` を上げたときは、固定スキーマと移行ヘルパを再生成して同じコミットに含める（手順は [docs/db-schema.md](docs/db-schema.md) の「スキーマを変更するとき」）。
 
 ```bash
 dart run drift_dev schema dump lib/db/database.dart drift_schemas/
@@ -83,13 +83,13 @@ lib/
 │   ├── household_member.dart
 │   ├── summary.dart           # 月次サマリー（カテゴリ別・メンバー別）
 │   └── split.dart             # 割り勘の結果（各自の過不足・精算方法）
-├── logging/                   # 操作ログ（AppDatabase も Provider も参照しない）
-│   ├── operation_logger.dart  # 記録の入口。info / error を積んで直列に書き出す（呼び出し側は await しない）
+├── logging/                   # 操作ログ
+│   ├── operation_logger.dart  # 記録の入口と書き出しキュー
 │   ├── log_entry.dart         # ログ 1 行のデータと JSON Lines への整形（純関数）
 │   ├── log_sink.dart          # 書き出し先の抽象・何もしない実装・テスト用のメモリ実装
 │   └── file_log_sink.dart     # ファイルへの追記とサイズによる世代交代
 ├── providers/                 # 状態管理（provider / ChangeNotifier）
-│   ├── month_scoped_provider.dart # 表示月の共通基底（clock 注入・月送り・今月判定）
+│   ├── month_scoped_provider.dart # 表示月の共通基底
 │   ├── member_provider.dart
 │   ├── category_provider.dart
 │   ├── transaction_provider.dart
@@ -105,8 +105,8 @@ lib/
 │   └── members_screen.dart    # メンバー管理
 └── widgets/                   # 画面から切り離した再利用部品（ウィジェットとは限らない）
     ├── chart_palette.dart     # グラフの色（カテゴリ ID から決まる色・推移グラフの棒の色）
-    ├── month_selector.dart    # 期間選択 UI（前へ / 次へ / 今へ戻る）。取引・サマリー・割り勘で共用。月を null にすると年単位になる
-    ├── period_bar_chart.dart  # 月別・年別の支出推移を描く棒グラフ（DB も Provider も参照しない）
+    ├── month_selector.dart    # 月・年の期間選択 UI
+    ├── period_bar_chart.dart  # 月別・年別の支出推移を描く棒グラフ
     ├── period_format.dart     # 年月の表示整形（'2026年7月' / 軸用の '7月'）
     └── amount_format.dart      # 金額・構成比の表示整形（¥ 付き / %）と入力欄の全角正規化・記号除去・桁数制限
 ```
@@ -123,27 +123,21 @@ screens → providers → AppDatabase（drift） → SQLite
 
 ## テスト
 
-普段のローカル開発では、変更に関係するテストを優先して素早く確認する。PR を作成・更新すると GitHub Actions が `flutter analyze` と全テストを並列に実行するため、全体確認を待たずに次の作業へ進める。
+普段のローカル開発では変更に関係するテストを優先する。PR を作成・更新すると GitHub Actions が `flutter analyze` と全テストを並列に実行する。
 
-```bash
-flutter test test/transaction_provider_test.dart # 関連テストの例
-flutter test                                     # 全テスト（必要に応じてローカルでも実行）
-flutter analyze                                  # 静的解析（必要に応じてローカルでも実行）
-```
+`test/` は検証したい層ごとに分かれている。詳しい書き方と落とし穴は [docs/testing.md](docs/testing.md) を参照。
 
-`test/` の構成は検証したい層ごとに分かれている。
-
-- **純関数** — 月次集計・割り勘は DB に触らない純関数として `lib/db/summary_calculator.dart` に置き、DB なしで検証する
-- **DB** — インメモリ DB（`AppDatabase.forTesting`）で DAO・月レンジ・外部キー制約・CHECK 制約を検証する。実端末のファイルには触らない
-- **マイグレーション** — `drift_schemas/` に固定した過去バージョンから起こし、移行後と新規作成時の両方のスキーマを検証する
-- **Provider** — 状態遷移（削除の波及、表示月の繰り上げ／繰り下げ）を検証する。表示月は `clock` を注入して固定年月で書く
-- **ウィジェット（`test/widgets/`）** — 画面の配線を実際にタップして検証する。矢印を入れ替えても Provider のテストは全部通るため、画面側は Provider のテストで代替できない。画面サイズは実機に合わせて 360x690 にする
+- **純関数** — 月次集計・割り勘などの計算
+- **DB** — DAO・期間・制約
+- **マイグレーション** — 過去バージョンからの移行と新規作成
+- **Provider** — 状態遷移
+- **ウィジェット（`test/widgets/`）** — 画面の表示と配線
 
 ## ドキュメント
 
-- [docs/db-schema.md](docs/db-schema.md) — テーブル定義・ER 図・表示用モデルとの対応
-- [docs/design-notes.md](docs/design-notes.md) — 設計上の約束の根拠と、過去に実際に起きた事故
-- [docs/testing.md](docs/testing.md) — テストの書き方の根拠と、過去に実際に見逃した事故
-- [docs/git-workflow.md](docs/git-workflow.md) — ブランチ命名・PR 運用・マージ方式
+- [docs/db-schema.md](docs/db-schema.md) — テーブル定義・変更手順・マイグレーション履歴
+- [docs/design-notes.md](docs/design-notes.md) — 設計上の約束・理由・過去の事故
+- [docs/testing.md](docs/testing.md) — テスト規約と、破っても緑のまま通る落とし穴
+- [docs/git-workflow.md](docs/git-workflow.md) — ブランチ・PR・レビュー・マージとリスク判定表
 - [docs/issue-writing.md](docs/issue-writing.md) — issue を作る基準と軽量な本文の形
-- [CLAUDE.md](CLAUDE.md) — 上記のルール一覧（コードを読んだだけでは分かりにくい運用ルールの索引）
+- [CLAUDE.md](CLAUDE.md) — AI 向け。破ると静かに壊れる約束の索引
