@@ -34,6 +34,16 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Verify generated code is up to date
+        run: |
+          dart run build_runner build
+          changes="$(git status --porcelain)"
+          if [[ -n "$changes" ]]; then
+            echo "$changes"
+            echo "生成コードを再生成してコミットしてください。"
+            exit 1
+          fi
+
       - name: Analyze
         run: flutter analyze
 
