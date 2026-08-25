@@ -142,5 +142,5 @@ flutter analyze
 - [docs/design-notes.md](docs/design-notes.md) — 設計上の約束の根拠と、過去に実際に起きた事故
 - [docs/testing.md](docs/testing.md) — テストの書き方の根拠と、過去に実際に見逃した事故
 - [docs/git-workflow.md](docs/git-workflow.md) — ブランチ命名・PR 運用・マージ方式
-- [docs/issue-writing.md](docs/issue-writing.md) — issue の節の構成と、各節が要る理由
+- [docs/issue-writing.md](docs/issue-writing.md) — issue を作る基準と軽量な本文の形
 - [CLAUDE.md](CLAUDE.md) — 上記のルール一覧（コードを読んだだけでは分かりにくい運用ルールの索引）
