@@ -45,10 +45,13 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Codex のローカル設定・プロジェクトスキル。共有せず、各環境で管理する。
+# Codex の設定。AGENTS.md と .codex/hooks.json は手書きなので追跡する
+# （.claude/ 側で agents/ と settings.json を追跡しているのと同じ理由）。
+# .agents/skills は .claude/skills へのリンク、.codex/agents/*.toml は
+# tool/sync_codex_agents.sh の生成物なので追跡しない。
 .agents/
-.codex/
-AGENTS.md
+.codex/*
+!.codex/hooks.json
 
 # Claude Code
 # 作業用の一時 worktree。共有しない。

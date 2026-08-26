@@ -39,6 +39,7 @@ flutter run                     # 実行
 flutter test                    # テスト
 flutter analyze                 # 静的解析
 dart format lib test            # 整形
+bash tool/sync_codex_agents.sh  # Codex のスキルリンクとエージェント定義を生成
 ```
 
 - 既存の生成物と衝突する場合は `dart run build_runner build --delete-conflicting-outputs`
