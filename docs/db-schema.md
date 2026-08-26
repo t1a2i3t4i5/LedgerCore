@@ -48,12 +48,7 @@ erDiagram
 
 ### categories — カテゴリ
 
-```sql
-CREATE TABLE "categories" (
-  "id"   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  "name" TEXT NOT NULL
-)
-```
+正確な DDL は [`lib/db/database.dart`](../lib/db/database.dart) の `Categories` 定義を参照。
 
 | カラム（SQL） | Dart 側 | 型 | 制約 | 説明 |
 | --- | --- | --- | --- | --- |
@@ -65,12 +60,7 @@ CREATE TABLE "categories" (
 
 ### members — メンバー（割り勘の対象者）
 
-```sql
-CREATE TABLE "members" (
-  "id"   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  "name" TEXT NOT NULL
-)
-```
+正確な DDL は [`lib/db/database.dart`](../lib/db/database.dart) の `Members` 定義を参照。
 
 | カラム（SQL） | Dart 側 | 型 | 制約 | 説明 |
 | --- | --- | --- | --- | --- |
@@ -85,19 +75,7 @@ v3 までは `mail`（NULL 可）があったが、書き込む画面も読み�
 
 ### transactions — 取引
 
-```sql
-CREATE TABLE "transactions" (
-  "id"          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  "member_id"   INTEGER NOT NULL REFERENCES members (id),
-  "category_id" INTEGER NOT NULL REFERENCES categories (id),
-  "amount"      REAL NOT NULL CHECK (("amount" > 0.0 AND "amount" <= 999999999999.0)
-                                     AND (amount = CAST(amount AS INTEGER))),
-  "spent_at"    INTEGER NOT NULL,
-  "memo"        TEXT NULL,
-  "created_at"  INTEGER NOT NULL,
-  "updated_at"  INTEGER NOT NULL
-)
-```
+正確な DDL は [`lib/db/database.dart`](../lib/db/database.dart) の `Transactions` 定義を参照。
 
 | カラム（SQL） | Dart 側 | 型 | 制約 | 説明 |
 | --- | --- | --- | --- | --- |

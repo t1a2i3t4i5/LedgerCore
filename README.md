@@ -138,6 +138,6 @@ screens → providers → AppDatabase（drift） → SQLite
 - [docs/db-schema.md](docs/db-schema.md) — テーブル定義・変更手順・マイグレーション履歴
 - [docs/design-notes.md](docs/design-notes.md) — 設計上の約束・理由・過去の事故
 - [docs/testing.md](docs/testing.md) — テスト規約と、破っても緑のまま通る落とし穴
-- [docs/git-workflow.md](docs/git-workflow.md) — ブランチ・PR・レビュー・マージとリスク判定表
-- [docs/issue-writing.md](docs/issue-writing.md) — issue を作る基準と軽量な本文の形
+- [docs/git-workflow.md](docs/git-workflow.md) — ブランチ・PR・レビュー・マージ、issue の運用とリスク判定表
+- [.github/ISSUE_TEMPLATE/issue.md](.github/ISSUE_TEMPLATE/issue.md) — issue 本文の型
 - [CLAUDE.md](CLAUDE.md) — AI 向け。破ると静かに壊れる約束の索引
