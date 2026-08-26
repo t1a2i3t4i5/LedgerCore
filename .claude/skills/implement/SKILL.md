@@ -91,11 +91,11 @@ gh pr list --state open --json number,title,body,closingIssuesReferences \
 
 | 触る領域                        | 追加で読む                                                     |
 | ------------------------------- | -------------------------------------------------------------- |
-| 常に                            | `CLAUDE.md`、`docs/issue-writing.md` の「本文」                |
+| 常に                            | `CLAUDE.md`、`.github/ISSUE_TEMPLATE/issue.md`                 |
 | **テストを 1 行でも書くなら**   | **`docs/testing.md`**                                           |
 | `lib/db/`                       | `docs/db-schema.md`                                             |
 | `lib/` の `db/` 以外            | `docs/design-notes.md`                                          |
-| `docs/` / `.github/` の issue 関連 | `docs/issue-writing.md`                                      |
+| `docs/` / `.github/` の issue 関連 | `docs/git-workflow.md`、`.github/ISSUE_TEMPLATE/issue.md`    |
 
 「触る領域」は issue の「追加・変更するファイル」（ツリー図）を根拠に決めます。**それが無い issue では 4 つとも読みます。**
 
@@ -117,9 +117,9 @@ flutter pub get
 
 ### 節名は揃っていない — 別名を吸収する
 
-節の骨格を定めた `docs/issue-writing.md` より前に書かれた issue が大半です。**節名のリテラル一致で分岐すると、issue が既に答えていることを聞き直したうえで、範囲指定を捨てることになります。**
+現行の Issue Template より前に書かれた issue が大半です。**節名のリテラル一致で分岐すると、issue が既に答えていることを聞き直したうえで、範囲指定を捨てることになります。**
 
-現行の本文形式は `docs/issue-writing.md` の「本文」を正本とします。古い issue で使われている別名は、次の表で現行の役割へ読み替えます。
+現行の本文形式は `.github/ISSUE_TEMPLATE/issue.md` を正本とします。古い issue で使われている別名は、次の表で現行の役割へ読み替えます。
 
 | 役割 | 現行の正式名 | 古い issue の別名 |
 | --- | --- | --- |
@@ -226,7 +226,7 @@ issue の「テスト」節に壊し方が書かれていたら、**そのとお
 | スキーマ                                         | `docs/db-schema.md`                                |
 | 新しい設計上の約束                               | `docs/design-notes.md` と `CLAUDE.md`             |
 | **新しいテスト規約**（共通ヘルパ、「〜を使わない」、今回踏んだ罠） | **`docs/testing.md`** |
-| git / issue の運用                               | `docs/git-workflow.md` / `docs/issue-writing.md`  |
+| git / issue の運用                               | `docs/git-workflow.md` / `.github/ISSUE_TEMPLATE/issue.md` |
 
 条件は各正本にあります。**同じコミットに含めます。**
 

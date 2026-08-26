@@ -4,7 +4,8 @@ LedgerCore のデータはすべて [drift](https://drift.simonbinder.eu/)（SQL
 `ledgercore.sqlite` に保存される。サーバも REST API も存在しないので、ここに書かれている
 3 テーブルがアプリの持つデータのすべて。
 
-- **定義元** — [`lib/db/database.dart`](../lib/db/database.dart)。`database.g.dart` は `build_runner` の生成物
+- **Dart 側のテーブル定義** — [`lib/db/database.dart`](../lib/db/database.dart)。`database.g.dart` は `build_runner` の生成物
+- **生成後の実 DDL** — 現行 v4 は [`drift_schemas/drift_schema_v4.json`](../drift_schemas/drift_schema_v4.json)。バージョンごとの JSON を `drift_schemas/` に保存する
 - **`schemaVersion`** — 現在 `4`（`transactions.amount` の CHECK 制約を段階的に強め、未使用だった `members.mail` を削除した。[マイグレーション履歴](#マイグレーション履歴)を参照）
 - このドキュメントと実装が食い違った場合は `database.dart` が正。スキーマを変更したらこのファイルも更新する
 
@@ -48,13 +49,6 @@ erDiagram
 
 ### categories — カテゴリ
 
-```sql
-CREATE TABLE "categories" (
-  "id"   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  "name" TEXT NOT NULL
-)
-```
-
 | カラム（SQL） | Dart 側 | 型 | 制約 | 説明 |
 | --- | --- | --- | --- | --- |
 | `id` | `id` | INTEGER | PK / AUTOINCREMENT | |
@@ -64,13 +58,6 @@ CREATE TABLE "categories" (
 住居費・医療費・娯楽費・衣服・その他）が投入される。
 
 ### members — メンバー（割り勘の対象者）
-
-```sql
-CREATE TABLE "members" (
-  "id"   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  "name" TEXT NOT NULL
-)
-```
 
 | カラム（SQL） | Dart 側 | 型 | 制約 | 説明 |
 | --- | --- | --- | --- | --- |
@@ -84,20 +71,6 @@ v3 までは `mail`（NULL 可）があったが、書き込む画面も読み�
 **v4 で列ごと削除した**。値を持っていた端末があっても移行時に捨てられる。
 
 ### transactions — 取引
-
-```sql
-CREATE TABLE "transactions" (
-  "id"          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  "member_id"   INTEGER NOT NULL REFERENCES members (id),
-  "category_id" INTEGER NOT NULL REFERENCES categories (id),
-  "amount"      REAL NOT NULL CHECK (("amount" > 0.0 AND "amount" <= 999999999999.0)
-                                     AND (amount = CAST(amount AS INTEGER))),
-  "spent_at"    INTEGER NOT NULL,
-  "memo"        TEXT NULL,
-  "created_at"  INTEGER NOT NULL,
-  "updated_at"  INTEGER NOT NULL
-)
-```
 
 | カラム（SQL） | Dart 側 | 型 | 制約 | 説明 |
 | --- | --- | --- | --- | --- |

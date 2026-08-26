@@ -23,7 +23,7 @@
 | 画面・Provider・ウィジェット | [docs/design-notes.md](docs/design-notes.md)（設計上の約束・理由・過去の事故） |
 | `test/` | [docs/testing.md](docs/testing.md)（テスト規約と、破っても緑のまま通る落とし穴） |
 | ブランチ・PR・レビュー・マージ | [docs/git-workflow.md](docs/git-workflow.md)（リスク判定表を含む） |
-| issue | [docs/issue-writing.md](docs/issue-writing.md) |
+| issue | [docs/git-workflow.md](docs/git-workflow.md)（運用基準）、[.github/ISSUE_TEMPLATE/issue.md](.github/ISSUE_TEMPLATE/issue.md)（本文の型） |
 | コマンド・環境・ディレクトリ構成 | [README.md](README.md) |
 
 ## 破ると静かに壊れる約束
@@ -50,7 +50,7 @@
 
 ブランチ・PR・レビュー・マージは [docs/git-workflow.md](docs/git-workflow.md) を参照すること。
 レビュー方式は変更リスクの 3 段階で選び、同文書の判定表に従うこと。
-issue の基準と本文の形は [docs/issue-writing.md](docs/issue-writing.md) を参照すること。
+issue の運用基準は [docs/git-workflow.md](docs/git-workflow.md) の「issue の運用」、本文の型は [.github/ISSUE_TEMPLATE/issue.md](.github/ISSUE_TEMPLATE/issue.md) を参照すること。
 
 ## 言語設定
 
