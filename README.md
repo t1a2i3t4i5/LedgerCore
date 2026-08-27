@@ -67,9 +67,38 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 | コード生成 | `drift_dev` + `build_runner`                            |
 | Lint       | `flutter_lints`（`analysis_options.yaml`）              |
 
+## 同梱フォント
+
+アプリは起動後にネットワークへ接続しないため、次の書体を ttf で同梱する。いずれも
+[SIL Open Font License 1.1](https://openfontlicense.org/) で提供されており、ライセンス本文も
+`assets/fonts/` に保存してアプリのライセンス画面へ登録している。
+
+| 書体 | 同梱ウェイト | 提供元 |
+| --- | --- | --- |
+| Zen Maru Gothic | Regular (400) / Bold (700) | [Google Fonts](https://github.com/google/fonts/tree/main/ofl/zenmarugothic) |
+| Zen Kaku Gothic New | Bold (700) | [Google Fonts](https://github.com/google/fonts/tree/main/ofl/zenkakugothicnew) |
+| Outfit | SemiBold (600) | [Outfitio/Outfit-Fonts](https://github.com/Outfitio/Outfit-Fonts) |
+
+取得コマンド（Outfit は可変フォントではなく、上流の静的 ttf を使う）:
+
+```bash
+mkdir -p assets/fonts
+GOOGLE_FONTS=https://raw.githubusercontent.com/google/fonts/main/ofl
+OUTFIT=https://raw.githubusercontent.com/Outfitio/Outfit-Fonts/main
+curl -L -o assets/fonts/ZenMaruGothic-Regular.ttf "$GOOGLE_FONTS/zenmarugothic/ZenMaruGothic-Regular.ttf"
+curl -L -o assets/fonts/ZenMaruGothic-Bold.ttf "$GOOGLE_FONTS/zenmarugothic/ZenMaruGothic-Bold.ttf"
+curl -L -o assets/fonts/ZenKakuGothicNew-Bold.ttf "$GOOGLE_FONTS/zenkakugothicnew/ZenKakuGothicNew-Bold.ttf"
+curl -L -o assets/fonts/Outfit-SemiBold.ttf "$OUTFIT/fonts/ttf/Outfit-SemiBold.ttf"
+curl -L -o assets/fonts/OFL-ZenMaruGothic.txt "$GOOGLE_FONTS/zenmarugothic/OFL.txt"
+curl -L -o assets/fonts/OFL-ZenKakuGothicNew.txt "$GOOGLE_FONTS/zenkakugothicnew/OFL.txt"
+curl -L -o assets/fonts/OFL-Outfit.txt "$OUTFIT/OFL.txt"
+```
+
 ## 構成
 
 ```
+assets/
+└── fonts/                      # 同梱フォントの ttf と SIL OFL 1.1
 drift_schemas/                 # 各スキーマバージョンの固定記録（生成物・git 管理）
 test/generated_migrations/     # 固定記録から起こした移行ヘルパ（生成物・git 管理）
 lib/
