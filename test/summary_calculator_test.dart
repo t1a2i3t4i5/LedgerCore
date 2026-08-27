@@ -291,5 +291,122 @@ void main() {
       // 100 / 3 = 33.333... -> 33.33
       expect(split.fairShare, 33.33);
     });
+
+    test('メンバーが1人なら精算不要（全額が自分の負担）', () {
+      final txns = [_tx(memberId: 1, memberName: 'A', amount: 1000)];
+      final split = buildSplit(2026, 7, txns, [
+        const HouseholdMember(id: 1, name: 'A'),
+      ]);
+
+      expect(split.fairShare, 1000);
+      expect(split.members.single.balance, 0);
+      expect(split.settlement, '精算不要');
+    });
+
+    test('メンバーが0人でも落ちず、精算不要になる', () {
+      // 取引の残っているメンバーは FK 制約で消せないので total > 0 では起きないが、
+      // memberCount のゼロ除算ガードが外れていないことをここで押さえる。
+      final split = buildSplit(2026, 7, [], []);
+
+      expect(split.total, 0);
+      expect(split.fairShare, 0);
+      expect(split.members, isEmpty);
+      expect(split.settlement, '精算不要');
+    });
+
+    test('取引が0件ならメンバー全員の balance が 0 で精算不要', () {
+      final split = buildSplit(2026, 7, [], members2);
+
+      expect(split.total, 0);
+      expect(split.fairShare, 0);
+      expect(split.members.map((m) => m.paid), everyElement(0));
+      expect(split.members.map((m) => m.balance), everyElement(0));
+      expect(split.settlement, '精算不要');
+    });
+
+    test('端数が出ると受け取り側と支払い側の合計は一致しない（1円未満は誰も引き受けない）', () {
+      final members3 = [
+        const HouseholdMember(id: 1, name: 'A'),
+        const HouseholdMember(id: 2, name: 'B'),
+        const HouseholdMember(id: 3, name: 'C'),
+      ];
+      final txns = [_tx(memberId: 1, memberName: 'A', amount: 100)];
+      final split = buildSplit(2026, 7, txns, members3);
+
+      final credit = split.members
+          .where((m) => m.balance > 0)
+          .fold<double>(0, (s, m) => s + m.balance);
+      final debit = split.members
+          .where((m) => m.balance < 0)
+          .fold<double>(0, (s, m) => s + m.balance.abs());
+
+      // A は 66.67 受け取る側だが、B と C の支払いは 33.33 ずつで 66.66。
+      // 端数 0.01 は切り捨てられたまま誰の負担にもならない（現状の仕様）。
+      expect(credit, closeTo(66.67, 0.001));
+      expect(debit, closeTo(66.66, 0.001));
+      // 精算文はさらに整数円へ丸めるので、A の取り分は表示上 66 円しか集まらない。
+      expect(split.settlement.split('\n'), everyElement(contains('33 円')));
+    });
+
+    test('2人・奇数額の 0.5 円は切り上げて表示する', () {
+      final txns = [_tx(memberId: 1, memberName: 'A', amount: 1001)];
+      final split = buildSplit(2026, 7, txns, members2);
+
+      expect(split.fairShare, 500.5);
+      // _yen は half away from zero。500.5 → 501。
+      expect(split.settlement, 'B → A に 501 円支払う');
+    });
+
+    test('3人で債権者が2人なら、債務者の行だけが並ぶ（受取先は書かれない）', () {
+      final members3 = [
+        const HouseholdMember(id: 1, name: 'A'),
+        const HouseholdMember(id: 2, name: 'B'),
+        const HouseholdMember(id: 3, name: 'C'),
+      ];
+      final txns = [
+        _tx(memberId: 1, memberName: 'A', amount: 1500),
+        _tx(id: 2, memberId: 2, memberName: 'B', amount: 1500),
+      ];
+      final split = buildSplit(2026, 7, txns, members3);
+
+      expect(split.fairShare, 1000);
+      expect(split.settlement, 'C は 1000 円の支払いが必要');
+    });
+
+    test('支払いの多い順に並ぶ（債務者は不足額の大きい順）', () {
+      final members3 = [
+        const HouseholdMember(id: 1, name: 'A'),
+        const HouseholdMember(id: 2, name: 'B'),
+        const HouseholdMember(id: 3, name: 'C'),
+      ];
+      final txns = [
+        _tx(memberId: 1, memberName: 'A', amount: 3000),
+        _tx(id: 2, memberId: 2, memberName: 'B', amount: 600),
+      ];
+      final split = buildSplit(2026, 7, txns, members3);
+
+      // fairShare 1200。B は -600、C は -1200。不足の大きい C が先。
+      expect(split.settlement.split('\n'), [
+        'C は 1200 円の支払いが必要',
+        'B は 600 円の支払いが必要',
+      ]);
+    });
+
+    test('kMaxAmount 級の取引でも桁落ちしない', () {
+      final members3 = [
+        const HouseholdMember(id: 1, name: 'A'),
+        const HouseholdMember(id: 2, name: 'B'),
+        const HouseholdMember(id: 3, name: 'C'),
+      ];
+      final txns = [
+        _tx(memberId: 1, memberName: 'A', amount: kMaxAmount),
+        _tx(id: 2, memberId: 2, memberName: 'B', amount: kMaxAmount),
+      ];
+      final split = buildSplit(2026, 7, txns, members3);
+
+      expect(split.total, kMaxAmount * 2);
+      expect(split.fairShare, 666666666666);
+      expect(split.settlement, 'C は 666666666666 円の支払いが必要');
+    });
   });
 }
