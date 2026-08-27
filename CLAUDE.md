@@ -29,6 +29,7 @@
 ## 破ると静かに壊れる約束
 
 - `lib/db/database.g.dart` は生成物だが git 管理対象。テーブル定義を変えたら `dart run build_runner build` の結果を同じコミットに含め、直接編集しない
+- `.codex/agents/*.toml` と `.agents/skills` は生成物。`.claude/agents/*.md` を変えたら `tool/sync_codex_agents.sh` を走らせ、TOML を直接編集しない
 - `drift_schemas/*.json` と `test/generated_migrations/*.dart` も生成物だが git 管理対象。過去バージョンの JSON は書き換えない（移行テストが変更に追従して緑のままになるため）
 - `schemaVersion` を上げるときは [docs/db-schema.md](docs/db-schema.md) の「スキーマを変更するとき」に従う
 - 集計ロジックは純関数に置き、`summary_calculator.dart` から DB に触らない
