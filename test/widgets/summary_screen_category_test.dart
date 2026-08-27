@@ -250,7 +250,7 @@ void main() {
       expect(_isEllipsized(tester, '子供の習い事'), isFalse);
     });
 
-    testWidgets('カテゴリ行は2段でも固定高から伸びない', (tester) async {
+    testWidgets('通常倍率のカテゴリ行は2段でも基準高から伸びない', (tester) async {
       await seed('食費', 50000);
 
       await pumpSummary(tester);
@@ -288,7 +288,7 @@ void main() {
       // 50 文字は畳まれて当然。ここが false になるようなら
       // _isEllipsized が省略を検知できておらず、上のケースも無意味になる
       expect(_isEllipsized(tester, 'あ' * 50), isTrue);
-      // 畳まれても公開定数で固定した行高から伸びない
+      // 通常倍率では、畳まれても公開定数で決めた基準高から伸びない
       final row = find.ancestor(
         of: find.text('あ' * 50),
         matching: find.byType(CategoryBreakdownRow),

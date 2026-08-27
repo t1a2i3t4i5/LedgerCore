@@ -70,6 +70,8 @@ Zen Maru Gothic / Zen Kaku Gothic New / Outfit の字形では描画されない
 
 縦の切れは `didExceedMaxLines` では拾えない（`maxLines: 1` を超えるのは行数であって高さではない）。**倍率を変えて `tester.getSize()` の高さが比例するか**を見る。切れていれば帯の高さで頭打ちになり、比例しない。
 
+この罠はグラフの軸だけではない。固定幅の数値列や固定高の行も、文字倍率を上げると `%` や文字の下端を `TextOverflow.clip` で黙って落とす。幅は `RenderParagraph.getMaxIntrinsicWidth(double.infinity) <= size.width`、高さは倍率 1.0 と 2.0 の `tester.getSize()` を比較して、内容幅への追従と行の伸びを直接見る。通常倍率の基準高を守るテストだけでは、アクセシビリティ倍率での切れを検出できない。
+
 ## 画面サイズはスマホ幅に設定する
 
 `tester.view.physicalSize` で 360x690 にする。既定の 800x600 は実機より広く overflow を見逃す。

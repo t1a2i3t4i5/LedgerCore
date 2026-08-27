@@ -7,6 +7,7 @@ import 'package:ledger_app/main.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/summary_provider.dart';
 import 'package:ledger_app/screens/summary_screen.dart';
+import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:ledger_app/widgets/month_selector.dart';
 import 'package:provider/provider.dart';
 
@@ -252,7 +253,7 @@ void main() {
       // 送る先が無いので期間ナビ自体を出さない
       expect(find.byType(MonthSelector), findsNothing);
       // 合計カードもカテゴリ別も出さない
-      expect(find.text('合計支出'), findsNothing);
+      expect(find.byType(LedgerCard), findsNothing);
       expect(find.text('カテゴリ別'), findsNothing);
     });
 

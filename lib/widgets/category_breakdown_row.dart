@@ -4,11 +4,11 @@ import '../theme/ledger_tokens.dart';
 import 'amount_format.dart';
 import 'ratio_bar.dart';
 
-/// カテゴリ別集計の 1 行の高さ。
+/// カテゴリ別集計の 1 行の最小高さ。
 ///
-/// 28px の数値行、8px の帯、両者の間隔と上下余白を収めつつ、50 文字の
-/// カテゴリ名を ellipsis にしても行全体が伸びない値として 64px に固定する。
-const double kCategoryBreakdownRowHeight = 64;
+/// 通常の文字倍率で数値行、8px の帯、間隔と上下余白を収める 64px を基準に
+/// する。端末の文字倍率を上げたときは、文字の下端を切らないよう必要量だけ伸びる。
+const double kCategoryBreakdownRowMinHeight = 64;
 
 /// カテゴリ名・金額・構成比と、その比率を示す帯を 1 行に束ねる。
 class CategoryBreakdownRow extends StatelessWidget {
@@ -29,47 +29,54 @@ class CategoryBreakdownRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return SizedBox(
-      height: kCategoryBreakdownRowHeight,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        minHeight: kCategoryBreakdownRowMinHeight,
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              height: 28,
-              child: Row(
-                children: [
-                  CircleAvatar(radius: 5, backgroundColor: color),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      categoryName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    formatYen(amount),
+            Row(
+              children: [
+                CircleAvatar(radius: 5, backgroundColor: color),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    categoryName,
                     maxLines: 1,
-                    style: LedgerTokens.amountSmall.copyWith(
-                      color: theme.colorScheme.onSurface,
-                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 42,
+                ),
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  // 328px 幅・文字倍率 2.0 で 100.0% を欠けさせず、
+                  // kMaxAmount も同じ行へ収められる上限。
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
                     child: Text(
-                      formatRatio(amount, total),
+                      formatYen(amount),
                       maxLines: 1,
-                      textAlign: TextAlign.end,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      style: LedgerTokens.amountSmall.copyWith(
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  formatRatio(amount, total),
+                  maxLines: 1,
+                  softWrap: false,
+                  textAlign: TextAlign.end,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             RatioBar(amount: amount, total: total, color: color),

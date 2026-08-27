@@ -131,9 +131,9 @@ SnackBar が出るのは `MainScreen` の Scaffold（ルートの `ScaffoldMesse
 
 以前のカテゴリ別リストは `ListTile.trailing` に金額と % を縦積みしていた。`ListTile` は `trailing` を先に測って残りを `title` に配分するので、`¥50,000 (14.3%)` のように 1 行へ連結すると 360px 幅で `title` の取り分が 43.5px しか残らず、**全角 4 文字のカテゴリ名が既に ellipsis で畳まれた**（実測値。縦積みなら 135.5px 残った）。
 
-現在は `ListTile` を使わず、公開 `CategoryBreakdownRow` の上段 `Row` で「色ドット / `Expanded` の名前 / 金額 / 固定幅の構成比」を組む。**この罠は `ListTile` をやめた行にも形を変えて残る。** 固定側の金額と構成比が広がれば `Expanded` の名前は例外を出さず静かに畳まれる。`find.text()` も畳まれた `Text` にマッチするため、省略が起きたかは `RenderParagraph.didExceedMaxLines` で見る（`test/widgets/summary_screen_category_test.dart` の `_isEllipsized`）。
+現在は `ListTile` を使わず、公開 `CategoryBreakdownRow` の上段 `Row` で「色ドット / `Expanded` の名前 / 金額 / 内容幅の構成比」を組む。**この罠は `ListTile` をやめた行にも形を変えて残る。** 固定側の金額と構成比が広がれば `Expanded` の名前は例外を出さず静かに畳まれる。`find.text()` も畳まれた `Text` にマッチするため、省略が起きたかは `RenderParagraph.didExceedMaxLines` で見る（`test/widgets/summary_screen_category_test.dart` の `_isEllipsized`）。
 
-既定カテゴリは 2〜3 文字で幅不足の実装でも収まるため、**この回帰はユーザーが作る長さの名前でしか出ない**。テストのカテゴリ名を既定のものに戻さない。行は上段の数値と下段の帯を持つため、旧 `dense` の 48px ではなく `kCategoryBreakdownRowHeight` の 64px に固定する。50 文字を ellipsis にしてもこの高さから伸ばさない。
+既定カテゴリは 2〜3 文字で幅不足の実装でも収まるため、**この回帰はユーザーが作る長さの名前でしか出ない**。テストのカテゴリ名を既定のものに戻さない。行は上段の数値と下段の帯を持つため、通常倍率では旧 `dense` の 48px ではなく `kCategoryBreakdownRowMinHeight` の 64px を基準にする。50 文字を ellipsis にしても通常倍率では伸ばさないが、端末の文字倍率を上げた場合は下端を切らないため必要量だけ伸ばす。
 
 ## カテゴリ別の構成比グラフは場所とエンコーディングで判定する
 
