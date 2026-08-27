@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -26,6 +28,7 @@ void main() {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      _registerFontLicenses();
       logger = await _createLogger();
 
       // 描画中の例外。presentError を呼び直して、今までどおり赤い画面と
@@ -52,6 +55,21 @@ void main() {
       logger.error('app.uncaught', '$error\n$stack');
     },
   );
+}
+
+/// 同梱フォントの SIL Open Font License をライセンス画面へ登録する。
+void _registerFontLicenses() {
+  LicenseRegistry.addLicense(() async* {
+    for (final file in const [
+      'OFL-ZenMaruGothic',
+      'OFL-ZenKakuGothicNew',
+      'OFL-Outfit',
+    ]) {
+      yield LicenseEntryWithLineBreaks([
+        'fonts',
+      ], await rootBundle.loadString('assets/fonts/$file.txt'));
+    }
+  });
 }
 
 /// 端末内のログファイルへ書くロガーを組み立てる。

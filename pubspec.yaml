@@ -30,3 +30,23 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # 実行時にネットワークから取得しないため、ttf を同梱する。
+  # サブセット化しない: カテゴリ名などがユーザー入力なので、収録漏れを防ぐ。
+  fonts:
+    - family: ZenMaruGothic
+      fonts:
+        - asset: assets/fonts/ZenMaruGothic-Regular.ttf
+        - asset: assets/fonts/ZenMaruGothic-Bold.ttf
+          weight: 700
+    - family: ZenKakuGothicNew
+      fonts:
+        - asset: assets/fonts/ZenKakuGothicNew-Bold.ttf
+          weight: 700
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-SemiBold.ttf
+          weight: 600
+  assets:
+    - assets/fonts/OFL-ZenMaruGothic.txt
+    - assets/fonts/OFL-ZenKakuGothicNew.txt
+    - assets/fonts/OFL-Outfit.txt
