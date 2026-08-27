@@ -10,6 +10,7 @@ import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/category_breakdown_row.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
+import 'package:ledger_app/widgets/ratio_bar.dart';
 import 'package:provider/provider.dart';
 
 /// テキストが横幅に収まらず ellipsis で畳まれたかどうか。
@@ -46,19 +47,36 @@ void expectRow(
   );
 }
 
-/// 行に渡す色が、そのカテゴリ ID の [categoryColor] であること。
-void expectCategoryColor(
+/// 行の色ドットと帯が、そのカテゴリ ID の [categoryColor] で描かれること。
+void expectCategoryVisuals(
   WidgetTester tester,
   String categoryName,
   int categoryId,
 ) {
-  final row = tester.widget<CategoryBreakdownRow>(
-    find.ancestor(
-      of: find.text(categoryName),
-      matching: find.byType(CategoryBreakdownRow),
-    ),
+  final row = find.ancestor(
+    of: find.text(categoryName),
+    matching: find.byType(CategoryBreakdownRow),
   );
-  expect(row.color, categoryColor(categoryId));
+  final expectedColor = categoryColor(categoryId);
+
+  final dot = tester.widget<CircleAvatar>(
+    find.descendant(of: row, matching: find.byType(CircleAvatar)),
+  );
+  expect(dot.backgroundColor, expectedColor);
+
+  expect(
+    find.descendant(of: row, matching: find.byType(RatioBar)),
+    findsOneWidget,
+  );
+  expect(
+    find.descendant(
+      of: row,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is ColoredBox && widget.color == expectedColor,
+      ),
+    ),
+    findsOneWidget,
+  );
 }
 
 /// サマリー画面のカテゴリ別セクションを、インメモリ DB 込みで確認する。
@@ -144,7 +162,7 @@ void main() {
 
   // categoryColor は色ドットと帯に届く入口。画面側で直書きの色へ
   // 置き換えても落ちるテストが無い状態を避ける
-  testWidgets('カテゴリ行は categoryColor の色を受け取る', (tester) async {
+  testWidgets('カテゴリ行は categoryColor でドットと帯を描く', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
 
@@ -161,8 +179,8 @@ void main() {
 
     await pumpSummary(tester);
 
-    expectCategoryColor(tester, cats[0].name, cats[0].id);
-    expectCategoryColor(tester, cats[1].name, cats[1].id);
+    expectCategoryVisuals(tester, cats[0].name, cats[0].id);
+    expectCategoryVisuals(tester, cats[1].name, cats[1].id);
   });
 
   // 取引ゼロの月でも summary は非 null で返る（byCategory が空、total が 0）ため、

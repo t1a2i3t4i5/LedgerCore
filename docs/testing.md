@@ -103,6 +103,8 @@ bool _isEllipsized(WidgetTester tester, String text) =>
 
 同じ理由で、`find.byType(ListTile)` や `find.byType(CategoryBreakdownRow)` の**件数だけ**を数えるテストは中身を守らない。件数は行の中身が入れ替わっても変わらないので、名前と金額の対応が崩れる改変はすべてすり抜ける（実測: 名前だけを逆順の項目から採るよう変えても、件数を見るテストは緑のまま通った。束ねて見る形にしたあとは 5 件落ちる）。
 
+公開行ウィジェットのコンストラクタ引数だけを見ても、受け取った値を子へ渡さず捨てる実装を検出できない。行の主目的となる子（`RatioBar` など）は `find.descendant` で存在を確認し、色は `CircleAvatar.backgroundColor` や実際の塗りを持つ `ColoredBox.color` まで見る。`tester.widget<CategoryBreakdownRow>(...).color` だけでは描画結果を守らない。
+
 ### 幅のテストに既定カテゴリ名を使わない
 
 既定カテゴリは「食費」「日用品」など 2〜3 文字しかなく、**幅が足りない実装でも収まってしまう**。実際、カテゴリ別リストの金額と構成比を 1 行に連結していた版は `title` の取り分が 43.5px しか無かったが、「食費」で書いたテストは緑のまま通った（縦積みに直すと 135.5px）。

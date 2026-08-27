@@ -9,6 +9,7 @@ import 'package:ledger_app/providers/summary_provider.dart';
 import 'package:ledger_app/screens/summary_screen.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:ledger_app/widgets/month_selector.dart';
+import 'package:ledger_app/widgets/period_format.dart';
 import 'package:provider/provider.dart';
 
 /// 集計画面の月／年／全期間の切り替えを、実際に画面を押して見る。
@@ -110,7 +111,8 @@ void main() {
       await tapPeriod(tester, '年');
 
       expect(find.byType(BarChart), findsOneWidget);
-      expect(find.text('2026年'), findsOneWidget);
+      expect(find.text(formatPeriod(2026, null)), findsOneWidget);
+      expect(find.text('${formatPeriod(2026, null)}の支出'), findsOneWidget);
       expect(find.text('2026年7月'), findsNothing);
       // 年合計。月モードの ¥700 から入れ替わっている
       expect(find.text('¥1,000'), findsWidgets);

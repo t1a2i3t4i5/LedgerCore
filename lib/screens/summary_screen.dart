@@ -181,7 +181,11 @@ class _SummaryScreenState extends State<SummaryScreen> {
       // 取引の無い月も 0 として 12 本並ぶ（buildYearlySummary が 0 で埋める）
       PeriodBarChart(items: yearly.byMonth),
       const SizedBox(height: 16),
-      _totalCard(context, yearly.total, label: '${provider.yearAxis}年の支出'),
+      _totalCard(
+        context,
+        yearly.total,
+        label: '${formatPeriod(provider.yearAxis, null)}の支出',
+      ),
       const SizedBox(height: 16),
       ..._categorySection(context, yearly.byCategory, yearly.total),
     ];
