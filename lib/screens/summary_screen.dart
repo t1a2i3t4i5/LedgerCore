@@ -1,11 +1,20 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/summary.dart';
 import '../providers/summary_provider.dart';
+import '../theme/ledger_tokens.dart';
 import '../widgets/amount_format.dart';
+import '../widgets/category_breakdown_row.dart';
 import '../widgets/chart_palette.dart';
+import '../widgets/ledger_card.dart';
 import '../widgets/month_selector.dart';
 import '../widgets/period_bar_chart.dart';
+import '../widgets/period_format.dart';
+
+/// デスクトップ幅でも名前と金額を 1 行として追える本文幅。
+const double _maxContentWidth = 480;
 
 class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key});
@@ -31,80 +40,105 @@ class _SummaryScreenState extends State<SummaryScreen> {
       builder: (context, provider, _) {
         return RefreshIndicator(
           onRefresh: _fetch,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            // 全期間モードや取引ゼロの月は中身が短い。既定の physics だと
-            // スクロールできる長さが無いときに引っ張っても反応しない
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: [
-              // 期間の切り替え。MonthSelector より上に固定する。
-              // 下に置くと、全期間モードで MonthSelector が消えたときに
-              // 切り替え UI 自体が上へ飛び、押した指の位置とずれる
-              SegmentedButton<SummaryPeriod>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: SummaryPeriod.month, label: Text('月')),
-                  ButtonSegment(value: SummaryPeriod.year, label: Text('年')),
-                  ButtonSegment(value: SummaryPeriod.all, label: Text('全期間')),
-                ],
-                selected: {provider.period},
-                onSelectionChanged:
-                    (selected) => provider.setPeriod(selected.first),
-              ),
-              const SizedBox(height: 8),
-
-              // 期間の送り。全期間モードには送る先が無いので出さない
-              if (provider.period == SummaryPeriod.month) ...[
-                MonthSelector(
-                  year: provider.year,
-                  month: provider.month,
-                  onPrev: () => provider.changeMonth(-1),
-                  onNext: () => provider.changeMonth(1),
-                  onToday:
-                      provider.isCurrentMonth
-                          ? null
-                          : provider.goToCurrentMonth,
+          // ListView 自体は画面幅いっぱいに保ち、padding だけを広げる。
+          // スクロール領域を細くしないので、デスクトップの余白上でも
+          // ホイール操作と RefreshIndicator が効く。
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final horizontal = math.max(
+                16.0,
+                (constraints.maxWidth - _maxContentWidth) / 2,
+              );
+              return ListView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontal,
+                  vertical: 16,
                 ),
-                const SizedBox(height: 8),
-              ] else if (provider.period == SummaryPeriod.year) ...[
-                MonthSelector(
-                  // 表示月（provider.year）ではなく年専用の軸。ここを
-                  // provider.year にすると、年を送った瞬間に割り勘タブの
-                  // 表示期間まで 1 年ぶん動く
-                  year: provider.yearAxis,
-                  month: null,
-                  todayTooltip: '今年に戻る',
-                  onPrev: () => provider.changeYear(-1),
-                  onNext: () => provider.changeYear(1),
-                  onToday:
-                      provider.isCurrentYear ? null : provider.goToCurrentYear,
-                ),
-                const SizedBox(height: 8),
-              ],
-
-              if (provider.loading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(),
+                // 全期間モードや取引ゼロの月は中身が短い。既定の physics だと
+                // スクロールできる長さが無いときに引っ張っても反応しない
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  // 期間の切り替え。MonthSelector より上に固定する。
+                  // 下に置くと、全期間モードで MonthSelector が消えたときに
+                  // 切り替え UI 自体が上へ飛び、押した指の位置とずれる
+                  SegmentedButton<SummaryPeriod>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(
+                        value: SummaryPeriod.month,
+                        label: Text('月'),
+                      ),
+                      ButtonSegment(
+                        value: SummaryPeriod.year,
+                        label: Text('年'),
+                      ),
+                      ButtonSegment(
+                        value: SummaryPeriod.all,
+                        label: Text('全期間'),
+                      ),
+                    ],
+                    selected: {provider.period},
+                    onSelectionChanged:
+                        (selected) => provider.setPeriod(selected.first),
                   ),
-                )
-              else if (provider.error != null)
-                Center(
-                  child: Text(
-                    'エラー: ${provider.error}',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+                  const SizedBox(height: 8),
+
+                  // 期間の送り。全期間モードには送る先が無いので出さない
+                  if (provider.period == SummaryPeriod.month) ...[
+                    MonthSelector(
+                      year: provider.year,
+                      month: provider.month,
+                      onPrev: () => provider.changeMonth(-1),
+                      onNext: () => provider.changeMonth(1),
+                      onToday:
+                          provider.isCurrentMonth
+                              ? null
+                              : provider.goToCurrentMonth,
                     ),
-                  ),
-                )
-              else
-                ...switch (provider.period) {
-                  SummaryPeriod.month => _monthBody(context, provider),
-                  SummaryPeriod.year => _yearBody(context, provider),
-                  SummaryPeriod.all => _allBody(context, provider),
-                },
-            ],
+                    const SizedBox(height: 8),
+                  ] else if (provider.period == SummaryPeriod.year) ...[
+                    MonthSelector(
+                      // 表示月（provider.year）ではなく年専用の軸。ここを
+                      // provider.year にすると、年を送った瞬間に割り勘タブの
+                      // 表示期間まで 1 年ぶん動く
+                      year: provider.yearAxis,
+                      month: null,
+                      todayTooltip: '今年に戻る',
+                      onPrev: () => provider.changeYear(-1),
+                      onNext: () => provider.changeYear(1),
+                      onToday:
+                          provider.isCurrentYear
+                              ? null
+                              : provider.goToCurrentYear,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  if (provider.loading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else if (provider.error != null)
+                    Center(
+                      child: Text(
+                        'エラー: ${provider.error}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    )
+                  else
+                    ...switch (provider.period) {
+                      SummaryPeriod.month => _monthBody(context, provider),
+                      SummaryPeriod.year => _yearBody(context, provider),
+                      SummaryPeriod.all => _allBody(context, provider),
+                    },
+                ],
+              );
+            },
           ),
         );
       },
@@ -117,7 +151,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
     if (summary == null) return const [_EmptySection()];
 
     return [
-      _totalCard(context, summary.total),
+      _totalCard(
+        context,
+        summary.total,
+        label:
+            provider.isCurrentMonth
+                ? '今月の支出'
+                : '${formatPeriod(provider.year, provider.month)}の支出',
+      ),
       const SizedBox(height: 16),
       ..._categorySection(context, summary.byCategory, summary.total),
       const Divider(),
@@ -140,7 +181,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
       // 取引の無い月も 0 として 12 本並ぶ（buildYearlySummary が 0 で埋める）
       PeriodBarChart(items: yearly.byMonth),
       const SizedBox(height: 16),
-      _totalCard(context, yearly.total),
+      _totalCard(context, yearly.total, label: '${provider.yearAxis}年の支出'),
       const SizedBox(height: 16),
       ..._categorySection(context, yearly.byCategory, yearly.total),
     ];
@@ -159,23 +200,36 @@ class _SummaryScreenState extends State<SummaryScreen> {
     ];
   }
 
-  Widget _totalCard(BuildContext context, double total) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const Text('合計支出', style: TextStyle(fontSize: 14)),
-            const SizedBox(height: 8),
-            Text(
-              formatYen(total),
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
+  Widget _totalCard(
+    BuildContext context,
+    double total, {
+    required String label,
+  }) {
+    return LedgerCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                formatYen(total),
+                style: LedgerTokens.amountLarge.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -197,37 +251,12 @@ class _SummaryScreenState extends State<SummaryScreen> {
         const _EmptySection()
       else
         ...items.map(
-          (item) => ListTile(
-            // カテゴリごとに決まる色。取引一覧など他の画面でも同じ色になる
-            leading: CircleAvatar(
-              backgroundColor: categoryColor(item.categoryId),
-              child: Icon(
-                Icons.label_outline,
-                size: 20,
-                color: labelColorOn(categoryColor(item.categoryId)),
-              ),
-            ),
-            // カテゴリ名は DB 上 50 文字まで入る。trailing が長くなった分
-            // title の取り分が減るので ellipsis で畳む
-            title: Text(item.categoryName, overflow: TextOverflow.ellipsis),
-            // 金額と % を 1 行に並べない。ListTile は trailing を先に
-            // 測って残りを title に配分するので、'¥50,000 (14.3%)' の
-            // 1 行では 360px 幅で title に 43.5px しか残らず、全角 4 文字の
-            // カテゴリ名が既に ellipsis で畳まれていた（実測）。
-            // 縦に積むと trailing の幅は金額だけで決まる
-            trailing: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(formatYen(item.total)),
-                Text(
-                  formatRatio(item.total, total),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-            dense: true,
+          (item) => CategoryBreakdownRow(
+            categoryName: item.categoryName,
+            amount: item.total,
+            total: total,
+            // カテゴリごとに決まる色を画面側で解決して渡す。
+            color: categoryColor(item.categoryId),
           ),
         ),
     ];
