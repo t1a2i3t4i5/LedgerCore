@@ -6,6 +6,7 @@ import '../models/transaction.dart';
 import '../providers/category_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/transaction_provider.dart';
+import '../theme/ledger_tokens.dart';
 import '../widgets/amount_format.dart';
 import '../widgets/period_format.dart';
 
@@ -301,7 +302,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                     padding: EdgeInsets.symmetric(vertical: 12),
                                     child: Text(
                                       'メンバー情報を読み込み中...',
-                                      style: TextStyle(color: Colors.grey),
+                                      style: TextStyle(
+                                        color: LedgerTokens.subtext,
+                                      ),
                                     ),
                                   )
                                   : Wrap(

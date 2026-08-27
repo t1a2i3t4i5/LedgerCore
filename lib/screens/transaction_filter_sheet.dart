@@ -5,6 +5,7 @@ import '../models/transaction.dart';
 import '../providers/category_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/transaction_provider.dart';
+import '../theme/ledger_tokens.dart';
 import '../widgets/amount_format.dart';
 
 /// 取引一覧のソート・フィルター設定用 BottomSheet
@@ -185,7 +186,10 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
               // ---- カテゴリ（複数選択） ----
               const _SectionLabel('カテゴリ'),
               if (categories.isEmpty)
-                const Text('カテゴリがありません', style: TextStyle(color: Colors.grey))
+                const Text(
+                  'カテゴリがありません',
+                  style: TextStyle(color: LedgerTokens.subtext),
+                )
               else
                 Wrap(
                   spacing: 8,
@@ -214,7 +218,7 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
               if (members.isEmpty)
                 const Text(
                   'メンバー情報を読み込み中...',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: LedgerTokens.subtext),
                 )
               else
                 Wrap(

@@ -30,6 +30,14 @@ drift の `SchemaVerifier` を使い、`drift_schemas/` に固定した過去バ
 
 ## ウィジェットテストは `test/widgets/` に置く
 
+### `flutter test` はアプリの同梱フォントを読み込まない
+
+ウィジェットテストでは `pubspec.yaml` に宣言したフォント asset が読み込まれず、実際の
+Zen Maru Gothic / Zen Kaku Gothic New / Outfit の字形では描画されない。テーマの
+`fontFamily` 設定値は検証できるが、書体が端末で適用された結果をピクセルや文字幅で守ることは
+できない。既存の幅テストも出荷される字幅を測っていないため、フォント asset の宣言漏れや
+パス誤りは実機またはアプリ実行時の目視で確認する。
+
 ### fl_chart は「どこが Canvas 直描きか」で検証手段が変わる
 
 かつてここには「fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.text()` では拾えない」と書いてあった。**軸については fl_chart 1.x で成り立たない。** `side_titles_widget.dart` が `SideTitles.getTitlesWidget` の返り値をそのままウィジェットツリーに載せるため、軸ラベルは通常の `Text` として存在する。削除した円グラフ（0.x 系）の扇形ラベルだけを見て一般化したのが元の記述で、`period_bar_chart_test.dart` を書く段で誤りが分かった。

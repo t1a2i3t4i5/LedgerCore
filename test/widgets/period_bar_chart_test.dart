@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/models/summary.dart';
+import 'package:ledger_app/theme/ledger_theme.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/period_bar_chart.dart';
@@ -21,7 +22,7 @@ import 'package:ledger_app/widgets/period_format.dart';
 
 /// アプリ本体と同じテーマ。棒の色は ColorScheme から採るので、
 /// 既定テーマのまま測ると production と別の色を見ることになる
-final _theme = ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true);
+final _theme = ledgerTheme;
 
 PeriodTotal _month(int month, double total) =>
     PeriodTotal(year: 2026, month: month, total: total);

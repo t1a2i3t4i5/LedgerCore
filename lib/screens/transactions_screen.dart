@@ -71,7 +71,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('削除', style: TextStyle(color: Colors.red)),
+                child: Text(
+                  '削除',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
             ],
           ),
@@ -167,7 +170,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         ? Center(
                           child: Text(
                             'エラー: ${provider.error}',
-                            style: const TextStyle(color: Colors.red),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
                           ),
                         )
                         : filtered.isEmpty
@@ -188,14 +193,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               final t = filtered[index];
                               return ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: Colors.teal.withValues(
-                                    alpha: 0.15,
-                                  ),
+                                  backgroundColor:
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.primaryContainer,
                                   child: Text(
                                     _dateFmt.format(t.spentAt),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
-                                      color: Colors.teal,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
                                   ),
                                 ),

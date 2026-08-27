@@ -93,7 +93,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 Center(
                   child: Text(
                     'エラー: ${provider.error}',
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 )
               else
@@ -168,7 +170,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
             Text(
               formatYen(total),
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: Colors.teal,
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.bold,
               ),
             ),
