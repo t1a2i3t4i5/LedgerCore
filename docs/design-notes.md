@@ -335,6 +335,32 @@ SnackBar になる。**失敗をログに残すために足した `try` は、�
 
 `op` は `<対象>.<動作>`、`lv` は `info` / `error` の 2 値だけ。レベルを増やさない。
 
+## 配色・書体・形状はテーマ層に集約する
+
+画面と共通ウィジェットは、Material の意味を持つ色を `Theme.of(context).colorScheme` から、
+アプリ固有の補助色・角丸・影・金額書体を `lib/theme/ledger_tokens.dart` の
+`LedgerTokens` から採る。画面側に `Colors.*` や `Color(...)` を直書きしない。
+
+以前は `main.dart` の `ThemeData(colorSchemeSeed: Colors.teal)` だけがテーマ定義で、
+`Theme.of(context)` 経由の色参照は 1 か所しかなく、残る 22 か所は画面へ直書きされていた。
+そのため seed を変更しても大半の画面へ届かず、アプリ全体の配色を一貫して変更できなかった。
+現在は `ledger_theme.dart` が `ColorScheme.fromSeed` をブランド色から作り、必要なロールを
+`copyWith` で確定する。未指定の Material ロールも同じ暖色系の seed から導かれる。
+
+`surfaceTint` は透明に固定する。Material 3 は既定で elevation のある面へ `primary` を
+重ねるため、指定しないと白い `Card` や BottomSheet が濃茶を帯びる。
+`test/widgets/ledger_theme_test.dart` は `Card` が最終的に白で描かれることを、テーマ定義の
+値ではなく解決後の `Material.color` で守る。
+
+アプリはライトテーマだけを持ち、`LedgerTokens` は `ThemeExtension` にしない。差し替える
+テーマ実体と補間が無い現状では、`ThemeExtension` は null 許容のルックアップを増やすだけに
+なるため。ダークテーマを導入する場合は、その時点で `ThemeExtension` への移行を検討する。
+
+`LedgerTokens.subtext`（`#A39288`）は白いカード上で約 2.4:1 と WCAG AA を満たさない。
+デザイン案の値を優先する一方、日付・補足ラベルなどの補助情報にだけ使い、本文サイズ以上の
+主要情報には使わない。`chart_palette.dart` の文字色は塗りの上で AA 4.5:1 を守る別用途で、
+この例外を適用しない。
+
 ## コード整形は language version で決まる
 
 `dart format` のスタイルは、実行中の Dart SDK ではなく **language version** で決まる。現在は Dart 3.7 の tall style。

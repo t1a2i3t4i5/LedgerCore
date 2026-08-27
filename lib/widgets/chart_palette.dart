@@ -31,8 +31,8 @@ const double _labelLuminanceThreshold = 0.179;
 /// 塗り色の明るさで白／黒を切り替え、テーマに依らずコントラストを確保する。
 Color labelColorOn(Color background) =>
     background.computeLuminance() > _labelLuminanceThreshold
-        ? Colors.black87
-        : Colors.white;
+        ? const Color(0xDD000000)
+        : const Color(0xFFFFFFFF);
 
 /// 推移グラフ（`widgets/period_bar_chart.dart`）の棒の色。
 ///

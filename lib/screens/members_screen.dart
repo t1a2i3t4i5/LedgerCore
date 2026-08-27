@@ -89,7 +89,10 @@ class _MembersScreenState extends State<MembersScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('削除', style: TextStyle(color: Colors.red)),
+                child: Text(
+                  '削除',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
             ],
           ),
@@ -138,7 +141,10 @@ class _MembersScreenState extends State<MembersScreen> {
                           () => _showEditDialog(id: m.id, currentName: m.name),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      icon: Icon(
+                        Icons.delete_outline,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                       onPressed: () => _delete(m.id, m.name, members.length),
                     ),
                   ],

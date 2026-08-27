@@ -53,7 +53,9 @@ class _SplitScreenState extends State<SplitScreen> {
                 Center(
                   child: Text(
                     'エラー: ${provider.error}',
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 )
               else if (provider.split == null)
@@ -89,10 +91,10 @@ class _SplitScreenState extends State<SplitScreen> {
                               ),
                               Text(
                                 formatYen(provider.split!.fairShare),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.teal,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ],
@@ -106,7 +108,7 @@ class _SplitScreenState extends State<SplitScreen> {
 
                 // 精算結果
                 Card(
-                  color: Colors.teal.shade50,
+                  color: Theme.of(context).colorScheme.primaryContainer,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -114,12 +116,18 @@ class _SplitScreenState extends State<SplitScreen> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.swap_horiz, color: Colors.teal),
+                            Icon(
+                              Icons.swap_horiz,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               '精算方法',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(color: Colors.teal),
+                              style: Theme.of(
+                                context,
+                              ).textTheme.titleMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                             ),
                           ],
                         ),

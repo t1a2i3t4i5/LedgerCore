@@ -15,6 +15,7 @@ import 'providers/month_scoped_provider.dart';
 import 'providers/summary_provider.dart';
 import 'providers/transaction_provider.dart';
 import 'screens/main_screen.dart';
+import 'theme/ledger_theme.dart';
 
 void main() {
   // ゾーンのエラーハンドラから参照するので、外側に置いて後から差し替える。
@@ -125,7 +126,8 @@ class LedgerApp extends StatelessWidget {
       child: MaterialApp(
         title: '家計簿',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
+        theme: ledgerTheme,
+        themeMode: ThemeMode.light,
         // 認証は撤廃。起動後すぐにメイン画面へ。
         home: const MainScreen(),
       ),

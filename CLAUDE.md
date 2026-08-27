@@ -21,6 +21,7 @@
 | --- | --- |
 | `lib/db/database.dart`、`drift_schemas/`、`schemaVersion` | [docs/db-schema.md](docs/db-schema.md)（テーブル定義・変更手順・マイグレーション履歴） |
 | 画面・Provider・ウィジェット | [docs/design-notes.md](docs/design-notes.md)（設計上の約束・理由・過去の事故） |
+| `lib/theme/**` | [docs/design-notes.md](docs/design-notes.md)（テーマ層の役割とライト専用の判断） |
 | `test/` | [docs/testing.md](docs/testing.md)（テスト規約と、破っても緑のまま通る落とし穴） |
 | ブランチ・PR・レビュー・マージ | [docs/git-workflow.md](docs/git-workflow.md)（リスク判定表を含む） |
 | issue | [docs/git-workflow.md](docs/git-workflow.md)（運用基準）、[.github/ISSUE_TEMPLATE/issue.md](.github/ISSUE_TEMPLATE/issue.md)（本文の型） |
@@ -40,6 +41,7 @@
 - 金額は正の整数のみ。上限は `models/transaction.dart` の `kMaxAmount` だけを直す（validator と DB の CHECK 制約が参照するスキーマ定義値）
 - 金額表示は `widgets/amount_format.dart` の `formatYen()`、入力欄は `AmountInputFormatter`、構成比は `formatRatio()`、年月は `widgets/period_format.dart` の `formatPeriod()` / `formatPeriodShort()` を使い、画面側で書式を組み立て直さない
 - グラフの色は `widgets/chart_palette.dart` を使い直書きしない。グラフウィジェットは `AppDatabase` も Provider も参照せず、表示データを引数で受け取る
+- 配色・書体・角丸・影は `lib/theme/` の `ColorScheme` / `LedgerTokens` から採り、画面に色リテラルを書かない
 - 操作ログは `lib/logging/` の `OperationLogger` だけを通す。取引のメモ本文とフィルターの検索語を書かず、例外文字列は `log_entry.dart` の `sanitizeError()` を通す。`info()` / `error()` は `void` で呼び出し側に `await` させない
 - 書き込み系（`create` / `update` / `delete`）にログのために足した `try` は必ず `rethrow` する
 

@@ -103,6 +103,9 @@ drift_schemas/                 # 各スキーマバージョンの固定記録�
 test/generated_migrations/     # 固定記録から起こした移行ヘルパ（生成物・git 管理）
 lib/
 ├── main.dart                  # 起動・Provider 登録（認証なしでメイン画面へ直行）
+├── theme/                     # 配色・書体・角丸・影のテーマとアプリ固有トークン
+│   ├── ledger_theme.dart      # ColorScheme と Material コンポーネントテーマ
+│   └── ledger_tokens.dart     # 補助色・形状・金額用 TextStyle
 ├── db/
 │   ├── database.dart          # drift のテーブル定義・DAO・集計クエリ
 │   ├── database.g.dart        # 生成コード（build_runner）

@@ -82,7 +82,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('削除', style: TextStyle(color: Colors.red)),
+                child: Text(
+                  '削除',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
             ],
           ),
@@ -113,7 +116,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   ? Center(
                     child: Text(
                       'エラー: ${provider.error}',
-                      style: const TextStyle(color: Colors.red),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   )
                   : provider.categories.isEmpty
@@ -142,9 +147,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                     ),
                               ),
                               IconButton(
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.delete_outline,
-                                  color: Colors.red,
+                                  color: Theme.of(context).colorScheme.error,
                                 ),
                                 onPressed: () => _delete(cat.id, cat.name),
                               ),
