@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_app/theme/ledger_theme.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 
 /// [foreground] を [background] の上に src-over で合成する。
@@ -32,6 +35,54 @@ Set<Color> _allPaletteColors() => {
   for (var id = 0; id < 100; id++) categoryColor(id),
 };
 
+Set<Color> _allMemberPaletteColors() => {
+  for (var id = 0; id < 100; id++) memberColor(id),
+};
+
+/// sRGB を CIE L*a*b*（D65）へ変換する。
+/// パレットの色同士が知覚上近付き過ぎていないかを CIE76 ΔE で測る。
+List<double> _lab(Color color) {
+  double linearize(double channel) =>
+      channel <= 0.04045
+          ? channel / 12.92
+          : math.pow((channel + 0.055) / 1.055, 2.4).toDouble();
+
+  final red = linearize(color.r);
+  final green = linearize(color.g);
+  final blue = linearize(color.b);
+  final x = (red * 0.4124 + green * 0.3576 + blue * 0.1805) / 0.95047;
+  final y = red * 0.2126 + green * 0.7152 + blue * 0.0722;
+  final z = (red * 0.0193 + green * 0.1192 + blue * 0.9505) / 1.08883;
+
+  double transform(double value) =>
+      value > 0.008856
+          ? math.pow(value, 1 / 3).toDouble()
+          : 7.787 * value + 16 / 116;
+
+  final fx = transform(x);
+  final fy = transform(y);
+  final fz = transform(z);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+double _deltaE(Color first, Color second) {
+  final a = _lab(first);
+  final b = _lab(second);
+  return math.sqrt(
+    math.pow(a[0] - b[0], 2) +
+        math.pow(a[1] - b[1], 2) +
+        math.pow(a[2] - b[2], 2),
+  );
+}
+
+double _contrastRatio(Color first, Color second) {
+  final firstLuminance = first.computeLuminance();
+  final secondLuminance = second.computeLuminance();
+  final lighter = math.max(firstLuminance, secondLuminance);
+  final darker = math.min(firstLuminance, secondLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 void main() {
   group('categoryColor', () {
     test('同じカテゴリ ID なら常に同じ色を返す', () {
@@ -56,6 +107,79 @@ void main() {
       // Dart の % は除数が正なら非負を返すので範囲外アクセスにならない
       expect(() => categoryColor(-1), returnsNormally);
       expect(() => categoryColor(-13), returnsNormally);
+    });
+
+    test('既定カテゴリ 1〜5 はデザイン案の色相を保った調整色になる', () {
+      expect(
+        [for (var id = 1; id <= 5; id++) categoryColor(id)],
+        const [
+          Color(0xFFB67049),
+          Color(0xFFA57758),
+          Color(0xFF957C6A),
+          Color(0xFF7C8471),
+          Color(0xFF807F95),
+        ],
+      );
+    });
+
+    test('パレット全色の CIE76 ΔE が 12 以上になる', () {
+      final colors = _allPaletteColors().toList();
+      for (var first = 0; first < colors.length; first++) {
+        for (var second = first + 1; second < colors.length; second++) {
+          final delta = _deltaE(colors[first], colors[second]);
+          expect(
+            delta,
+            greaterThanOrEqualTo(12),
+            reason:
+                '${colors[first].toARGB32().toRadixString(16)} と '
+                '${colors[second].toARGB32().toRadixString(16)} の ΔE が '
+                '$delta しかない',
+          );
+        }
+      }
+    });
+
+    test('白いカードと帯のトラックに対して 3:1 以上になる', () {
+      const backgrounds = [Color(0xFFFFFFFF), Color(0xFFEFE4D8)];
+      for (final color in _allPaletteColors()) {
+        for (final background in backgrounds) {
+          final ratio = _contrastRatio(color, background);
+          expect(
+            ratio,
+            greaterThanOrEqualTo(3),
+            reason:
+                '${color.toARGB32().toRadixString(16)} 対 '
+                '${background.toARGB32().toRadixString(16)} の比が '
+                '$ratio しかない',
+          );
+        }
+      }
+    });
+  });
+
+  group('memberColor', () {
+    test('同じメンバー ID なら常に同じ色を返す', () {
+      for (final id in [0, 1, 7, 42, 999]) {
+        expect(memberColor(id), memberColor(id));
+      }
+    });
+
+    test('パレットの色数を超える ID でも色を循環させる', () {
+      final colors = _allMemberPaletteColors();
+      expect(colors.length, 8);
+      expect(memberColor(3), memberColor(3 + colors.length));
+    });
+
+    test('負の ID でも例外なく色を返す', () {
+      expect(() => memberColor(-1), returnsNormally);
+      expect(() => memberColor(-9), returnsNormally);
+    });
+
+    test('カテゴリ用パレットとは交わらない', () {
+      expect(
+        _allMemberPaletteColors().intersection(_allPaletteColors()),
+        isEmpty,
+      );
     });
   });
 
@@ -90,31 +214,31 @@ void main() {
   });
 
   group('trendColor', () {
-    // main.dart の ThemeData(colorSchemeSeed: Colors.teal) と同じ採り方をする。
     // 推移グラフのツールチップは trendColor を背景に敷いて文字を載せるので、
-    // 棒の色が変わったときに文字が読めなくなる経路がここで塞がる
-    ColorScheme scheme(Brightness brightness) =>
-        ColorScheme.fromSeed(seedColor: Colors.teal, brightness: brightness);
-
-    test('ライト・ダークとも ColorScheme の primary を返す', () {
-      for (final brightness in Brightness.values) {
-        final s = scheme(brightness);
-        expect(trendColor(s), s.primary, reason: '$brightness');
-      }
+    // 棒の色が変わったときに文字が読めなくなる経路も各テーマで塞ぐ。
+    test('アプリのライトテーマで primary と文字の AA を保つ', () {
+      final scheme = ledgerTheme.colorScheme;
+      final bar = trendColor(scheme);
+      expect(bar, scheme.primary);
+      expect(
+        _effectiveContrastRatio(labelColorOn(bar), bar),
+        greaterThanOrEqualTo(4.5),
+      );
     });
 
-    // ダークテーマでは primary が明るい側へ反転するので、固定色を直書きすると
-    // ここが落ちる（ツールチップの文字が背景に溶ける）
-    test('ツールチップの文字が実効コントラスト AA（4.5:1）を満たす', () {
-      for (final brightness in Brightness.values) {
-        final bar = trendColor(scheme(brightness));
-        final ratio = _effectiveContrastRatio(labelColorOn(bar), bar);
-        expect(
-          ratio,
-          greaterThanOrEqualTo(4.5),
-          reason: '$brightness で $ratio',
-        );
-      }
+    // アプリはライト専用だが、固定色を直書きして将来のダークテーマで
+    // ツールチップの文字が背景に溶ける回帰は合成スキームで守る。
+    test('合成ダークスキームで primary と文字の AA を保つ', () {
+      final scheme = ColorScheme.fromSeed(
+        seedColor: const Color(0xFF2E2620),
+        brightness: Brightness.dark,
+      );
+      final bar = trendColor(scheme);
+      expect(bar, scheme.primary);
+      expect(
+        _effectiveContrastRatio(labelColorOn(bar), bar),
+        greaterThanOrEqualTo(4.5),
+      );
     });
 
     // カテゴリの色を流用すると、無関係なカテゴリと同色になって
@@ -122,7 +246,7 @@ void main() {
     test('ライトテーマでカテゴリ色をそのまま流用していない', () {
       expect(
         _allPaletteColors(),
-        isNot(contains(trendColor(scheme(Brightness.light)))),
+        isNot(contains(trendColor(ledgerTheme.colorScheme))),
       );
     });
   });

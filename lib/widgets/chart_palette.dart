@@ -1,25 +1,43 @@
 import 'package:flutter/material.dart';
 
-/// グラフ用の固定パレット。
+/// カテゴリを識別するための固定パレット。
 /// 既定カテゴリは 10 件なので、12 色あれば通常は色が重複しない。
 const List<Color> _palette = [
-  Color(0xFF26A69A), // teal 400
-  Color(0xFFEF5350), // red 400
-  Color(0xFF42A5F5), // blue 400
-  Color(0xFFFFA726), // orange 400
-  Color(0xFFAB47BC), // purple 400
-  Color(0xFF66BB6A), // green 400
-  Color(0xFFEC407A), // pink 400
-  Color(0xFF29B6F6), // light blue 400
-  Color(0xFF8D6E63), // brown 400
-  Color(0xFFFFCA28), // amber 400
-  Color(0xFF5C6BC0), // indigo 400
-  Color(0xFF9CCC65), // light green 400
+  Color(0xFF3D7F78), // 青緑
+  Color(0xFFB67049), // デザイン案の橙を背景上で識別できる明度へ調整
+  Color(0xFFA57758), // デザイン案の薄橙を背景上で識別できる明度へ調整
+  Color(0xFF957C6A), // デザイン案の茶を背景上で識別できる明度へ調整
+  Color(0xFF7C8471), // デザイン案の緑を背景上で識別できる明度へ調整
+  Color(0xFF807F95), // デザイン案の紫を背景上で識別できる明度へ調整
+  Color(0xFF3F7196), // 青
+  Color(0xFF71658F), // 青紫
+  Color(0xFF8E5E7C), // 赤紫
+  Color(0xFFA45555), // 赤
+  Color(0xFF88713D), // 黄土
+  Color(0xFF63783F), // オリーブ
+];
+
+/// メンバーを識別するための固定パレット。
+/// カテゴリとの無意味な対応を作らないよう、カテゴリ用とは別の色だけを持つ。
+const List<Color> _memberPalette = [
+  Color(0xFFE8A87C), // デザイン案（みく）
+  Color(0xFF8FB8A8), // デザイン案（たいち）
+  Color(0xFFD39B84), // コーラル
+  Color(0xFF829FBA), // ブルー
+  Color(0xFFB29ABF), // ラベンダー
+  Color(0xFFC69AA8), // ローズ
+  Color(0xFFA8AF7A), // オリーブ
+  Color(0xFF7FAEAA), // ティール
 ];
 
 /// カテゴリ ID から色を決定的に選ぶ。
 /// 同じカテゴリは常に同じ色になるので、グラフ・凡例・リストの対応が崩れない。
 Color categoryColor(int categoryId) => _palette[categoryId % _palette.length];
+
+/// メンバー ID から色を決定的に選ぶ。
+/// カテゴリ色とは交わらないため、同色による無意味な対応が生まれない。
+Color memberColor(int memberId) =>
+    _memberPalette[memberId % _memberPalette.length];
 
 /// 白と黒のどちらが読みやすいかが入れ替わる輝度。
 /// 白との比 (1.05)/(L+0.05) と黒との比 (L+0.05)/0.05 が等しくなる点で、
