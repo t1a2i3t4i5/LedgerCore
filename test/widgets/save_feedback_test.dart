@@ -98,7 +98,7 @@ void main() {
     await fillAndSave(tester, '1500');
 
     // 一覧に増えている（従来どおりの挙動）
-    expect(find.text('合計 ¥1,500'), findsOneWidget);
+    expect(find.text('¥1,500'), findsNWidgets(2));
     // 成功時も無言で閉じない
     expect(find.text('保存しました'), findsOneWidget);
     // 同じ月なら月名を名乗る必要はなく、移動先も無い
@@ -127,14 +127,14 @@ void main() {
     await openAddScreen(tester);
     await pickDate(tester, DateTime(2026, 8, 7));
     await fillAndSave(tester, '1500');
-    expect(find.text('合計 ¥1,500'), findsNothing);
+    expect(find.text('¥1,500'), findsNothing);
 
     await tester.tap(find.text('その月を表示'));
     await tester.pumpAndSettle();
 
     // 表示月が移ったうえで、その月のデータを読み直している
     expect(find.text('2026年8月'), findsOneWidget);
-    expect(find.text('合計 ¥1,500'), findsOneWidget);
+    expect(find.text('¥1,500'), findsNWidgets(2));
   });
 
   testWidgets('保存後に表示月が勝手に動かない', (tester) async {
@@ -168,22 +168,24 @@ void main() {
     await openAddScreen(tester);
     await pickDate(tester, DateTime(2026, 7, 20));
     await fillAndSave(tester, '1500');
-    expect(find.text('合計 ¥1,500'), findsOneWidget);
+    expect(find.text('¥1,500'), findsNWidgets(2));
 
     // 一覧の行をタップして編集画面へ
-    await tester.tap(find.text('¥1,500'));
+    await tester.tap(
+      find.descendant(of: find.byType(ListTile), matching: find.text('¥1,500')),
+    );
     await tester.pumpAndSettle();
     await pickDate(tester, DateTime(2026, 8, 7));
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
     expect(find.text('2026年8月に保存しました'), findsOneWidget);
-    expect(find.text('合計 ¥0'), findsOneWidget);
+    expect(find.text('¥0'), findsOneWidget);
 
     await tester.tap(find.text('その月を表示'));
     await tester.pumpAndSettle();
     expect(find.text('2026年8月'), findsOneWidget);
-    expect(find.text('合計 ¥1,500'), findsOneWidget);
+    expect(find.text('¥1,500'), findsNWidgets(2));
   });
 
   testWidgets('保存に失敗したときは成功の案内を出さない', (tester) async {
@@ -231,7 +233,7 @@ void main() {
     await tester.tap(find.text('その月を表示'));
     await tester.pumpAndSettle();
     expect(find.text('2026年7月'), findsOneWidget);
-    expect(find.text('合計 ¥1,500'), findsOneWidget);
+    expect(find.text('¥1,500'), findsNWidgets(2));
   });
 
   testWidgets('goToMonth は月選択の状態を壊さない', (tester) async {

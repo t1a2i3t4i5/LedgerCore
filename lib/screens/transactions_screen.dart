@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/transaction_provider.dart';
+import '../theme/ledger_tokens.dart';
 import '../widgets/amount_format.dart';
+import '../widgets/chart_palette.dart';
 import '../widgets/month_selector.dart';
 import 'add_transaction_screen.dart';
 import 'transaction_filter_sheet.dart';
@@ -17,7 +19,7 @@ class TransactionsScreen extends StatefulWidget {
 }
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
-  final _dateFmt = DateFormat('MM/dd');
+  final _dateFmt = DateFormat('M/d');
 
   @override
   void initState() {
@@ -121,6 +123,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       icon: Badge(
                         isLabelVisible: activeCount > 0,
                         label: Text('$activeCount'),
+                        backgroundColor:
+                            Theme.of(context).colorScheme.secondary,
+                        textColor: Theme.of(context).colorScheme.onSurface,
                         child: const Icon(Icons.filter_list),
                       ),
                     ),
@@ -148,12 +153,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerRight,
-                        child: Text(
-                          '合計 ${formatYen(provider.filteredTotal)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('合計'),
+                            const SizedBox(width: 8),
+                            Text(
+                              formatYen(provider.filteredTotal),
+                              style: LedgerTokens.amountRow,
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -175,12 +184,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           ),
                         )
                         : filtered.isEmpty
-                        ? Center(
-                          child: Text(
-                            provider.transactions.isEmpty
-                                ? '取引がありません'
-                                : '該当する取引がありません',
-                          ),
+                        ? _EmptyTransactions(
+                          message:
+                              provider.transactions.isEmpty
+                                  ? '取引がありません'
+                                  : '該当する取引がありません',
                         )
                         : RefreshIndicator(
                           onRefresh: _fetch,
@@ -192,28 +200,53 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               final t = filtered[index];
                               return ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor:
-                                      Theme.of(
-                                        context,
-                                      ).colorScheme.primaryContainer,
-                                  child: Text(
-                                    _dateFmt.format(t.spentAt),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                    ),
+                                  radius: 5,
+                                  backgroundColor: categoryColor(t.categoryId),
+                                ),
+                                minLeadingWidth: 10,
+                                horizontalTitleGap: 12,
+                                title: Text(
+                                  t.categoryName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: _dateFmt.format(t.spentAt),
+                                        style: const TextStyle(
+                                          color: LedgerTokens.subtext,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text:
+                                            ' · ${t.memberName}${t.memo != null && t.memo!.isNotEmpty ? ' · ${t.memo}' : ''}',
+                                      ),
+                                    ],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.copyWith(
+                                    color:
+                                        Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
-                                title: Text(t.categoryName),
-                                subtitle: Text(
-                                  '${t.memberName}${t.memo != null && t.memo!.isNotEmpty ? ' · ${t.memo}' : ''}',
-                                ),
-                                trailing: Text(
-                                  formatYen(t.amount),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                                trailing: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 140,
+                                  ),
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      formatYen(t.amount),
+                                      style: LedgerTokens.amountRow,
+                                    ),
                                   ),
                                 ),
                                 onTap: () {
@@ -245,4 +278,31 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       },
     );
   }
+}
+
+class _EmptyTransactions extends StatelessWidget {
+  const _EmptyTransactions({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.receipt_long_outlined,
+          size: 40,
+          color: Theme.of(context).colorScheme.secondary,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          message,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    ),
+  );
 }

@@ -171,11 +171,11 @@ void main() {
     });
   }
 
-  // 取引一覧は合計パネルに '合計 ¥700' の形で出る
+  // 取引一覧は合計パネルの金額部分に '¥700' の形で出る
   monthNavigationTests(
     '取引一覧画面',
     () => const TransactionsScreen(),
-    (month) => '合計 ¥${month}00',
+    (month) => '¥${month}00',
   );
 
   // サマリー・割り勘は合計カードに '¥700' の形で出る
