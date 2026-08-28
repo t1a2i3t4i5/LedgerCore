@@ -125,7 +125,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         label: Text('$activeCount'),
                         backgroundColor:
                             Theme.of(context).colorScheme.secondary,
-                        textColor: Theme.of(context).colorScheme.onSecondary,
+                        textColor: Theme.of(context).colorScheme.onSurface,
                         child: const Icon(Icons.filter_list),
                       ),
                     ),
@@ -210,12 +210,30 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                subtitle: Text(
-                                  '${_dateFmt.format(t.spentAt)} · ${t.memberName}${t.memo != null && t.memo!.isNotEmpty ? ' · ${t.memo}' : ''}',
+                                subtitle: Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: _dateFmt.format(t.spentAt),
+                                        style: const TextStyle(
+                                          color: LedgerTokens.subtext,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text:
+                                            ' · ${t.memberName}${t.memo != null && t.memo!.isNotEmpty ? ' · ${t.memo}' : ''}',
+                                      ),
+                                    ],
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: LedgerTokens.subtext,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.copyWith(
+                                    color:
+                                        Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                                 trailing: ConstrainedBox(

@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
@@ -12,6 +13,10 @@ import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/amount_format.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:provider/provider.dart';
+
+/// テキストが横幅に収まらず ellipsis で畳まれたかどうか。
+bool _isEllipsized(WidgetTester tester, String text) =>
+    tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
 
 /// 取引一覧画面からの削除フロー（長押し → 確認ダイアログ）を確認する。
 ///
@@ -218,6 +223,17 @@ void main() {
       ),
       findsOneWidget,
     );
+
+    final subtitle = tester.widget<Text>(
+      find.descendant(
+        of: tile,
+        matching: find.text('7/18 · $memberName · スーパー'),
+      ),
+    );
+    expect(subtitle.style?.color, ledgerTheme.colorScheme.onSurfaceVariant);
+    final spans = (subtitle.textSpan! as TextSpan).children!;
+    expect((spans.first as TextSpan).style?.color, LedgerTokens.subtext);
+    expect((spans.last as TextSpan).style, isNull);
   });
 
   testWidgets('取引行と合計パネルの金額は amountRow を使う', (tester) async {
@@ -232,11 +248,16 @@ void main() {
   });
 
   testWidgets('フィルター件数バッジはアクセント色を使う', (tester) async {
-    await pumpScreen(tester);
+    await pumpScreen(tester, memoFilter: '該当なし');
 
     final badge = tester.widget<Badge>(find.byType(Badge));
     expect(badge.backgroundColor, ledgerTheme.colorScheme.secondary);
-    expect(badge.textColor, ledgerTheme.colorScheme.onSecondary);
+    expect(badge.textColor, ledgerTheme.colorScheme.onSurface);
+    expect(badge.isLabelVisible, isTrue);
+    expect(
+      find.descendant(of: find.byType(Badge), matching: find.text('1')),
+      findsOneWidget,
+    );
   });
 
   // kMaxAmount は「保存できる値」として DB の CHECK が認めている。
@@ -249,6 +270,7 @@ void main() {
     // 一覧の行と合計パネルの両方に最大金額が出る状態にする
     final formatted = formatYen(kMaxAmount);
     expect(find.text(formatted), findsNWidgets(2));
+    expect(_isEllipsized(tester, '食費'), isFalse);
     // overflow は例外として記録されるので、握りつぶさず明示的に見る
     expect(tester.takeException(), isNull);
   });
@@ -276,6 +298,11 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text(categoryName), findsOneWidget);
+    expect(_isEllipsized(tester, categoryName), isTrue);
+    // 金額領域を広げすぎると ListTile が title の幅を 0 にしてしまう。
+    // find.text() は幅 0 でも見つけるため、描画幅も直接見る。
+    expect(tester.getSize(find.text(categoryName)).width, greaterThan(0));
     expect(find.text('7/5 · 自分 · スーパー'), findsOneWidget);
+    expect(_isEllipsized(tester, '7/5 · 自分 · スーパー'), isTrue);
   });
 }
