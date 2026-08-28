@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
@@ -228,13 +229,36 @@ void main() {
     );
   });
 
-  testWidgets('文字倍率2.0でも長いカテゴリのチップが折り返される', (tester) async {
-    await db.insertCategory('あ' * 50);
+  testWidgets('文字倍率2.0でもカテゴリチップ群が複数行へ折り返され、例外を出さない', (tester) async {
+    final longName = 'あ' * 50;
+    await db.insertCategory(longName);
 
     await pumpSheet(tester, textScaler: const TextScaler.linear(2));
 
-    expect(find.byType(Wrap), findsAtLeastNWidgets(2));
-    expect(find.text('あ' * 50), findsOneWidget);
+    final categoryWrap = find.ancestor(
+      of: find.text(longName),
+      matching: find.byType(Wrap),
+    );
+    expect(categoryWrap, findsOneWidget);
+    final chips = find.descendant(
+      of: categoryWrap,
+      matching: find.byType(FilterChip),
+    );
+    final rowPositions =
+        tester
+            .widgetList<FilterChip>(chips)
+            .map((chip) => tester.getCenter(find.byWidget(chip)).dy)
+            .toSet();
+    expect(rowPositions.length, greaterThan(1));
+
+    // Material の Chip はラベルを 1 行に制限する。50 文字名はチップ内で
+    // 無言に切られるため、その事実を実測しつつ、Wrap 全体が overflow を
+    // 起こさないという issue の完了条件を別のアサーションで守る。
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(longName));
+    expect(
+      paragraph.getMaxIntrinsicWidth(double.infinity),
+      greaterThan(paragraph.size.width),
+    );
     expect(tester.takeException(), isNull);
   });
 

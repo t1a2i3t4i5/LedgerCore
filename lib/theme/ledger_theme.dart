@@ -86,9 +86,14 @@ final ledgerTheme = _baseTheme.copyWith(
     backgroundColor: _ledgerColorScheme.surfaceContainerHighest,
     selectedColor: _ledgerColorScheme.secondaryContainer,
     showCheckmark: false,
-    side: BorderSide.none,
+    side: WidgetStateBorderSide.resolveWith(
+      (states) =>
+          states.contains(WidgetState.selected)
+              ? BorderSide(color: _ledgerColorScheme.onSurface, width: 2)
+              : BorderSide.none,
+    ),
     shape: const StadiumBorder(),
-    labelStyle: TextStyle(
+    labelStyle: _baseTheme.textTheme.labelLarge!.copyWith(
       color: WidgetStateColor.resolveWith(
         (states) =>
             states.contains(WidgetState.selected)

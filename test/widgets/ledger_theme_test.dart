@@ -70,6 +70,12 @@ void main() {
           WidgetState.selected,
         })!;
     final selectedColor = chipTheme.selectedColor!;
+    final selectedSide =
+        WidgetStateProperty.resolveAs<BorderSide?>(chipTheme.side, {
+          WidgetState.selected,
+        })!;
+    final unselectedSide =
+        WidgetStateProperty.resolveAs<BorderSide?>(chipTheme.side, {})!;
     final lighter =
         selectedTextColor.computeLuminance() > selectedColor.computeLuminance()
             ? selectedTextColor
@@ -84,6 +90,25 @@ void main() {
 
     expect(chipTheme.shape, isA<StadiumBorder>());
     expect(chipTheme.showCheckmark, isFalse);
+    expect(selectedSide.color, ledgerTheme.colorScheme.onSurface);
+    expect(selectedSide.width, 2);
+    expect(unselectedSide, BorderSide.none);
+    expect(
+      chipTheme.labelStyle?.fontFamily,
+      ledgerTheme.textTheme.labelLarge?.fontFamily,
+    );
+    expect(
+      chipTheme.labelStyle?.fontWeight,
+      ledgerTheme.textTheme.labelLarge?.fontWeight,
+    );
+    expect(
+      chipTheme.labelStyle?.letterSpacing,
+      ledgerTheme.textTheme.labelLarge?.letterSpacing,
+    );
+    expect(
+      chipTheme.labelStyle?.height,
+      ledgerTheme.textTheme.labelLarge?.height,
+    );
     expect(
       chipTheme.backgroundColor,
       ledgerTheme.colorScheme.surfaceContainerHighest,
