@@ -196,37 +196,47 @@ void main() {
   });
 
   testWidgets('カテゴリ色のドットと日付・メンバー・メモを同じ行に描く', (tester) async {
-    final categoryName = await seedTransaction(
+    final firstCategoryName = await seedTransaction(
       amount: 1200,
       day: 18,
       memo: 'スーパー',
     );
-    final category = (await db.getCategories()).singleWhere(
-      (category) => category.name == categoryName,
+    final secondCategoryName = await seedTransaction(
+      amount: 800,
+      day: 19,
+      categoryIndex: 1,
+      memo: 'ドラッグストア',
     );
+    final categories = await db.getCategories();
     final memberName = (await db.getMembers()).first.name;
     await pumpScreen(tester);
 
-    final tile = find.ancestor(
-      of: find.text(categoryName),
-      matching: find.byType(ListTile),
-    );
-    final dot = tester.widget<CircleAvatar>(
-      find.descendant(of: tile, matching: find.byType(CircleAvatar)),
-    );
-    expect(dot.backgroundColor, categoryColor(category.id));
-    expect(dot.child, isNull);
-    expect(
-      find.descendant(
-        of: tile,
-        matching: find.text('7/18 · $memberName · スーパー'),
-      ),
-      findsOneWidget,
-    );
+    Finder expectRow(String categoryName, String subtitle) {
+      final category = categories.singleWhere(
+        (category) => category.name == categoryName,
+      );
+      final tile = find.ancestor(
+        of: find.text(categoryName),
+        matching: find.byType(ListTile),
+      );
+      final dot = tester.widget<CircleAvatar>(
+        find.descendant(of: tile, matching: find.byType(CircleAvatar)),
+      );
+      expect(dot.backgroundColor, categoryColor(category.id));
+      expect(dot.child, isNull);
+      expect(
+        find.descendant(of: tile, matching: find.text(subtitle)),
+        findsOneWidget,
+      );
+      return tile;
+    }
+
+    final firstTile = expectRow(firstCategoryName, '7/18 · $memberName · スーパー');
+    expectRow(secondCategoryName, '7/19 · $memberName · ドラッグストア');
 
     final subtitle = tester.widget<Text>(
       find.descendant(
-        of: tile,
+        of: firstTile,
         matching: find.text('7/18 · $memberName · スーパー'),
       ),
     );
@@ -264,13 +274,16 @@ void main() {
   // 短い金額しか描かないと、実機幅で最大金額が overflow するのを見逃す。
   // 金額はリテラルで持たず kMaxAmount から採る（上限を変えたら追随させる）。
   testWidgets('上限いっぱいの金額でも一覧と合計パネルが overflow しない', (tester) async {
-    await seedTransaction(amount: kMaxAmount);
+    const categoryName = '食費（外食）';
+    await seedTransaction(amount: kMaxAmount, categoryName: categoryName);
     await pumpScreen(tester);
 
     // 一覧の行と合計パネルの両方に最大金額が出る状態にする
     final formatted = formatYen(kMaxAmount);
     expect(find.text(formatted), findsNWidgets(2));
-    expect(_isEllipsized(tester, '食費'), isFalse);
+    // 既定カテゴリの 2 文字では金額欄を広げても収まるため、利用者が実際に
+    // 付ける長さの名前で title の取り分を守る。
+    expect(_isEllipsized(tester, categoryName), isFalse);
     // overflow は例外として記録されるので、握りつぶさず明示的に見る
     expect(tester.takeException(), isNull);
   });
