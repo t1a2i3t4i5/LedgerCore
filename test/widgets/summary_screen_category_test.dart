@@ -6,7 +6,11 @@ import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/summary_provider.dart';
 import 'package:ledger_app/screens/summary_screen.dart';
+import 'package:ledger_app/theme/ledger_tokens.dart';
+import 'package:ledger_app/widgets/category_breakdown_row.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
+import 'package:ledger_app/widgets/ledger_card.dart';
+import 'package:ledger_app/widgets/ratio_bar.dart';
 import 'package:provider/provider.dart';
 
 /// テキストが横幅に収まらず ellipsis で畳まれたかどうか。
@@ -16,7 +20,7 @@ import 'package:provider/provider.dart';
 bool _isEllipsized(WidgetTester tester, String text) =>
     tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
 
-/// カテゴリ名の行に、その金額と構成比が**同じ `ListTile` の中に**出ていること。
+/// カテゴリ名の行に、その金額と構成比が同じ公開ウィジェット内に出ていること。
 ///
 /// 画面のどこかに '¥7,500' と '75.0%' があることを別々に見るだけでは、
 /// 行と行で中身が入れ替わっても気付けない（集合としては一致するため）。
@@ -26,54 +30,53 @@ void expectRow(
   required String amount,
   required String ratio,
 }) {
-  final tile = find.ancestor(
+  final row = find.ancestor(
     of: find.text(categoryName),
-    matching: find.byType(ListTile),
+    matching: find.byType(CategoryBreakdownRow),
   );
-  expect(tile, findsOneWidget, reason: '$categoryName の行が無い');
+  expect(row, findsOneWidget, reason: '$categoryName の行が無い');
   expect(
-    find.descendant(of: tile, matching: find.text(amount)),
+    find.descendant(of: row, matching: find.text(amount)),
     findsOneWidget,
     reason: '$categoryName の行に $amount が無い',
   );
   expect(
-    find.descendant(of: tile, matching: find.text(ratio)),
+    find.descendant(of: row, matching: find.text(ratio)),
     findsOneWidget,
     reason: '$categoryName の行に $ratio が無い',
   );
 }
 
-/// 行の先頭の丸アイコンが、そのカテゴリ ID の [categoryColor] で塗られていること。
-///
-/// 円グラフが消えて chart_palette の lib 側の利用者はこの CircleAvatar だけに
-/// なったので、ここを直書きの色に変えても落ちるテストが無い状態を避ける。
-void expectAvatarColor(
+/// 行の色ドットと帯が、そのカテゴリ ID の [categoryColor] で描かれること。
+void expectCategoryVisuals(
   WidgetTester tester,
   String categoryName,
   int categoryId,
 ) {
-  final avatar = tester.widget<CircleAvatar>(
-    find.descendant(
-      of: find.ancestor(
-        of: find.text(categoryName),
-        matching: find.byType(ListTile),
-      ),
-      matching: find.byType(CircleAvatar),
-    ),
+  final row = find.ancestor(
+    of: find.text(categoryName),
+    matching: find.byType(CategoryBreakdownRow),
   );
-  expect(avatar.backgroundColor, categoryColor(categoryId));
+  final expectedColor = categoryColor(categoryId);
 
-  final icon = tester.widget<Icon>(
-    find.descendant(
-      of: find.ancestor(
-        of: find.text(categoryName),
-        matching: find.byType(ListTile),
-      ),
-      matching: find.byType(Icon),
-    ),
+  final dot = tester.widget<CircleAvatar>(
+    find.descendant(of: row, matching: find.byType(CircleAvatar)),
   );
-  // 背景の輝度で白黒を選ぶ。直書きすると暗い色の上で読めなくなる
-  expect(icon.color, labelColorOn(categoryColor(categoryId)));
+  expect(dot.backgroundColor, expectedColor);
+
+  expect(
+    find.descendant(of: row, matching: find.byType(RatioBar)),
+    findsOneWidget,
+  );
+  expect(
+    find.descendant(
+      of: row,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is ColoredBox && widget.color == expectedColor,
+      ),
+    ),
+    findsOneWidget,
+  );
 }
 
 /// サマリー画面のカテゴリ別セクションを、インメモリ DB 込みで確認する。
@@ -87,8 +90,11 @@ void main() {
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
-  Future<void> pumpSummary(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(360, 690);
+  Future<void> pumpSummary(
+    WidgetTester tester, {
+    Size size = const Size(360, 690),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
@@ -104,7 +110,7 @@ void main() {
 
   // 行数だけを数えると、行と行で中身が入れ替わる改変を検知できない
   // （カテゴリ 3 + メンバー 1 = 4 件は保たれるため）。名前・金額・構成比が
-  // 同じ ListTile に収まっているかまで見る
+  // 同じ CategoryBreakdownRow に収まっているかまで見る
   testWidgets('カテゴリごとに名前・金額・構成比が同じ行に並ぶ', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
@@ -154,9 +160,9 @@ void main() {
     expect(dy(cats[1].name), lessThan(dy(cats[0].name)));
   });
 
-  // chart_palette の lib 側の利用者は、円グラフが消えてこの CircleAvatar だけに
-  // なった。色を直書きに変えても落ちるテストが無い状態を避ける
-  testWidgets('行の丸アイコンはカテゴリの色で塗られる', (tester) async {
+  // categoryColor は色ドットと帯に届く入口。画面側で直書きの色へ
+  // 置き換えても落ちるテストが無い状態を避ける
+  testWidgets('カテゴリ行は categoryColor でドットと帯を描く', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
 
@@ -173,8 +179,8 @@ void main() {
 
     await pumpSummary(tester);
 
-    expectAvatarColor(tester, cats[0].name, cats[0].id);
-    expectAvatarColor(tester, cats[1].name, cats[1].id);
+    expectCategoryVisuals(tester, cats[0].name, cats[0].id);
+    expectCategoryVisuals(tester, cats[1].name, cats[1].id);
   });
 
   // 取引ゼロの月でも summary は非 null で返る（byCategory が空、total が 0）ため、
@@ -190,11 +196,12 @@ void main() {
 
     expect(tester.takeException(), isNull);
     // 骨格は残る。summary == null 分岐に落ちるとこれらが消える
-    expect(find.text('合計支出'), findsOneWidget);
+    expect(find.text('今月の支出'), findsOneWidget);
     expect(find.text('¥0'), findsOneWidget);
     expect(find.text('カテゴリ別'), findsOneWidget);
     expect(find.text('メンバー別'), findsOneWidget);
     // 行そのものは 1 つも無い
+    expect(find.byType(CategoryBreakdownRow), findsNothing);
     expect(find.byType(ListTile), findsNothing);
 
     // **見出しを出したら、その下に必ず何かを描く。**
@@ -230,14 +237,13 @@ void main() {
       );
     }
 
-    testWidgets('金額の下に構成比が並ぶ', (tester) async {
+    testWidgets('金額の右に構成比が並ぶ', (tester) async {
       await seed('食費', 7500);
       await seed('日用品', 2500);
 
       await pumpSummary(tester);
 
-      // 金額と % は別の Text。1 行に連結すると title の幅が足りなくなる。
-      // どちらの行に出ているかまで見る（集合として一致するだけでは足りない）
+      // 金額と % は別の Text。どちらの行に出ているかまで見る。
       expectRow(tester, '食費', amount: '¥7,500', ratio: '75.0%');
       expectRow(tester, '日用品', amount: '¥2,500', ratio: '25.0%');
     });
@@ -247,8 +253,8 @@ void main() {
     // （縦積みなら 135.5px）。既定カテゴリは 2〜3 文字でどちらでも収まって
     // しまうので、ユーザーが実際に作る長さの名前で見る。
     //
-    // ListTile は overflow を例外にせず静かに畳み、find.text() は畳まれた
-    // Text にもマッチするので、省略の有無は RenderParagraph に訊く
+    // Expanded 内の Text は overflow を例外にせず静かに畳み、find.text() は
+    // 畳まれた Text にもマッチするので、省略の有無は RenderParagraph に訊く
     testWidgets('現実的な金額と長さのカテゴリ名が省略されない', (tester) async {
       await db.insertCategory('食費（外食）'); // 6 文字
       await db.insertCategory('子供の習い事'); // 6 文字
@@ -262,18 +268,16 @@ void main() {
       expect(_isEllipsized(tester, '子供の習い事'), isFalse);
     });
 
-    // 縦積みで行が高くならないことの固定。dense の最小高 48px に 2 行が
-    // 収まっているので、金額だけだった頃と行の見え方は変わらない
-    testWidgets('構成比を足しても行の高さは dense のまま', (tester) async {
+    testWidgets('通常倍率のカテゴリ行は2段でも基準高から伸びない', (tester) async {
       await seed('食費', 50000);
 
       await pumpSummary(tester);
 
-      final tile = find.ancestor(
+      final row = find.ancestor(
         of: find.text('食費'),
-        matching: find.byType(ListTile),
+        matching: find.byType(CategoryBreakdownRow),
       );
-      expect(tester.getSize(tile).height, 48.0);
+      expect(tester.getSize(row).height, 64);
     });
 
     // #45 の動機そのもの。かつてのドーナツグラフは _minLabelRatio = 0.05 未満の
@@ -302,12 +306,12 @@ void main() {
       // 50 文字は畳まれて当然。ここが false になるようなら
       // _isEllipsized が省略を検知できておらず、上のケースも無意味になる
       expect(_isEllipsized(tester, 'あ' * 50), isTrue);
-      // 畳まれても行が伸びない（ListTile が高さを吸収している）
-      final tile = find.ancestor(
+      // 通常倍率では、畳まれても公開定数で決めた基準高から伸びない
+      final row = find.ancestor(
         of: find.text('あ' * 50),
-        matching: find.byType(ListTile),
+        matching: find.byType(CategoryBreakdownRow),
       );
-      expect(tester.getSize(tile).height, 48.0);
+      expect(tester.getSize(row).height, 64);
     });
 
     // 変更範囲を広げていないことの固定。メンバー別は金額だけのまま
@@ -331,5 +335,70 @@ void main() {
         findsNothing,
       );
     });
+  });
+
+  testWidgets('金額の字は構成比より大きい', (tester) async {
+    final cat = (await db.getCategories()).first;
+    final memberId = (await db.getMembers()).first.id;
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: memberId,
+        categoryId: cat.id,
+        amount: 1000,
+        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+      ),
+    );
+
+    await pumpSummary(tester);
+
+    final row = find.byType(CategoryBreakdownRow);
+    final amount = tester.widget<Text>(
+      find.descendant(of: row, matching: find.text('¥1,000')),
+    );
+    final ratio = tester.widget<Text>(
+      find.descendant(of: row, matching: find.text('100.0%')),
+    );
+    expect(amount.style?.fontSize, greaterThan(ratio.style!.fontSize!));
+  });
+
+  testWidgets('合計カードは amountLarge と scaleDown を使う', (tester) async {
+    await pumpSummary(tester);
+
+    final amount = tester.widget<Text>(find.text('¥0'));
+    expect(find.byType(LedgerCard), findsOneWidget);
+    expect(amount.style?.fontFamily, LedgerTokens.amountLarge.fontFamily);
+    expect(amount.style?.fontSize, LedgerTokens.amountLarge.fontSize);
+    final fitted = find.ancestor(
+      of: find.text('¥0'),
+      matching: find.byType(FittedBox),
+    );
+    expect(fitted, findsOneWidget);
+    expect(tester.widget<FittedBox>(fitted).fit, BoxFit.scaleDown);
+  });
+
+  testWidgets('広い画面でも本文幅は480pxで中央に置かれる', (tester) async {
+    final cat = (await db.getCategories()).first;
+    final memberId = (await db.getMembers()).first.id;
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: memberId,
+        categoryId: cat.id,
+        amount: 1000,
+        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+      ),
+    );
+
+    await pumpSummary(tester, size: const Size(788, 690));
+
+    final row = find.byType(CategoryBreakdownRow);
+    final rect = tester.getRect(row);
+    expect(rect.width, 480);
+    expect(rect.center.dx, closeTo(394, 0.01));
+    expect(find.byType(LayoutBuilder), findsWidgets);
+    final list = tester.widget<ListView>(find.byType(ListView));
+    expect(
+      list.padding,
+      const EdgeInsets.symmetric(horizontal: 154, vertical: 16),
+    );
   });
 }

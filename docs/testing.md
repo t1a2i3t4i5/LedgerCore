@@ -70,11 +70,15 @@ Zen Maru Gothic / Zen Kaku Gothic New / Outfit の字形では描画されない
 
 縦の切れは `didExceedMaxLines` では拾えない（`maxLines: 1` を超えるのは行数であって高さではない）。**倍率を変えて `tester.getSize()` の高さが比例するか**を見る。切れていれば帯の高さで頭打ちになり、比例しない。
 
+この罠はグラフの軸だけではない。固定幅の数値列や固定高の行も、文字倍率を上げると `%` や文字の下端を `TextOverflow.clip` で黙って落とす。幅は `RenderParagraph.getMaxIntrinsicWidth(double.infinity) <= size.width`、高さは倍率 1.0 と 2.0 の `tester.getSize()` を比較して、内容幅への追従と行の伸びを直接見る。通常倍率の基準高を守るテストだけでは、アクセシビリティ倍率での切れを検出できない。
+
 ## 画面サイズはスマホ幅に設定する
 
 `tester.view.physicalSize` で 360x690 にする。既定の 800x600 は実機より広く overflow を見逃す。
 
 金額を描くテストには `kMaxAmount` を使ったケースを置く。`¥999,999,999,999` は実機幅の 1/3 以上を占めるので、短い金額しか描かないと overflow を見逃す（実際、合計パネルが 9.3px はみ出していた）。
+
+デスクトップでも動く画面の本文幅に上限を設けた場合は、スマホ幅のケースに加えて 788px などの広い幅を 1 本置く。360px だけでは「狭くて溢れる」は検出できても、名前と金額がウィンドウの両端へ離れて行として読めなくなる「広すぎる」回帰を検出できない。`LayoutBuilder` で算出した `ListView.padding` と、本文行の幅・中央位置を矩形で確かめる。
 
 ## 文字が省略されたかは `didExceedMaxLines` で見る
 
@@ -95,9 +99,11 @@ bool _isEllipsized(WidgetTester tester, String text) =>
 
 `find.text('¥7,500')` と `find.text('75.0%')` を別々に `findsOneWidget` で見るだけでは、**行と行で中身が入れ替わっても気付けない**。画面全体では集合として一致してしまうためで、「食費 ¥2,500 / 25.0%」「日用品 ¥7,500 / 75.0%」と全カテゴリがずれた画面が緑のまま通る。
 
-行を `find.ancestor` で特定し、その中に金額と % があることを `find.descendant` で見る（`summary_screen_category_test.dart` の `expectRow`）。並び順そのものは `tester.getCenter(...).dy` の大小で見る。
+行を `find.ancestor` で特定し、その中に金額と % があることを `find.descendant` で見る（`summary_screen_category_test.dart` の `expectRow`）。カテゴリ別は公開 `CategoryBreakdownRow` を束ねる軸にする。並び順そのものは `tester.getCenter(...).dy` の大小で見る。
 
-同じ理由で、`find.byType(ListTile)` の**件数だけ**を数えるテストは中身を守らない。件数は行の中身が入れ替わっても変わらないので、名前と金額の対応が崩れる改変はすべてすり抜ける（実測: 名前だけを逆順の項目から採るよう変えても、件数を見るテストは緑のまま通った。束ねて見る形にしたあとは 5 件落ちる）。
+同じ理由で、`find.byType(ListTile)` や `find.byType(CategoryBreakdownRow)` の**件数だけ**を数えるテストは中身を守らない。件数は行の中身が入れ替わっても変わらないので、名前と金額の対応が崩れる改変はすべてすり抜ける（実測: 名前だけを逆順の項目から採るよう変えても、件数を見るテストは緑のまま通った。束ねて見る形にしたあとは 5 件落ちる）。
+
+公開行ウィジェットのコンストラクタ引数だけを見ても、受け取った値を子へ渡さず捨てる実装を検出できない。行の主目的となる子（`RatioBar` など）は `find.descendant` で存在を確認し、色は `CircleAvatar.backgroundColor` や実際の塗りを持つ `ColoredBox.color` まで見る。`tester.widget<CategoryBreakdownRow>(...).color` だけでは描画結果を守らない。
 
 ### 幅のテストに既定カテゴリ名を使わない
 
