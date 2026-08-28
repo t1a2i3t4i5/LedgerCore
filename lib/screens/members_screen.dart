@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/member_provider.dart';
+import '../widgets/chart_palette.dart';
+import '../widgets/ledger_card.dart';
 
 /// 割り勘の対象となるメンバーを管理する画面。
 class MembersScreen extends StatefulWidget {
@@ -122,32 +124,46 @@ class _MembersScreenState extends State<MembersScreen> {
           }
           final members = provider.members;
           if (members.isEmpty) {
-            return const Center(child: Text('メンバーがいません'));
+            return const _EmptyMembers();
           }
           return ListView.separated(
+            padding: const EdgeInsets.all(16),
             itemCount: members.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final m = members[index];
-              return ListTile(
-                leading: CircleAvatar(child: Text(m.name.substring(0, 1))),
-                title: Text(m.name),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined),
-                      onPressed:
-                          () => _showEditDialog(id: m.id, currentName: m.name),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.delete_outline,
-                        color: Theme.of(context).colorScheme.error,
+              final avatarColor = memberColor(m.id);
+              return LedgerCard(
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: avatarColor,
+                    foregroundColor: labelColorOn(avatarColor),
+                    child: Text(m.name.substring(0, 1)),
+                  ),
+                  title: Text(
+                    m.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed:
+                            () =>
+                                _showEditDialog(id: m.id, currentName: m.name),
                       ),
-                      onPressed: () => _delete(m.id, m.name, members.length),
-                    ),
-                  ],
+                      IconButton(
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        onPressed: () => _delete(m.id, m.name, members.length),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -160,4 +176,29 @@ class _MembersScreenState extends State<MembersScreen> {
       ),
     );
   }
+}
+
+class _EmptyMembers extends StatelessWidget {
+  const _EmptyMembers();
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.people_outline,
+          size: 40,
+          color: Theme.of(context).colorScheme.secondary,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'メンバーがいません',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    ),
+  );
 }
