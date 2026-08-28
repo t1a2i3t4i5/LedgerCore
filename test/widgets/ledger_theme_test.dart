@@ -31,4 +31,64 @@ void main() {
   test('大きな金額は Outfit を使う', () {
     expect(LedgerTokens.amountLarge.fontFamily, 'Outfit');
   });
+
+  testWidgets('AlertDialog の解決後の面は白く角丸24になる', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ledgerTheme,
+        home: const Scaffold(
+          body: AlertDialog(title: Text('確認'), content: Text('内容')),
+        ),
+      ),
+    );
+
+    final material = tester.widget<Material>(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(Material),
+      ),
+    );
+    final shape = material.shape! as RoundedRectangleBorder;
+    expect(material.color, ledgerTheme.colorScheme.surfaceContainerLow);
+    expect(shape.borderRadius, BorderRadius.circular(LedgerTokens.cardRadius));
+  });
+
+  test('BottomSheet の上辺は角丸28になる', () {
+    final shape = ledgerTheme.bottomSheetTheme.shape! as RoundedRectangleBorder;
+    expect(
+      shape.borderRadius,
+      const BorderRadius.vertical(
+        top: Radius.circular(LedgerTokens.cardRadiusLarge),
+      ),
+    );
+  });
+
+  test('FilterChip はピル形状で、選択面の文字が AA コントラストを満たす', () {
+    final chipTheme = ledgerTheme.chipTheme;
+    final selectedTextColor =
+        WidgetStateProperty.resolveAs<Color?>(chipTheme.labelStyle!.color, {
+          WidgetState.selected,
+        })!;
+    final selectedColor = chipTheme.selectedColor!;
+    final lighter =
+        selectedTextColor.computeLuminance() > selectedColor.computeLuminance()
+            ? selectedTextColor
+            : selectedColor;
+    final darker =
+        identical(lighter, selectedTextColor)
+            ? selectedColor
+            : selectedTextColor;
+    final contrast =
+        (lighter.computeLuminance() + 0.05) /
+        (darker.computeLuminance() + 0.05);
+
+    expect(chipTheme.shape, isA<StadiumBorder>());
+    expect(chipTheme.showCheckmark, isFalse);
+    expect(
+      chipTheme.backgroundColor,
+      ledgerTheme.colorScheme.surfaceContainerHighest,
+    );
+    expect(selectedColor, ledgerTheme.colorScheme.secondaryContainer);
+    expect(contrast, greaterThanOrEqualTo(4.5));
+  });
 }

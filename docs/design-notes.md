@@ -375,6 +375,12 @@ SnackBar になる。**失敗をログに残すために足した `try` は、�
 主要情報には使わない。`chart_palette.dart` の文字色は塗りの上で AA 4.5:1 を守る別用途で、
 この例外を適用しない。
 
+`AlertDialog` の白い面と角丸 24、BottomSheet の白い面と上辺の角丸 28、チップのピル形状と
+選択色は `ledger_theme.dart` が持つ。呼び出し側で同じ色や形状を組み直さない。選択中の
+`FilterChip` は `secondaryContainer` 上に `onSurface` を使う。`onSecondaryContainer` は
+この組み合わせではコントラスト比が約 3.6:1 に留まり、通常サイズ文字の 4.5:1 を満たさないため。
+削除確認の破壊的操作だけは、操作の意味を持つ呼び出し側で `colorScheme.error` を指定する。
+
 ### 期間を選ぶ部品は共通の形を使う
 
 取引一覧・集計・割り勘の年月見出しは `MonthSelector` に集約し、月を 38px、年を

@@ -66,12 +66,34 @@ final ledgerTheme = _baseTheme.copyWith(
       borderRadius: BorderRadius.circular(LedgerTokens.cardRadius),
     ),
   ),
+  dialogTheme: DialogThemeData(
+    backgroundColor: _ledgerColorScheme.surfaceContainerLow,
+    surfaceTintColor: Colors.transparent,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(LedgerTokens.cardRadius),
+    ),
+  ),
   bottomSheetTheme: BottomSheetThemeData(
     backgroundColor: _ledgerColorScheme.surfaceContainerLow,
     surfaceTintColor: Colors.transparent,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(LedgerTokens.cardRadiusLarge),
+      ),
+    ),
+  ),
+  chipTheme: ChipThemeData(
+    backgroundColor: _ledgerColorScheme.surfaceContainerHighest,
+    selectedColor: _ledgerColorScheme.secondaryContainer,
+    showCheckmark: false,
+    side: BorderSide.none,
+    shape: const StadiumBorder(),
+    labelStyle: TextStyle(
+      color: WidgetStateColor.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected)
+                ? _ledgerColorScheme.onSurface
+                : _ledgerColorScheme.onPrimaryContainer,
       ),
     ),
   ),

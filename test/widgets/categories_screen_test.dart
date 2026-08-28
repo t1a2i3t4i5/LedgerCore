@@ -139,6 +139,13 @@ void main() {
 
     await pumpCategoriesTab(tester);
     await tapDeleteOn(tester, cats.first.name);
+    final deleteButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, '削除'),
+    );
+    expect(
+      deleteButton.style?.foregroundColor?.resolve({}),
+      Theme.of(tester.element(find.byType(AlertDialog))).colorScheme.error,
+    );
     await confirmDelete(tester);
 
     // 握りつぶし退行を殺すのはこの 1 行。DB が弾いても画面が黙っていたら通らない
