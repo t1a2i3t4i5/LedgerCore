@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/theme/ledger_theme.dart';
 import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/month_selector.dart';
 
 void main() {
-  Future<void> pumpSelector(WidgetTester tester) async {
+  Future<void> pumpSelector(WidgetTester tester, {double textScale = 1}) async {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -14,12 +15,15 @@ void main() {
       MaterialApp(
         theme: ledgerTheme,
         home: Scaffold(
-          body: MonthSelector(
-            year: 2026,
-            month: 7,
-            onPrev: () {},
-            onNext: () {},
-            onToday: () {},
+          body: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+            child: MonthSelector(
+              year: 2026,
+              month: 7,
+              onPrev: () {},
+              onNext: () {},
+              onToday: () {},
+            ),
           ),
         ),
       ),
@@ -29,12 +33,19 @@ void main() {
   testWidgets('月セレクタは二段見出しと 38px の角丸ボタンを描く', (tester) async {
     await pumpSelector(tester);
 
-    final month = tester.widget<Text>(find.text('7月'));
-    final year = tester.widget<Text>(find.text('2026'));
-    expect(month.style?.fontSize, 38);
-    expect(year.style?.fontFamily, LedgerTokens.periodYear.fontFamily);
-    expect(year.style?.fontSize, 16);
+    final title = tester.widget<Text>(find.text('2026年7月'));
+    final spans = (title.textSpan! as TextSpan).children!.cast<TextSpan>();
+    expect(spans.first.text, '7月');
+    expect(spans.first.style?.fontSize, 38);
+    expect(spans.last.text, '\n2026');
+    expect(spans.last.style?.fontFamily, LedgerTokens.periodYear.fontFamily);
+    expect(spans.last.style?.fontSize, 16);
     expect(find.text('今月'), findsOneWidget);
+
+    expect(
+      tester.widget<Text>(find.text('今月')).style?.color,
+      ledgerTheme.colorScheme.onPrimary,
+    );
 
     final previousButton = find.ancestor(
       of: find.byIcon(Icons.chevron_left),
@@ -50,6 +61,15 @@ void main() {
     expect(
       (shape! as RoundedRectangleBorder).borderRadius,
       BorderRadius.circular(14),
+    );
+  });
+
+  testWidgets('文字倍率 2.0 でも「今月」の 2 文字が欠けない', (tester) async {
+    await pumpSelector(tester, textScale: 2);
+
+    expect(
+      tester.renderObject<RenderParagraph>(find.text('今月')).didExceedMaxLines,
+      isFalse,
     );
   });
 

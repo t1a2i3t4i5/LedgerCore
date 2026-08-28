@@ -73,37 +73,14 @@ class MonthSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Row(
       children: [
         // 年月は Flexible で包む。素の Text で置くと、端末の文字サイズを
         // 大きくしたときに Row が溢れて RenderFlex overflow になる。
         // 畳んででもレイアウトを崩さない側を選んでいる
-        Expanded(
-          child: Stack(
-            children: [
-              _PeriodTitle(year: year, month: month, style: style),
-              // 既存の表示文字列を探すテストと、省略を検知するテストの契約を
-              // 保つ。画面には二段の見出しだけを描き、読み上げも重複させない。
-              if (month != null)
-                Positioned.fill(
-                  child: ExcludeSemantics(
-                    child: Opacity(
-                      opacity: 0,
-                      child: Text(
-                        formatPeriod(year, month),
-                        style: style ?? theme.textTheme.titleLarge,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        Expanded(child: _PeriodTitle(year: year, month: month, style: style)),
         const SizedBox(width: 8),
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -157,30 +134,34 @@ class _PeriodTitle extends StatelessWidget {
 
     if (month == null) {
       return Text(
-        '$year年',
+        formatPeriod(year, null),
         style: primaryStyle,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       );
     }
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$month月',
-          style: primaryStyle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        Text(
-          '$year',
-          style: LedgerTokens.periodYear,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
+    final labels = formatPeriodHeader(year, month!);
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: labels.primary,
+            // finder と読み上げは従来の長い年月を使う一方、画面には
+            // デザイン案どおり月を大きく描く。
+            semanticsLabel: labels.full,
+            style: primaryStyle,
+          ),
+          TextSpan(
+            text: '\n${labels.secondary}',
+            // 上の span が年月全体を読み上げるので、年を重複させない。
+            semanticsLabel: '',
+            style: LedgerTokens.periodYear,
+          ),
+        ],
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
@@ -255,10 +236,21 @@ class _TodayButton extends StatelessWidget {
         icon: Stack(
           alignment: Alignment.center,
           children: [
-            Text(
-              label,
-              maxLines: 1,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            MediaQuery.withClampedTextScaling(
+              maxScaleFactor: 1.5,
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.clip,
+                style: TextStyle(
+                  color:
+                      onPressed == null
+                          ? foregroundColor.withValues(alpha: 0.38)
+                          : foregroundColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             // 既存テストが押下対象として使うアイコンを残す。実表示と
             // セマンティクスはラベルだけにして、利用者には重複させない。

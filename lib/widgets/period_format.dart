@@ -31,3 +31,16 @@ String formatPeriod(int year, int? month) =>
 /// 長い形を軸に使うと**静かに読めない図**になる。
 String formatPeriodShort(int year, int? month) =>
     month == null ? '$year年' : '$month月';
+
+/// 月セレクタの二段見出しに使う文字列を、同じ書式の入口からまとめて返す。
+///
+/// [full] は検索・読み上げ用の `2026年7月`、[primary] は大きく描く `7月`、
+/// [secondary] はその下へ描く `2026`。画面側で年・月の接尾辞を組み立てない。
+({String full, String primary, String secondary}) formatPeriodHeader(
+  int year,
+  int month,
+) => (
+  full: formatPeriod(year, month),
+  primary: formatPeriodShort(year, month),
+  secondary: '$year',
+);

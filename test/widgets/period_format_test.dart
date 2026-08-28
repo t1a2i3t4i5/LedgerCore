@@ -50,4 +50,14 @@ void main() {
       }
     });
   });
+
+  group('formatPeriodHeader', () {
+    test('二段見出しと読み上げに使う文字列をまとめて返す', () {
+      expect(formatPeriodHeader(2026, 7), (
+        full: '2026年7月',
+        primary: '7月',
+        secondary: '2026',
+      ));
+    });
+  });
 }
