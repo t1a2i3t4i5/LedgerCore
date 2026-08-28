@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/category_provider.dart';
+import '../widgets/chart_palette.dart';
+import '../widgets/ledger_card.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -122,38 +125,49 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     ),
                   )
                   : provider.categories.isEmpty
-                  ? const Center(child: Text('カテゴリがありません'))
+                  ? const _EmptyCategories()
                   : RefreshIndicator(
                     onRefresh: _fetch,
                     child: ListView.separated(
+                      padding: const EdgeInsets.all(16),
                       itemCount: provider.categories.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final cat = provider.categories[index];
-                        return ListTile(
-                          leading: const CircleAvatar(
-                            child: Icon(Icons.label_outline, size: 20),
-                          ),
-                          title: Text(cat.name),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined),
-                                onPressed:
-                                    () => _showDialog(
-                                      id: cat.id,
-                                      currentName: cat.name,
-                                    ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.delete_outline,
-                                  color: Theme.of(context).colorScheme.error,
+                        return LedgerCard(
+                          padding: EdgeInsets.zero,
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              radius: 5,
+                              backgroundColor: categoryColor(cat.id),
+                            ),
+                            minLeadingWidth: 10,
+                            horizontalTitleGap: 12,
+                            title: Text(
+                              cat.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed:
+                                      () => _showDialog(
+                                        id: cat.id,
+                                        currentName: cat.name,
+                                      ),
                                 ),
-                                onPressed: () => _delete(cat.id, cat.name),
-                              ),
-                            ],
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.delete_outline,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                  onPressed: () => _delete(cat.id, cat.name),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },
@@ -167,4 +181,29 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       },
     );
   }
+}
+
+class _EmptyCategories extends StatelessWidget {
+  const _EmptyCategories();
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.label_outline,
+          size: 40,
+          color: Theme.of(context).colorScheme.secondary,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'カテゴリがありません',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    ),
+  );
 }

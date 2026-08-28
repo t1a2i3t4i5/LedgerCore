@@ -1,9 +1,12 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/main.dart';
 import 'package:ledger_app/models/transaction.dart';
+import 'package:ledger_app/widgets/chart_palette.dart';
+import 'package:ledger_app/widgets/ledger_card.dart';
 
 /// メンバー画面で、削除できなかったことがユーザーに伝わるかを確かめる。
 ///
@@ -51,6 +54,63 @@ void main() {
   }
 
   const failureMessage = '削除できませんでした（取引が残っている可能性があります）';
+
+  Future<void> deleteAllMembers() async {
+    for (final member in await db.getMembers()) {
+      await db.deleteMember(member.id);
+    }
+  }
+
+  bool isEllipsized(WidgetTester tester, String text) =>
+      tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
+
+  testWidgets('メンバー行は識別色アバター付きカードで、6文字名が1行の高さに収まる', (tester) async {
+    const name = '子供の習い事';
+    await deleteAllMembers();
+    await db.insertMember(name);
+    final member = (await db.getMembers()).single;
+
+    await pumpMembersScreen(tester);
+
+    final tile = find.ancestor(
+      of: find.text(name),
+      matching: find.byType(ListTile),
+    );
+    final card = find.ancestor(of: tile, matching: find.byType(LedgerCard));
+    final avatar = tester.widget<CircleAvatar>(
+      find.descendant(of: tile, matching: find.byType(CircleAvatar)),
+    );
+    expect(card, findsOneWidget);
+    expect(avatar.backgroundColor, memberColor(member.id));
+    expect(isEllipsized(tester, name), isFalse);
+    expect(tester.getSize(tile).height, 56);
+  });
+
+  testWidgets('DB 上限の50文字名でも描画例外が起きない', (tester) async {
+    final name = 'あ' * 50;
+    await deleteAllMembers();
+    await db.insertMember(name);
+
+    await pumpMembersScreen(tester);
+
+    expect(find.text(name), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('メンバーが無いときはアイコン付きの空状態を描く', (tester) async {
+    await deleteAllMembers();
+
+    await pumpMembersScreen(tester);
+
+    final empty = find.ancestor(
+      of: find.text('メンバーがいません'),
+      matching: find.byType(Column),
+    );
+    expect(
+      find.descendant(of: empty, matching: find.byIcon(Icons.people_outline)),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('取引が残っているメンバーは削除できず、理由が SnackBar に出る', (tester) async {
     // 2 人にしておく。1 人だと「最後のメンバー」ガードで先に止まり、
