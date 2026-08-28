@@ -375,6 +375,16 @@ SnackBar になる。**失敗をログに残すために足した `try` は、�
 主要情報には使わない。`chart_palette.dart` の文字色は塗りの上で AA 4.5:1 を守る別用途で、
 この例外を適用しない。
 
+### 期間を選ぶ部品は共通の形を使う
+
+取引一覧・集計・割り勘の年月見出しは `MonthSelector` に集約し、月を 38px、年を
+Outfit 16px の二段で描く。前後移動と「今月／今年」は右側の 38px 角丸ボタンにまとめる。
+画面ごとに `style` を渡すと同じ期間の見た目が割れるため、呼び出し側では上書きしない。
+
+`SegmentedButton` のピル形状と選択色は `ledgerTheme.segmentedButtonTheme` が共通で持つ。
+集計画面と取引フィルターで個別に `style` を組み立てない。選択面は白、文字は
+`ColorScheme.onSurface` とし、通常サイズ文字のコントラスト比 4.5:1 以上を保つ。
+
 ## コード整形は language version で決まる
 
 `dart format` のスタイルは、実行中の Dart SDK ではなく **language version** で決まる。現在は Dart 3.7 の tall style。

@@ -107,7 +107,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 child: MonthSelector(
                   year: provider.year,
                   month: provider.month,
-                  style: Theme.of(context).textTheme.titleMedium,
                   onPrev: () => provider.changeMonth(-1),
                   onNext: () => provider.changeMonth(1),
                   onToday:

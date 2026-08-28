@@ -47,4 +47,13 @@ abstract final class LedgerTokens {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.28,
   );
+
+  static const periodYear = TextStyle(
+    fontFamily: 'Outfit',
+    fontFamilyFallback: ['ZenKakuGothicNew'],
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    height: 1.15,
+    letterSpacing: -0.32,
+  );
 }
