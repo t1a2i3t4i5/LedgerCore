@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../theme/ledger_tokens.dart';
 import 'period_format.dart';
+
+const double _buttonSize = 38;
+const double _buttonRadius = 14;
+const double _buttonGap = 6;
 
 /// 表示期間の選択 UI。前へ / 次へ / 今へ戻る の 3 ボタンと年月表示を並べる。
 ///
@@ -39,12 +44,15 @@ class MonthSelector extends StatelessWidget {
   final VoidCallback? onToday;
 
   /// 「今へ戻る」ボタンの tooltip。年単位で使うときは `'今年に戻る'` を渡す。
-  ///
-  /// アイコン（[Icons.today]）は共通のままにしてある。年モード用の別アイコンに
-  /// 替えると、月モードと年モードで押す場所が変わったように見える。
   final String todayTooltip;
 
-  /// 年月の文字スタイル。null なら `titleLarge`
+  /// 「今へ戻る」ボタンに表示するラベル。年単位では `'今年'` を渡す。
+  ///
+  /// 月モードと年モードで同じ右端のボタンを使い、期間を切り替えても
+  /// 押す場所が動かないようにする。
+  final String todayLabel;
+
+  /// 月または年を大きく描く文字スタイル。null なら 38px の見出し書体
   final TextStyle? style;
 
   /// 右端に追加で並べるウィジェット（取引一覧のフィルターボタンなど）
@@ -58,43 +66,194 @@ class MonthSelector extends StatelessWidget {
     required this.onNext,
     this.onToday,
     this.todayTooltip = '今月に戻る',
+    this.todayLabel = '今月',
     this.style,
     this.actions = const [],
   });
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        IconButton(icon: const Icon(Icons.chevron_left), onPressed: onPrev),
         // 年月は Flexible で包む。素の Text で置くと、端末の文字サイズを
         // 大きくしたときに Row が溢れて RenderFlex overflow になる。
         // 畳んででもレイアウトを崩さない側を選んでいる
-        Flexible(
-          child: Text(
-            formatPeriod(year, month),
-            style: style ?? Theme.of(context).textTheme.titleLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+        Expanded(child: _PeriodTitle(year: year, month: month, style: style)),
+        const SizedBox(width: 8),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
+            _PeriodButton(
+              backgroundColor: colorScheme.primaryContainer,
+              foregroundColor: colorScheme.onPrimaryContainer,
+              icon: Icons.chevron_left,
+              onPressed: onPrev,
+            ),
+            const SizedBox(width: _buttonGap),
+            _PeriodButton(
+              backgroundColor: colorScheme.primaryContainer,
+              foregroundColor: colorScheme.onPrimaryContainer,
+              icon: Icons.chevron_right,
               onPressed: onNext,
             ),
-            IconButton(
-              icon: const Icon(Icons.today),
+            const SizedBox(width: _buttonGap),
+            _TodayButton(
+              label: todayLabel,
               tooltip: todayTooltip,
               onPressed: onToday,
+              backgroundColor: colorScheme.primary,
+              foregroundColor: colorScheme.onPrimary,
+              disabledBackgroundColor: colorScheme.primaryContainer,
+              disabledForegroundColor: colorScheme.onPrimaryContainer,
             ),
             ...actions,
           ],
         ),
       ],
+    );
+  }
+}
+
+class _PeriodTitle extends StatelessWidget {
+  final int year;
+  final int? month;
+  final TextStyle? style;
+
+  const _PeriodTitle({required this.year, required this.month, this.style});
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final primaryStyle =
+        style ??
+        textTheme.displaySmall?.copyWith(
+          fontSize: 38,
+          height: 1,
+          letterSpacing: -0.76,
+        );
+
+    if (month == null) {
+      return Text(
+        formatPeriod(year, null),
+        style: primaryStyle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final labels = formatPeriodHeader(year, month!);
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: labels.primary,
+            // finder と読み上げは従来の長い年月を使う一方、画面には
+            // デザイン案どおり月を大きく描く。
+            semanticsLabel: labels.full,
+            style: primaryStyle,
+          ),
+          TextSpan(
+            text: '\n${labels.secondary}',
+            // 上の span が年月全体を読み上げるので、年を重複させない。
+            semanticsLabel: '',
+            style: LedgerTokens.periodYear,
+          ),
+        ],
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+class _PeriodButton extends StatelessWidget {
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  const _PeriodButton({
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: _buttonSize,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        style: IconButton.styleFrom(
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          disabledBackgroundColor: backgroundColor,
+          disabledForegroundColor: foregroundColor.withValues(alpha: 0.38),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_buttonRadius),
+          ),
+        ),
+        icon: Icon(icon),
+        onPressed: onPressed,
+      ),
+    );
+  }
+}
+
+class _TodayButton extends StatelessWidget {
+  final String label;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final Color disabledBackgroundColor;
+  final Color disabledForegroundColor;
+
+  const _TodayButton({
+    required this.label,
+    required this.tooltip,
+    required this.onPressed,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.disabledBackgroundColor,
+    required this.disabledForegroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: _buttonSize,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        tooltip: tooltip,
+        style: IconButton.styleFrom(
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          disabledBackgroundColor: disabledBackgroundColor,
+          disabledForegroundColor: disabledForegroundColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_buttonRadius),
+          ),
+        ),
+        onPressed: onPressed,
+        icon: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.5,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.clip,
+            style: TextStyle(
+              color:
+                  onPressed == null ? disabledForegroundColor : foregroundColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

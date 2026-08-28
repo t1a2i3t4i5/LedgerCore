@@ -103,6 +103,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       // 表示期間まで 1 年ぶん動く
                       year: provider.yearAxis,
                       month: null,
+                      todayLabel: '今年',
                       todayTooltip: '今年に戻る',
                       onPrev: () => provider.changeYear(-1),
                       onNext: () => provider.changeYear(1),

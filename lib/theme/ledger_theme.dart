@@ -86,4 +86,23 @@ final ledgerTheme = _baseTheme.copyWith(
       borderRadius: BorderRadius.circular(LedgerTokens.cardRadius),
     ),
   ),
+  segmentedButtonTheme: SegmentedButtonThemeData(
+    style: ButtonStyle(
+      backgroundColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected)
+                ? _ledgerColorScheme.surfaceContainerLowest
+                : _ledgerColorScheme.primaryContainer,
+      ),
+      foregroundColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected)
+                ? _ledgerColorScheme.onSurface
+                : _ledgerColorScheme.onPrimaryContainer,
+      ),
+      side: WidgetStatePropertyAll(
+        BorderSide(color: _ledgerColorScheme.outlineVariant),
+      ),
+    ),
+  ),
 );

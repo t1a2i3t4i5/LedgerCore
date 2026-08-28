@@ -375,6 +375,25 @@ SnackBar になる。**失敗をログに残すために足した `try` は、�
 主要情報には使わない。`chart_palette.dart` の文字色は塗りの上で AA 4.5:1 を守る別用途で、
 この例外を適用しない。
 
+### 期間を選ぶ部品は共通の形を使う
+
+取引一覧・集計・割り勘の年月見出しは `MonthSelector` に集約し、月を 38px、年を
+Outfit 16px の二段で描く。前後移動と「今月／今年」は右側の 38px 角丸ボタンにまとめる。
+画面ごとに `style` を渡すと同じ期間の見た目が割れるため、呼び出し側では上書きしない。
+二段見出しの文字列は `formatPeriodHeader()` から受け取り、画面側で年月を組み立てない。
+可視の `Text.rich` 自体が従来の長い年月を読み上げとテストへ公開するので、検査専用の
+不可視 `Text` は置かない。
+
+「今月／今年」は 38px の中でラベルが欠けないよう、文字倍率を最大 1.5 倍に制限する。
+固定サイズのまま端末倍率 2.0 を通すと全角 2 文字が折り返され、後半が無言で切れるため。
+
+`SegmentedButton` は Material 3 既定の外側のピル形状を使い、選択色と枠線は
+`ledgerTheme.segmentedButtonTheme` が共通で持つ。Flutter は各セグメントの shape を
+角丸 0 で上書きするため、テーマの shape で「選択面もピルになる」とは扱わない。
+集計画面と取引フィルターで個別に `style` を組み立てない。選択面は白、文字は
+`ColorScheme.onSurface` とし、通常サイズ文字のコントラスト比 4.5:1 以上を保つ。
+白い BottomSheet 上でも外形と境界が消えないよう、`outlineVariant` の枠線を残す。
+
 ## コード整形は language version で決まる
 
 `dart format` のスタイルは、実行中の Dart SDK ではなく **language version** で決まる。現在は Dart 3.7 の tall style。
