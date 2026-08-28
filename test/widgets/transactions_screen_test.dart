@@ -211,7 +211,7 @@ void main() {
     final memberName = (await db.getMembers()).first.name;
     await pumpScreen(tester);
 
-    Finder expectRow(String categoryName, String subtitle) {
+    Finder expectRow(String categoryName, String subtitle, String amount) {
       final category = categories.singleWhere(
         (category) => category.name == categoryName,
       );
@@ -228,11 +228,19 @@ void main() {
         find.descendant(of: tile, matching: find.text(subtitle)),
         findsOneWidget,
       );
+      expect(
+        find.descendant(of: tile, matching: find.text(amount)),
+        findsOneWidget,
+      );
       return tile;
     }
 
-    final firstTile = expectRow(firstCategoryName, '7/18 · $memberName · スーパー');
-    expectRow(secondCategoryName, '7/19 · $memberName · ドラッグストア');
+    final firstTile = expectRow(
+      firstCategoryName,
+      '7/18 · $memberName · スーパー',
+      '¥1,200',
+    );
+    expectRow(secondCategoryName, '7/19 · $memberName · ドラッグストア', '¥800');
 
     final subtitle = tester.widget<Text>(
       find.descendant(
