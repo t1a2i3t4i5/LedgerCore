@@ -67,7 +67,7 @@ void main() {
       tester
           .widget<IconButton>(
             find.ancestor(
-              of: find.byIcon(Icons.today),
+              of: find.text('今月'),
               matching: find.byType(IconButton),
             ),
           )
@@ -106,7 +106,7 @@ void main() {
   testWidgets('「今月に戻る」は onToday を呼ぶ', (tester) async {
     await pump(tester);
 
-    await tester.tap(find.byIcon(Icons.today));
+    await tester.tap(find.text('今月'));
     await tester.pumpAndSettle();
 
     expect(pressed, ['today']);
@@ -130,10 +130,11 @@ void main() {
     expect(find.byIcon(Icons.filter_list), findsOneWidget);
 
     // 左から 前月 → 翌月 → 今月に戻る → actions の順に並ぶ
-    double xOf(IconData icon) => tester.getCenter(find.byIcon(icon)).dx;
-    expect(xOf(Icons.chevron_left), lessThan(xOf(Icons.chevron_right)));
-    expect(xOf(Icons.chevron_right), lessThan(xOf(Icons.today)));
-    expect(xOf(Icons.today), lessThan(xOf(Icons.filter_list)));
+    double xOfIcon(IconData icon) => tester.getCenter(find.byIcon(icon)).dx;
+    final todayX = tester.getCenter(find.text('今月')).dx;
+    expect(xOfIcon(Icons.chevron_left), lessThan(xOfIcon(Icons.chevron_right)));
+    expect(xOfIcon(Icons.chevron_right), lessThan(todayX));
+    expect(todayX, lessThan(xOfIcon(Icons.filter_list)));
   });
 
   testWidgets('幅 360 で、桁が最大の年月に actions を足しても年月が畳まれない', (tester) async {
@@ -199,7 +200,7 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.chevron_left));
       await tester.tap(find.byIcon(Icons.chevron_right));
-      await tester.tap(find.byIcon(Icons.today));
+      await tester.tap(find.text('今月'));
 
       expect(pressed, ['prev', 'next', 'today']);
     });

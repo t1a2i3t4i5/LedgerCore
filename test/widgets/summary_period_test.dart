@@ -83,7 +83,7 @@ void main() {
       tester
           .widget<IconButton>(
             find.ancestor(
-              of: find.byIcon(Icons.today),
+              of: find.text('今年'),
               matching: find.byType(IconButton),
             ),
           )
@@ -165,12 +165,15 @@ void main() {
       await tapPeriod(tester, '年');
 
       expect(find.byTooltip('今年に戻る'), findsOneWidget);
+      expect(find.text('今年'), findsOneWidget);
+      expect(find.text('今月'), findsNothing);
       expect(todayIsEnabled(tester), isFalse);
 
       await tapIcon(tester, Icons.chevron_left);
       expect(todayIsEnabled(tester), isTrue);
 
-      await tapIcon(tester, Icons.today);
+      await tester.tap(find.text('今年'));
+      await tester.pumpAndSettle();
       expect(find.text('2026年'), findsOneWidget);
       expect(todayIsEnabled(tester), isFalse);
     });
@@ -208,7 +211,8 @@ void main() {
       await tapIcon(tester, Icons.chevron_left);
       expect(find.text('2025年'), findsOneWidget);
 
-      await tapIcon(tester, Icons.today);
+      await tester.tap(find.text('今年'));
+      await tester.pumpAndSettle();
       expect(find.text('2026年'), findsOneWidget);
 
       await tapPeriod(tester, '月');

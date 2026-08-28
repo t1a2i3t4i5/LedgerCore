@@ -6,7 +6,11 @@ import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/month_selector.dart';
 
 void main() {
-  Future<void> pumpSelector(WidgetTester tester, {double textScale = 1}) async {
+  Future<void> pumpSelector(
+    WidgetTester tester, {
+    double textScale = 1,
+    bool todayEnabled = true,
+  }) async {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -22,7 +26,7 @@ void main() {
               month: 7,
               onPrev: () {},
               onNext: () {},
-              onToday: () {},
+              onToday: todayEnabled ? () {} : null,
             ),
           ),
         ),
@@ -73,6 +77,30 @@ void main() {
     );
   });
 
+  testWidgets('「今月」は無効時に薄い面へ切り替わる', (tester) async {
+    await pumpSelector(tester, todayEnabled: false);
+
+    final button = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.byTooltip('今月に戻る'),
+        matching: find.byType(IconButton),
+      ),
+    );
+    final style = button.style!;
+    final enabledBackground = style.backgroundColor!.resolve({});
+    final disabledBackground = style.backgroundColor!.resolve({
+      WidgetState.disabled,
+    });
+
+    expect(enabledBackground, ledgerTheme.colorScheme.primary);
+    expect(disabledBackground, ledgerTheme.colorScheme.primaryContainer);
+    expect(disabledBackground, isNot(enabledBackground));
+    expect(
+      tester.widget<Text>(find.text('今月')).style?.color,
+      ledgerTheme.colorScheme.onPrimaryContainer,
+    );
+  });
+
   test('期間セグメントは白い選択面と onSurface の文字を使う', () {
     final style = ledgerTheme.segmentedButtonTheme.style!;
     final selected = {WidgetState.selected};
@@ -81,7 +109,10 @@ void main() {
 
     expect(background, ledgerTheme.colorScheme.surfaceContainerLowest);
     expect(foreground, ledgerTheme.colorScheme.onSurface);
-    expect(style.shape!.resolve(selected), isA<StadiumBorder>());
+    expect(
+      style.side!.resolve(selected),
+      BorderSide(color: ledgerTheme.colorScheme.outlineVariant),
+    );
 
     final lighter = [
       foreground.computeLuminance(),

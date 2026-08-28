@@ -387,9 +387,12 @@ Outfit 16px の二段で描く。前後移動と「今月／今年」は右側�
 「今月／今年」は 38px の中でラベルが欠けないよう、文字倍率を最大 1.5 倍に制限する。
 固定サイズのまま端末倍率 2.0 を通すと全角 2 文字が折り返され、後半が無言で切れるため。
 
-`SegmentedButton` のピル形状と選択色は `ledgerTheme.segmentedButtonTheme` が共通で持つ。
+`SegmentedButton` は Material 3 既定の外側のピル形状を使い、選択色と枠線は
+`ledgerTheme.segmentedButtonTheme` が共通で持つ。Flutter は各セグメントの shape を
+角丸 0 で上書きするため、テーマの shape で「選択面もピルになる」とは扱わない。
 集計画面と取引フィルターで個別に `style` を組み立てない。選択面は白、文字は
 `ColorScheme.onSurface` とし、通常サイズ文字のコントラスト比 4.5:1 以上を保つ。
+白い BottomSheet 上でも外形と境界が消えないよう、`outlineVariant` の枠線を残す。
 
 ## コード整形は language version で決まる
 

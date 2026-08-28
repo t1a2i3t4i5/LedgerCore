@@ -100,8 +100,9 @@ final ledgerTheme = _baseTheme.copyWith(
                 ? _ledgerColorScheme.onSurface
                 : _ledgerColorScheme.onPrimaryContainer,
       ),
-      side: const WidgetStatePropertyAll(BorderSide.none),
-      shape: const WidgetStatePropertyAll(StadiumBorder()),
+      side: WidgetStatePropertyAll(
+        BorderSide(color: _ledgerColorScheme.outlineVariant),
+      ),
     ),
   ),
 );

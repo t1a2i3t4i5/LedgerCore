@@ -245,14 +245,11 @@ void main() {
 
     // 飛んだ先は「今月」(2026年7月) ではないので、今月に戻るボタンが押せる
     final todayButton = tester.widget<IconButton>(
-      find.ancestor(
-        of: find.byIcon(Icons.today),
-        matching: find.byType(IconButton),
-      ),
+      find.ancestor(of: find.text('今月'), matching: find.byType(IconButton)),
     );
     expect(todayButton.onPressed, isNotNull);
 
-    await tester.tap(find.byIcon(Icons.today));
+    await tester.tap(find.text('今月'));
     await tester.pumpAndSettle();
     expect(find.text('2026年7月'), findsOneWidget);
   });

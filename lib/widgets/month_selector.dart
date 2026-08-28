@@ -105,6 +105,8 @@ class MonthSelector extends StatelessWidget {
               onPressed: onToday,
               backgroundColor: colorScheme.primary,
               foregroundColor: colorScheme.onPrimary,
+              disabledBackgroundColor: colorScheme.primaryContainer,
+              disabledForegroundColor: colorScheme.onPrimaryContainer,
             ),
             ...actions,
           ],
@@ -207,6 +209,8 @@ class _TodayButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final Color backgroundColor;
   final Color foregroundColor;
+  final Color disabledBackgroundColor;
+  final Color disabledForegroundColor;
 
   const _TodayButton({
     required this.label,
@@ -214,6 +218,8 @@ class _TodayButton extends StatelessWidget {
     required this.onPressed,
     required this.backgroundColor,
     required this.foregroundColor,
+    required this.disabledBackgroundColor,
+    required this.disabledForegroundColor,
   });
 
   @override
@@ -226,38 +232,26 @@ class _TodayButton extends StatelessWidget {
         style: IconButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: foregroundColor,
-          disabledBackgroundColor: backgroundColor,
-          disabledForegroundColor: foregroundColor.withValues(alpha: 0.38),
+          disabledBackgroundColor: disabledBackgroundColor,
+          disabledForegroundColor: disabledForegroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(_buttonRadius),
           ),
         ),
         onPressed: onPressed,
-        icon: Stack(
-          alignment: Alignment.center,
-          children: [
-            MediaQuery.withClampedTextScaling(
-              maxScaleFactor: 1.5,
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.clip,
-                style: TextStyle(
-                  color:
-                      onPressed == null
-                          ? foregroundColor.withValues(alpha: 0.38)
-                          : foregroundColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+        icon: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.5,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.clip,
+            style: TextStyle(
+              color:
+                  onPressed == null ? disabledForegroundColor : foregroundColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
             ),
-            // 既存テストが押下対象として使うアイコンを残す。実表示と
-            // セマンティクスはラベルだけにして、利用者には重複させない。
-            const ExcludeSemantics(
-              child: Opacity(opacity: 0, child: Icon(Icons.today)),
-            ),
-          ],
+          ),
         ),
       ),
     );

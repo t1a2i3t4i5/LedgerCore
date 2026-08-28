@@ -84,7 +84,7 @@ void main() {
       tester
           .widget<IconButton>(
             find.ancestor(
-              of: find.byIcon(Icons.today),
+              of: find.text('今月'),
               matching: find.byType(IconButton),
             ),
           )
@@ -146,7 +146,8 @@ void main() {
         await tapIcon(tester, Icons.chevron_left);
         expect(find.text('2026年6月'), findsOneWidget);
 
-        await tapIcon(tester, Icons.today);
+        await tester.tap(find.text('今月'));
+        await tester.pumpAndSettle();
 
         expect(find.text('2026年7月'), findsOneWidget);
         expect(find.text(amountOf(7)), findsWidgets);
