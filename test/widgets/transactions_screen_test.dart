@@ -7,7 +7,10 @@ import 'package:ledger_app/providers/category_provider.dart';
 import 'package:ledger_app/providers/member_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
 import 'package:ledger_app/screens/transactions_screen.dart';
+import 'package:ledger_app/theme/ledger_theme.dart';
+import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/amount_format.dart';
+import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:provider/provider.dart';
 
 /// 取引一覧画面からの削除フロー（長押し → 確認ダイアログ）を確認する。
@@ -31,21 +34,29 @@ void main() {
     required double amount,
     int day = 5,
     int categoryIndex = 0,
+    String? categoryName,
+    String? memo,
   }) async {
+    if (categoryName != null) await db.insertCategory(categoryName);
     final cats = await db.getCategories();
     final members = await db.getMembers();
+    final category =
+        categoryName == null
+            ? cats[categoryIndex]
+            : cats.singleWhere((category) => category.name == categoryName);
     await db.insertTransaction(
       TransactionInput(
         memberId: members.first.id,
-        categoryId: cats[categoryIndex].id,
+        categoryId: category.id,
         amount: amount,
         spentAt: DateTime(fixedNow.year, fixedNow.month, day),
+        memo: memo,
       ),
     );
-    return cats[categoryIndex].name;
+    return category.name;
   }
 
-  Future<void> pumpScreen(WidgetTester tester) async {
+  Future<void> pumpScreen(WidgetTester tester, {String? memoFilter}) async {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -56,11 +67,17 @@ void main() {
           ChangeNotifierProvider(create: (_) => CategoryProvider(db)),
           ChangeNotifierProvider(create: (_) => MemberProvider(db)),
           ChangeNotifierProvider(
-            create: (_) => TransactionProvider(db, clock: () => fixedNow),
+            create:
+                (_) =>
+                    TransactionProvider(db, clock: () => fixedNow)
+                      ..setFilters(memoQuery: memoFilter),
           ),
         ],
         // TransactionsScreen は自前で Scaffold を返す
-        child: const MaterialApp(home: TransactionsScreen()),
+        child: MaterialApp(
+          theme: ledgerTheme,
+          home: const TransactionsScreen(),
+        ),
       ),
     );
     // initState の postFrameCallback で取引・カテゴリ・メンバーを読む
@@ -132,14 +149,16 @@ void main() {
     final categoryName = await seedTransaction(amount: 1200);
     await seedTransaction(amount: 3500, day: 6, categoryIndex: 1);
     await pumpScreen(tester);
-    expect(find.text('合計 ¥4,700'), findsOneWidget);
+    expect(find.text('合計'), findsOneWidget);
+    expect(find.text('¥4,700'), findsOneWidget);
 
     await tester.longPress(find.text(categoryName));
     await tester.pumpAndSettle();
     await tester.tap(find.text('削除'));
     await tester.pumpAndSettle();
 
-    expect(find.text('合計 ¥3,500'), findsOneWidget);
+    expect(find.text('合計'), findsOneWidget);
+    expect(find.text('¥3,500'), findsNWidgets(2));
   });
 
   testWidgets('最後の1件を削除すると空状態メッセージが出る', (tester) async {
@@ -155,9 +174,69 @@ void main() {
     // 取引そのものが無いときの文言が出る
     expect(find.text('取引がありません'), findsOneWidget);
     expect(find.text('該当する取引がありません'), findsNothing);
+    expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
     expect(find.text('0件'), findsOneWidget);
     // formatYen() の書式 '#,###' は 0 を空文字にせず '0' を返す
-    expect(find.text('合計 ¥0'), findsOneWidget);
+    expect(find.text('合計'), findsOneWidget);
+    expect(find.text('¥0'), findsOneWidget);
+  });
+
+  testWidgets('フィルター結果が空のときも新しい空状態を描く', (tester) async {
+    await seedTransaction(amount: 1200, memo: 'スーパー');
+    await pumpScreen(tester, memoFilter: '該当なし');
+
+    expect(find.text('該当する取引がありません'), findsOneWidget);
+    expect(find.text('取引がありません'), findsNothing);
+    expect(find.byIcon(Icons.receipt_long_outlined), findsOneWidget);
+  });
+
+  testWidgets('カテゴリ色のドットと日付・メンバー・メモを同じ行に描く', (tester) async {
+    final categoryName = await seedTransaction(
+      amount: 1200,
+      day: 18,
+      memo: 'スーパー',
+    );
+    final category = (await db.getCategories()).singleWhere(
+      (category) => category.name == categoryName,
+    );
+    final memberName = (await db.getMembers()).first.name;
+    await pumpScreen(tester);
+
+    final tile = find.ancestor(
+      of: find.text(categoryName),
+      matching: find.byType(ListTile),
+    );
+    final dot = tester.widget<CircleAvatar>(
+      find.descendant(of: tile, matching: find.byType(CircleAvatar)),
+    );
+    expect(dot.backgroundColor, categoryColor(category.id));
+    expect(dot.child, isNull);
+    expect(
+      find.descendant(
+        of: tile,
+        matching: find.text('7/18 · $memberName · スーパー'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('取引行と合計パネルの金額は amountRow を使う', (tester) async {
+    await seedTransaction(amount: 1200);
+    await pumpScreen(tester);
+
+    final amounts = tester.widgetList<Text>(find.text('¥1,200')).toList();
+    expect(amounts, hasLength(2));
+    for (final amount in amounts) {
+      expect(amount.style, LedgerTokens.amountRow);
+    }
+  });
+
+  testWidgets('フィルター件数バッジはアクセント色を使う', (tester) async {
+    await pumpScreen(tester);
+
+    final badge = tester.widget<Badge>(find.byType(Badge));
+    expect(badge.backgroundColor, ledgerTheme.colorScheme.secondary);
+    expect(badge.textColor, ledgerTheme.colorScheme.onSecondary);
   });
 
   // kMaxAmount は「保存できる値」として DB の CHECK が認めている。
@@ -169,8 +248,7 @@ void main() {
 
     // 一覧の行と合計パネルの両方に最大金額が出る状態にする
     final formatted = formatYen(kMaxAmount);
-    expect(find.text(formatted), findsOneWidget);
-    expect(find.text('合計 $formatted'), findsOneWidget);
+    expect(find.text(formatted), findsNWidgets(2));
     // overflow は例外として記録されるので、握りつぶさず明示的に見る
     expect(tester.takeException(), isNull);
   });
@@ -183,7 +261,21 @@ void main() {
     await pumpScreen(tester);
 
     final total = formatYen(kMaxAmount * 2);
-    expect(find.text('合計 $total'), findsOneWidget);
+    expect(find.text(total), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('上限金額と50文字カテゴリ名でも overflow しない', (tester) async {
+    final categoryName = 'あ' * 50;
+    await seedTransaction(
+      amount: kMaxAmount,
+      categoryName: categoryName,
+      memo: 'スーパー',
+    );
+    await pumpScreen(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text(categoryName), findsOneWidget);
+    expect(find.text('7/5 · 自分 · スーパー'), findsOneWidget);
   });
 }

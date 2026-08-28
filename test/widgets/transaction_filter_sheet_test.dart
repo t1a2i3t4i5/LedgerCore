@@ -377,7 +377,7 @@ void main() {
     // 一覧は 2 件のまま残る
     expect(find.text('1件'), findsOneWidget);
     expect(find.text('¥1,200'), findsNothing);
-    expect(find.text('¥3,400'), findsOneWidget);
+    expect(find.text('¥3,400'), findsNWidgets(2));
   });
 
   testWidgets('読み込みが終わる前に開いても、届いたチップで絞り込める', (tester) async {
