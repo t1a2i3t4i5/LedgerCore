@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
@@ -18,6 +19,20 @@ class _EmptyMemberProvider extends MemberProvider {
   Future<void> fetchMembers() async {}
 }
 
+RenderEditable _findRenderEditable(RenderObject root) {
+  RenderEditable? result;
+  void visit(RenderObject child) {
+    if (child is RenderEditable) {
+      result = child;
+      return;
+    }
+    child.visitChildren(visit);
+  }
+
+  visit(root);
+  return result!;
+}
+
 void main() {
   late AppDatabase db;
 
@@ -28,8 +43,9 @@ void main() {
     WidgetTester tester, {
     TextScaler textScaler = TextScaler.noScaling,
     MemberProvider? memberProvider,
+    Size size = const Size(360, 690),
   }) async {
-    tester.view.physicalSize = const Size(360, 690);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
@@ -56,6 +72,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> selectFirstCategory(WidgetTester tester) async {
+    final firstCategory = (await db.getCategories()).first.name;
+    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(firstCategory).last);
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('金額欄は上部で中央揃えの大きな表示になる', (tester) async {
     await pumpScreen(tester);
 
@@ -64,7 +88,7 @@ void main() {
       find.descendant(of: amountFieldFinder, matching: find.byType(TextField)),
     );
 
-    expect(tester.getCenter(find.text('金額')).dx, closeTo(180, 0.1));
+    expect(tester.widget<Text>(find.text('金額')).textAlign, TextAlign.center);
     expect(textField.textAlign, TextAlign.center);
     expect(textField.style, LedgerTokens.amountLarge);
     expect(textField.decoration?.border, InputBorder.none);
@@ -77,7 +101,7 @@ void main() {
     expect(tester.widget<FittedBox>(fittedBoxFinder).fit, BoxFit.scaleDown);
   });
 
-  testWidgets('登録者はChoiceChipで選び、未選択ならエラーになる', (tester) async {
+  testWidgets('選択済みの登録者チップを押しても解除されず保存できる', (tester) async {
     await pumpScreen(tester);
 
     final memberId = (await db.getMembers()).first.id;
@@ -88,18 +112,77 @@ void main() {
     await tester.pump();
     expect(
       tester.widget<ChoiceChip>(find.byType(ChoiceChip).first).selected,
+      isTrue,
+    );
+
+    await selectFirstCategory(tester);
+    await tester.enterText(find.byType(TextFormField).first, '1200');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    final saved = (await db.getAllTransactions()).single;
+    expect(saved.memberId, memberId);
+    expect(find.text('登録者を選択してください'), findsNothing);
+  });
+
+  testWidgets('別の登録者チップを選ぶと選択表示と保存先が切り替わる', (tester) async {
+    await db.insertMember('家族');
+    final members = await db.getMembers();
+    final firstMember = members.first;
+    final secondMember = members.singleWhere((member) => member.name == '家族');
+
+    await pumpScreen(tester);
+
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, firstMember.name))
+          .selected,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<ChoiceChip>(
+            find.widgetWithText(ChoiceChip, secondMember.name),
+          )
+          .selected,
       isFalse,
     );
 
+    await tester.tap(find.widgetWithText(ChoiceChip, secondMember.name));
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, firstMember.name))
+          .selected,
+      isFalse,
+    );
+    expect(
+      tester
+          .widget<ChoiceChip>(
+            find.widgetWithText(ChoiceChip, secondMember.name),
+          )
+          .selected,
+      isTrue,
+    );
+
+    await selectFirstCategory(tester);
+    await tester.enterText(find.byType(TextFormField).first, '1200');
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+
+    expect((await db.getAllTransactions()).single.memberId, secondMember.id);
+  });
+
+  testWidgets('登録者が未選択なら他の入力が正しくても保存しない', (tester) async {
+    await pumpScreen(tester, memberProvider: _EmptyMemberProvider(db));
+
+    await selectFirstCategory(tester);
     await tester.enterText(find.byType(TextFormField).first, '1200');
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 
     expect(find.text('登録者を選択してください'), findsOneWidget);
-    expect(
-      (await db.getMembers()).any((member) => member.id == memberId),
-      isTrue,
-    );
     expect(await db.getAllTransactions(), isEmpty);
   });
 
@@ -111,15 +194,21 @@ void main() {
     expect(text.style?.color, isNot(LedgerTokens.subtext));
   });
 
-  testWidgets('文字倍率2.0でも上限額を表示して例外が出ない', (tester) async {
-    await pumpScreen(tester, textScaler: const TextScaler.linear(2));
-
-    await tester.enterText(
-      find.byType(TextFormField).first,
-      kMaxAmount.toStringAsFixed(0),
+  testWidgets('320px幅かつ文字倍率2.0でも上限額の全桁が見える', (tester) async {
+    await pumpScreen(
+      tester,
+      textScaler: const TextScaler.linear(2),
+      size: const Size(320, 690),
     );
+
+    final amountField = find.byType(TextFormField).first;
+    await tester.enterText(amountField, kMaxAmount.toStringAsFixed(0));
     await tester.pump();
 
     expect(tester.takeException(), isNull);
+    final editable = _findRenderEditable(
+      tester.renderObject<RenderObject>(amountField),
+    );
+    expect(editable.maxScrollExtent, 0, reason: '先頭の桁が横スクロール領域へ隠れている');
   });
 }

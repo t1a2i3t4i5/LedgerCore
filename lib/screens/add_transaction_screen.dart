@@ -181,6 +181,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
+  /// 現在の文字倍率で上限額の全桁とカーソルを収める入力欄の幅。
+  ///
+  /// この内容幅を [FittedBox] の子にし、画面幅の制約を外側へ置くことで、
+  /// 狭い画面では入力欄全体を縮小する。内側を画面幅に固定すると
+  /// [EditableText] が横スクロールして先頭の桁を隠すため。
+  double _amountFieldWidth(BuildContext context) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: kMaxAmount.toStringAsFixed(0),
+        style: LedgerTokens.amountLarge,
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final width = painter.width + 8;
+    painter.dispose();
+    return width;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
@@ -223,38 +243,41 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     context,
                   ).textTheme.bodySmall?.copyWith(color: LedgerTokens.subtext),
                 ),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: SizedBox(
-                    width: MediaQuery.sizeOf(context).width - 32,
-                    child: TextFormField(
-                      controller: _amountCtrl,
-                      // 小数を受け付けないので小数点キーの要らない number に戻す
-                      keyboardType: TextInputType.number,
-                      inputFormatters: const [AmountInputFormatter()],
-                      textAlign: TextAlign.center,
-                      style: LedgerTokens.amountLarge,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
+                SizedBox(
+                  width: double.infinity,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: SizedBox(
+                      width: _amountFieldWidth(context),
+                      child: TextFormField(
+                        controller: _amountCtrl,
+                        // 小数を受け付けないので小数点キーの要らない number に戻す
+                        keyboardType: TextInputType.number,
+                        inputFormatters: const [AmountInputFormatter()],
+                        textAlign: TextAlign.center,
+                        style: LedgerTokens.amountLarge,
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return '金額を入力してください';
+                          final amount = double.tryParse(v);
+                          if (amount == null) return '有効な数値を入力してください';
+                          // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
+                          if (amount <= 0) return '金額は 0 より大きい値を入力してください';
+                          // Infinity は `> 0` を満たすため上限の比較で止める。
+                          // 弾かないと合計が `¥∞`、構成比が `NaN%` になって復旧できない
+                          if (!amount.isFinite || amount > kMaxAmount) {
+                            return '金額が大きすぎます';
+                          }
+                          // フォーマッタが小数点を通さないので実質到達しないが、
+                          // コントローラへの直接代入も含めて DB の CHECK と揃える
+                          if (amount != amount.roundToDouble()) {
+                            return '金額は整数で入力してください';
+                          }
+                          return null;
+                        },
                       ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return '金額を入力してください';
-                        final amount = double.tryParse(v);
-                        if (amount == null) return '有効な数値を入力してください';
-                        // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
-                        if (amount <= 0) return '金額は 0 より大きい値を入力してください';
-                        // Infinity は `> 0` を満たすため上限の比較で止める。
-                        // 弾かないと合計が `¥∞`、構成比が `NaN%` になって復旧できない
-                        if (!amount.isFinite || amount > kMaxAmount) {
-                          return '金額が大きすぎます';
-                        }
-                        // フォーマッタが小数点を通さないので実質到達しないが、
-                        // コントローラへの直接代入も含めて DB の CHECK と揃える
-                        if (amount != amount.roundToDouble()) {
-                          return '金額は整数で入力してください';
-                        }
-                        return null;
-                      },
                     ),
                   ),
                 ),
@@ -336,14 +359,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                             label: Text(m.name),
                                             selected: selected,
                                             onSelected: (value) {
-                                              final memberId =
-                                                  value ? m.id : null;
+                                              if (!value) return;
                                               setState(
-                                                () =>
-                                                    _selectedMemberId =
-                                                        memberId,
+                                                () => _selectedMemberId = m.id,
                                               );
-                                              state.didChange(memberId);
+                                              state.didChange(m.id);
                                             },
                                           );
                                         }).toList(),
