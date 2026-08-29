@@ -68,7 +68,7 @@ void main() {
     expect(changes.single['detail'], {'from': 'summary', 'to': 'transactions'});
   });
 
-  testWidgets('既存のタブアイコンを維持する', (tester) async {
+  testWidgets('タブ構成がホーム・取引・割り勘・設定になる', (tester) async {
     await pumpApp(tester);
 
     final navigationBar = tester.widget<NavigationBar>(
@@ -80,30 +80,30 @@ void main() {
     expect(destinations.map((destination) => (destination.icon as Icon).icon), [
       Icons.bar_chart_outlined,
       Icons.receipt_long_outlined,
-      Icons.label_outline,
       Icons.balance_outlined,
+      Icons.settings_outlined,
     ]);
     expect(
       destinations.map(
         (destination) => (destination.selectedIcon! as Icon).icon,
       ),
-      [Icons.bar_chart, Icons.receipt_long, Icons.label, Icons.balance],
+      [Icons.bar_chart, Icons.receipt_long, Icons.balance, Icons.settings],
     );
-    expect(find.byIcon(Icons.people_outline), findsOneWidget);
+    expect(find.byIcon(Icons.people_outline), findsNothing);
   });
 
   testWidgets('タブを渡り歩いた順がそのまま残る', (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.text('カテゴリ'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('割り勘'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
     await flushLog(tester);
 
     expect(entriesOf('tab.change').map((e) => e['detail']).toList(), [
-      {'from': 'summary', 'to': 'categories'},
-      {'from': 'categories', 'to': 'split'},
+      {'from': 'summary', 'to': 'split'},
+      {'from': 'split', 'to': 'settings'},
     ]);
   });
 
@@ -112,22 +112,36 @@ void main() {
 
     // NavigationBar は同じ行き先でもコールバックを呼ぶ。素直に書くと
     // from と to が同じ行がログに溜まる
-    await tester.tap(find.text('サマリー'));
+    await tester.tap(find.text('ホーム'));
     await tester.pumpAndSettle();
     await flushLog(tester);
 
     expect(entriesOf('tab.change'), isEmpty);
   });
 
-  testWidgets('メンバー管理を開くと screen.open が残る', (tester) async {
+  testWidgets('設定から管理画面を開くと screen.open が残る', (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.byIcon(Icons.people_outline));
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('リマインド'), findsNothing);
+    expect(find.text('月の開始日'), findsNothing);
+    expect(find.text('データ書き出し'), findsNothing);
+
+    await tester.tap(find.text('カテゴリ管理'));
+    await tester.pumpAndSettle();
+    await flushLog(tester);
+    expect(find.widgetWithText(AppBar, 'カテゴリ管理'), findsOneWidget);
+    expect(entriesOf('screen.open').last['detail'], {'name': 'categories'});
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('メンバー管理'));
     await tester.pumpAndSettle();
     await flushLog(tester);
 
-    expect(find.text('メンバー管理'), findsOneWidget);
-    expect(entriesOf('screen.open').single['detail'], {'name': 'members'});
+    expect(find.widgetWithText(AppBar, 'メンバー管理'), findsOneWidget);
+    expect(entriesOf('screen.open').last['detail'], {'name': 'members'});
   });
 
   testWidgets('月送りの矢印を押すと month.change が残る', (tester) async {

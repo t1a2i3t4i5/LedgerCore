@@ -396,7 +396,7 @@ void main() {
 
       await tester.tap(find.text('取引'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('サマリー'));
+      await tester.tap(find.text('ホーム'));
       await tester.pumpAndSettle();
 
       expect(find.text('2026年'), findsOneWidget);
@@ -420,7 +420,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('2026年7月'), findsOneWidget);
 
-      await tester.tap(find.text('サマリー'));
+      await tester.tap(find.text('ホーム'));
       await tester.pumpAndSettle();
       await tapPeriod(tester, '年');
       await tapIcon(tester, Icons.chevron_left);

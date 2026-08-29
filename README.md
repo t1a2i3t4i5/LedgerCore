@@ -129,6 +129,7 @@ lib/
 │   └── summary_provider.dart
 ├── screens/
 │   ├── main_screen.dart       # ボトムナビゲーションと 4 タブの束ね
+│   ├── settings_screen.dart   # カテゴリ・メンバー管理への設定導線
 │   ├── transactions_screen.dart   # 取引一覧
 │   ├── add_transaction_screen.dart# 取引の追加・編集
 │   ├── transaction_filter_sheet.dart # 一覧のソート・フィルター設定
