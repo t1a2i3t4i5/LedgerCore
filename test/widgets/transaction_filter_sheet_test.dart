@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
@@ -8,6 +9,7 @@ import 'package:ledger_app/providers/member_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
 import 'package:ledger_app/screens/transaction_filter_sheet.dart';
 import 'package:ledger_app/screens/transactions_screen.dart';
+import 'package:ledger_app/theme/ledger_theme.dart';
 import 'package:ledger_app/widgets/amount_format.dart';
 import 'package:provider/provider.dart';
 
@@ -72,7 +74,12 @@ void main() {
   /// （`transactions_screen.dart`。未読込なら fetch を投げるが **await せずに**
   /// シートを開く）と同じ順序になる。空のまま開いて、あとから届いた通知で
   /// チップが出る経路を通したいときに使う。
-  Future<void> pumpSheet(WidgetTester tester, {bool preloaded = true}) async {
+  Future<void> pumpSheet(
+    WidgetTester tester, {
+    bool preloaded = true,
+    bool completeLoading = true,
+    TextScaler textScaler = TextScaler.noScaling,
+  }) async {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -92,6 +99,12 @@ void main() {
           ChangeNotifierProvider.value(value: provider),
         ],
         child: MaterialApp(
+          theme: ledgerTheme,
+          builder:
+              (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+                child: child!,
+              ),
           home: Scaffold(
             body: Builder(
               builder:
@@ -112,7 +125,7 @@ void main() {
     await tester.tap(find.text('シートを開く'));
     await tester.pumpAndSettle();
 
-    if (!preloaded) {
+    if (!preloaded && completeLoading) {
       // 開いた時点ではまだ空。ここでチップが出ていると「あとから届く」
       // 経路を通せないので、前提として確かめておく
       expect(find.text('カテゴリがありません'), findsOneWidget);
@@ -186,6 +199,68 @@ void main() {
     );
     await tester.pump();
   }
+
+  // ---- 見た目 ----
+
+  testWidgets('チップとアクションボタンはピル形状になる', (tester) async {
+    await pumpSheet(tester);
+
+    final chipTheme = ledgerTheme.chipTheme;
+    final reset = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, 'リセット'),
+    );
+    final apply = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '適用'),
+    );
+
+    expect(chipTheme.shape, isA<StadiumBorder>());
+    expect(reset.style!.shape!.resolve({}), isA<StadiumBorder>());
+    expect(apply.style!.shape!.resolve({}), isA<StadiumBorder>());
+  });
+
+  testWidgets('カテゴリ空状態とメンバー読込中は本文用の補助色を使う', (tester) async {
+    await pumpSheet(tester, preloaded: false, completeLoading: false);
+
+    final expected = ledgerTheme.colorScheme.onSurfaceVariant;
+    expect(tester.widget<Text>(find.text('カテゴリがありません')).style?.color, expected);
+    expect(
+      tester.widget<Text>(find.text('メンバー情報を読み込み中...')).style?.color,
+      expected,
+    );
+  });
+
+  testWidgets('文字倍率2.0でもカテゴリチップ群が複数行へ折り返され、例外を出さない', (tester) async {
+    final longName = 'あ' * 50;
+    await db.insertCategory(longName);
+
+    await pumpSheet(tester, textScaler: const TextScaler.linear(2));
+
+    final categoryWrap = find.ancestor(
+      of: find.text(longName),
+      matching: find.byType(Wrap),
+    );
+    expect(categoryWrap, findsOneWidget);
+    final chips = find.descendant(
+      of: categoryWrap,
+      matching: find.byType(FilterChip),
+    );
+    final rowPositions =
+        tester
+            .widgetList<FilterChip>(chips)
+            .map((chip) => tester.getCenter(find.byWidget(chip)).dy)
+            .toSet();
+    expect(rowPositions.length, greaterThan(1));
+
+    // Material の Chip はラベルを 1 行に制限する。50 文字名はチップ内で
+    // 無言に切られるため、その事実を実測しつつ、Wrap 全体が overflow を
+    // 起こさないという issue の完了条件を別のアサーションで守る。
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(longName));
+    expect(
+      paragraph.getMaxIntrinsicWidth(double.infinity),
+      greaterThan(paragraph.size.width),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   // ---- 金額欄 ----
 

@@ -99,6 +99,13 @@ void main() {
     expect(find.text('取引を削除'), findsOneWidget);
     expect(find.text('この取引を削除しますか？'), findsOneWidget);
     expect(find.text('キャンセル'), findsOneWidget);
+    final deleteButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, '削除'),
+    );
+    expect(
+      deleteButton.style?.foregroundColor?.resolve({}),
+      ledgerTheme.colorScheme.error,
+    );
   });
 
   testWidgets('キャンセルすると削除されない', (tester) async {

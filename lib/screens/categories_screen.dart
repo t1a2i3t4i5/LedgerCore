@@ -85,10 +85,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: Text(
-                  '削除',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
                 ),
+                child: const Text('削除'),
               ),
             ],
           ),

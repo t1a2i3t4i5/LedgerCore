@@ -114,10 +114,10 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          left: 20,
+          right: 20,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -127,11 +127,12 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
               // ヘッダー
               Row(
                 children: [
-                  const Text(
-                    'ソート・フィルター',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: Text(
+                      'ソート・フィルター',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
                   ),
-                  const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
@@ -186,9 +187,11 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
               // ---- カテゴリ（複数選択） ----
               const _SectionLabel('カテゴリ'),
               if (categories.isEmpty)
-                const Text(
+                Text(
                   'カテゴリがありません',
-                  style: TextStyle(color: LedgerTokens.subtext),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 )
               else
                 Wrap(
@@ -216,9 +219,11 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
               // ---- 登録者（複数選択） ----
               const _SectionLabel('登録者'),
               if (members.isEmpty)
-                const Text(
+                Text(
                   'メンバー情報を読み込み中...',
-                  style: TextStyle(color: LedgerTokens.subtext),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 )
               else
                 Wrap(
@@ -256,7 +261,11 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                       inputFormatters: const [AmountInputFormatter()],
                       decoration: const InputDecoration(
                         labelText: '最小 (¥)',
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(LedgerTokens.cardRadius),
+                          ),
+                        ),
                         isDense: true,
                       ),
                     ),
@@ -272,7 +281,11 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                       inputFormatters: const [AmountInputFormatter()],
                       decoration: const InputDecoration(
                         labelText: '最大 (¥)',
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(LedgerTokens.cardRadius),
+                          ),
+                        ),
                         isDense: true,
                       ),
                     ),
@@ -288,7 +301,11 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                 decoration: const InputDecoration(
                   hintText: 'メモに含まれる文字列',
                   prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(
+                      Radius.circular(LedgerTokens.cardRadius),
+                    ),
+                  ),
                   isDense: true,
                 ),
               ),
@@ -300,6 +317,10 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: _reset,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        shape: const StadiumBorder(),
+                      ),
                       child: const Text('リセット'),
                     ),
                   ),
@@ -307,6 +328,10 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                   Expanded(
                     child: FilledButton(
                       onPressed: _apply,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        shape: const StadiumBorder(),
+                      ),
                       child: const Text('適用'),
                     ),
                   ),
@@ -328,10 +353,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-      ),
+      child: Text(text, style: Theme.of(context).textTheme.titleSmall),
     );
   }
 }

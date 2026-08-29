@@ -131,6 +131,13 @@ void main() {
 
     await pumpMembersScreen(tester);
     await tapDeleteOn(tester, 'パートナー');
+    final deleteButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, '削除'),
+    );
+    expect(
+      deleteButton.style?.foregroundColor?.resolve({}),
+      Theme.of(tester.element(find.byType(AlertDialog))).colorScheme.error,
+    );
     await confirmDelete(tester);
 
     expect(find.text(failureMessage), findsOneWidget);
