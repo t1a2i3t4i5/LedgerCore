@@ -128,6 +128,11 @@ class LedgerApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ledgerTheme,
         themeMode: ThemeMode.light,
+        builder:
+            (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+              value: ledgerSystemUiOverlayStyle,
+              child: child!,
+            ),
         // 認証は撤廃。起動後すぐにメイン画面へ。
         home: const MainScreen(),
       ),

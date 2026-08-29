@@ -1,5 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/main.dart';
@@ -87,6 +89,21 @@ void main() {
       ),
       ['ホーム', '取引', '割り勘', '設定'],
     );
+  });
+
+  testWidgets('端末がダーク外観でもステータスバーへ濃色アイコンを指定する', (tester) async {
+    tester.view.padding = const FakeViewPadding(top: 24);
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+    await pumpApp(tester);
+
+    // PageHeader は SafeArea の内側にあるため、見出しだけを AnnotatedRegion で
+    // 包んでもステータスバー座標には届かない。レイヤーを上端で直接検査する。
+    final style = RendererBinding.instance.renderViews.single.debugLayer!
+        .find<SystemUiOverlayStyle>(const Offset(10, 10));
+    expect(style?.statusBarIconBrightness, Brightness.dark);
+    expect(style?.statusBarBrightness, Brightness.light);
   });
 
   testWidgets('取引の大見出しは一覧と一緒にスクロールする', (tester) async {

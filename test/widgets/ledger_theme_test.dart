@@ -30,6 +30,13 @@ void main() {
       ledgerTheme.colorScheme.onSurface,
     );
     expect(ledgerTheme.appBarTheme.scrolledUnderElevation, 0);
+    expect(
+      ledgerTheme.appBarTheme.systemOverlayStyle,
+      ledgerSystemUiOverlayStyle,
+    );
+    expect(ledgerSystemUiOverlayStyle.statusBarIconBrightness, Brightness.dark);
+    expect(ledgerSystemUiOverlayStyle.statusBarBrightness, Brightness.light);
+    expect(ledgerSystemUiOverlayStyle.systemNavigationBarColor, isNull);
   });
 
   test('NavigationBar は白い面とアプリコットの選択色を使う', () {
