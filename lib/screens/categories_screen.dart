@@ -116,12 +116,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           builder: (context, provider, _) {
             final scrollView = CustomScrollView(
               slivers: [
-                const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 16),
-                  sliver: SliverToBoxAdapter(
-                    child: PageHeader(title: 'カテゴリ', leading: BackButton()),
-                  ),
-                ),
+                const PinnedBackPageHeader(title: 'カテゴリ'),
                 if (provider.loading)
                   const SliverFillRemaining(
                     hasScrollBody: false,

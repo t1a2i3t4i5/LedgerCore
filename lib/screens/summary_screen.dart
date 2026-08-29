@@ -10,6 +10,7 @@ import '../widgets/category_breakdown_row.dart';
 import '../widgets/chart_palette.dart';
 import '../widgets/ledger_card.dart';
 import '../widgets/month_selector.dart';
+import '../widgets/page_header.dart';
 import '../widgets/period_bar_chart.dart';
 import '../widgets/period_format.dart';
 
@@ -112,6 +113,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                               ? null
                               : provider.goToCurrentYear,
                     ),
+                    const SizedBox(height: 8),
+                  ] else ...[
+                    const PageHeader(title: '全期間'),
                     const SizedBox(height: 8),
                   ],
 

@@ -9,6 +9,7 @@ import 'package:ledger_app/providers/summary_provider.dart';
 import 'package:ledger_app/screens/summary_screen.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:ledger_app/widgets/month_selector.dart';
+import 'package:ledger_app/widgets/page_header.dart';
 import 'package:ledger_app/widgets/period_format.dart';
 import 'package:provider/provider.dart';
 
@@ -258,6 +259,7 @@ void main() {
       expect(find.text('年別の推移'), findsOneWidget);
       // 送る先が無いので期間ナビ自体を出さない
       expect(find.byType(MonthSelector), findsNothing);
+      expect(find.widgetWithText(PageHeader, '全期間'), findsOneWidget);
       // 合計カードもカテゴリ別も出さない
       expect(find.byType(LedgerCard), findsNothing);
       expect(find.text('カテゴリ別'), findsNothing);

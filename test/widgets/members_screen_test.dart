@@ -84,6 +84,22 @@ void main() {
     expect(find.text('メンバー管理'), findsOneWidget);
   });
 
+  testWidgets('一覧を下までスクロールしても戻るボタンを操作できる', (tester) async {
+    for (var index = 1; index <= 10; index++) {
+      await db.insertMember('メンバー$index');
+    }
+    await pumpMembersScreen(tester);
+
+    await tester.fling(
+      find.byType(CustomScrollView),
+      const Offset(0, -600),
+      1200,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BackButton).hitTestable(), findsOneWidget);
+  });
+
   testWidgets('メンバー行は識別色アバター付きカードで、6文字名が1行の高さに収まる', (tester) async {
     const name = '子供の習い事';
     await deleteAllMembers();

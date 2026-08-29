@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/widgets/page_header.dart';
 
@@ -89,9 +90,19 @@ void main() {
       textScale: 2,
     );
     final scaledHeight = tester.getSize(find.byType(PageHeader)).height;
+    final paragraph = tester.renderObject<RenderParagraph>(find.text('取引を追加'));
+    final lineTops =
+        paragraph
+            .getBoxesForSelection(
+              const TextSelection(baseOffset: 0, extentOffset: '取引を追加'.length),
+            )
+            .map((box) => box.top)
+            .toSet();
 
     expect(tester.takeException(), isNull);
     expect(scaledHeight, greaterThan(normalHeight));
+    expect(paragraph.didExceedMaxLines, isFalse);
+    expect(lineTops.length, greaterThan(1));
     expect(find.byType(BackButton), findsOneWidget);
     expect(find.text('取引を追加'), findsOneWidget);
     expect(find.widgetWithText(TextButton, '保存'), findsOneWidget);

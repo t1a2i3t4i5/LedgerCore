@@ -123,12 +123,7 @@ class _MembersScreenState extends State<MembersScreen> {
             final members = provider.members;
             return CustomScrollView(
               slivers: [
-                const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 16),
-                  sliver: SliverToBoxAdapter(
-                    child: PageHeader(title: 'メンバー', leading: BackButton()),
-                  ),
-                ),
+                const PinnedBackPageHeader(title: 'メンバー'),
                 if (provider.membersLoading && members.isEmpty)
                   const SliverFillRemaining(
                     hasScrollBody: false,

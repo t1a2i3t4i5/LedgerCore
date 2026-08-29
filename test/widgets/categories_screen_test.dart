@@ -90,6 +90,19 @@ void main() {
     expect(find.text('カテゴリ管理'), findsOneWidget);
   });
 
+  testWidgets('一覧を下までスクロールしても戻るボタンを操作できる', (tester) async {
+    await pumpCategoriesScreen(tester);
+
+    await tester.fling(
+      find.byType(CustomScrollView),
+      const Offset(0, -600),
+      1200,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BackButton).hitTestable(), findsOneWidget);
+  });
+
   testWidgets('カテゴリ行は色ドット付きカードで、6文字名が1行の高さに収まる', (tester) async {
     const name = '食費（外食）';
     await deleteAllCategories();
