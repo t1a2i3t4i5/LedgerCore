@@ -181,6 +181,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
+  /// 現在の文字倍率で上限額の全桁とカーソルを収める入力欄の幅。
+  ///
+  /// この内容幅を [FittedBox] の子にし、画面幅の制約を外側へ置くことで、
+  /// 狭い画面では入力欄全体を縮小する。内側を画面幅に固定すると
+  /// [EditableText] が横スクロールして先頭の桁を隠すため。
+  double _amountFieldWidth(BuildContext context) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: kMaxAmount.toStringAsFixed(0),
+        style: LedgerTokens.amountLarge,
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final width = painter.width + 8;
+    painter.dispose();
+    return width;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
@@ -216,34 +236,50 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // 金額
-                TextFormField(
-                  controller: _amountCtrl,
-                  // 小数を受け付けないので小数点キーの要らない number に戻す
-                  keyboardType: TextInputType.number,
-                  inputFormatters: const [AmountInputFormatter()],
-                  decoration: const InputDecoration(
-                    labelText: '金額',
-                    prefixIcon: Icon(Icons.currency_yen),
-                    border: OutlineInputBorder(),
+                Text(
+                  '金額',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: LedgerTokens.subtext),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: SizedBox(
+                      width: _amountFieldWidth(context),
+                      child: TextFormField(
+                        controller: _amountCtrl,
+                        // 小数を受け付けないので小数点キーの要らない number に戻す
+                        keyboardType: TextInputType.number,
+                        inputFormatters: const [AmountInputFormatter()],
+                        textAlign: TextAlign.center,
+                        style: LedgerTokens.amountLarge,
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return '金額を入力してください';
+                          final amount = double.tryParse(v);
+                          if (amount == null) return '有効な数値を入力してください';
+                          // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
+                          if (amount <= 0) return '金額は 0 より大きい値を入力してください';
+                          // Infinity は `> 0` を満たすため上限の比較で止める。
+                          // 弾かないと合計が `¥∞`、構成比が `NaN%` になって復旧できない
+                          if (!amount.isFinite || amount > kMaxAmount) {
+                            return '金額が大きすぎます';
+                          }
+                          // フォーマッタが小数点を通さないので実質到達しないが、
+                          // コントローラへの直接代入も含めて DB の CHECK と揃える
+                          if (amount != amount.roundToDouble()) {
+                            return '金額は整数で入力してください';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return '金額を入力してください';
-                    final amount = double.tryParse(v);
-                    if (amount == null) return '有効な数値を入力してください';
-                    // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
-                    if (amount <= 0) return '金額は 0 より大きい値を入力してください';
-                    // Infinity は `> 0` を満たすため上限の比較で止める。
-                    // 弾かないと合計が `¥∞`、構成比が `NaN%` になって復旧できない
-                    if (!amount.isFinite || amount > kMaxAmount) {
-                      return '金額が大きすぎます';
-                    }
-                    // フォーマッタが小数点を通さないので実質到達しないが、
-                    // コントローラへの直接代入も含めて DB の CHECK と揃える
-                    if (amount != amount.roundToDouble()) {
-                      return '金額は整数で入力してください';
-                    }
-                    return null;
-                  },
                 ),
                 const SizedBox(height: 16),
 
@@ -274,7 +310,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // 登録者（メンバー）選択 - ラジオボタン
+                // 登録者（メンバー）選択
                 Consumer<MemberProvider>(
                   builder: (context, memberProvider, _) {
                     final members = memberProvider.members;
@@ -290,7 +326,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             prefixIcon: const Icon(Icons.person_outline),
                             border: const OutlineInputBorder(),
                             errorText: state.errorText,
-                            // ラジオボタンを並べるため内側の余白を調整
+                            // チップを並べるため内側の余白を調整
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 4,
@@ -298,12 +334,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           ),
                           child:
                               members.isEmpty
-                                  ? const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                  ? Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                     child: Text(
                                       'メンバー情報を読み込み中...',
                                       style: TextStyle(
-                                        color: LedgerTokens.subtext,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                   )
@@ -312,41 +353,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                     runSpacing: 0,
                                     children:
                                         members.map((m) {
-                                          return InkWell(
-                                            onTap: () {
+                                          final selected =
+                                              _selectedMemberId == m.id;
+                                          return ChoiceChip(
+                                            label: Text(m.name),
+                                            selected: selected,
+                                            onSelected: (value) {
+                                              if (!value) return;
                                               setState(
                                                 () => _selectedMemberId = m.id,
                                               );
                                               state.didChange(m.id);
                                             },
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Radio<int>(
-                                                  value: m.id,
-                                                  // ignore: deprecated_member_use
-                                                  groupValue: _selectedMemberId,
-                                                  // ignore: deprecated_member_use
-                                                  onChanged: (v) {
-                                                    setState(
-                                                      () =>
-                                                          _selectedMemberId = v,
-                                                    );
-                                                    state.didChange(v);
-                                                  },
-                                                ),
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        right: 4,
-                                                      ),
-                                                  child: Text(m.name),
-                                                ),
-                                              ],
-                                            ),
                                           );
                                         }).toList(),
                                   ),
