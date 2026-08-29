@@ -67,7 +67,7 @@ void main() {
     expect(find.text('食費'), findsNothing);
 
     // サマリータブへ戻ると再集計されている
-    await tester.tap(find.text('サマリー'));
+    await tester.tap(find.text('ホーム'));
     await tester.pumpAndSettle();
 
     expect(find.text('¥3,800'), findsOneWidget);

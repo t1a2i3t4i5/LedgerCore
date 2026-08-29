@@ -24,8 +24,8 @@ void main() {
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
-  /// アプリを起動してカテゴリタブまで移動する
-  Future<void> pumpCategoriesTab(WidgetTester tester) async {
+  /// アプリを起動して、設定からカテゴリ管理画面へ移動する
+  Future<void> pumpCategoriesScreen(WidgetTester tester) async {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -33,15 +33,17 @@ void main() {
     await tester.pumpWidget(LedgerApp(db: db, clock: () => fixedNow));
     await tester.pumpAndSettle();
 
-    // 起動直後はサマリータブ。タブのアイコンは画面の刷新対象ではないので、
-    // ボトムナビの中に限って既存の label_outline を探す
+    // 起動直後はホームタブ。設定タブを開いてカテゴリ管理へ進む
     await tester.tap(
       find.descendant(
         of: find.byType(NavigationBar),
-        matching: find.byIcon(Icons.label_outline),
+        matching: find.byIcon(Icons.settings_outlined),
       ),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.text('カテゴリ管理'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'カテゴリ管理'), findsOneWidget);
   }
 
   /// [name] の行の削除ボタンを押す。
@@ -81,7 +83,7 @@ void main() {
     await db.insertCategory(name);
     final category = (await db.getCategories()).single;
 
-    await pumpCategoriesTab(tester);
+    await pumpCategoriesScreen(tester);
 
     final tile = find.ancestor(
       of: find.text(name),
@@ -102,7 +104,7 @@ void main() {
     await deleteAllCategories();
     await db.insertCategory(name);
 
-    await pumpCategoriesTab(tester);
+    await pumpCategoriesScreen(tester);
 
     expect(find.text(name), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -111,7 +113,7 @@ void main() {
   testWidgets('カテゴリが無いときはアイコン付きの空状態を描く', (tester) async {
     await deleteAllCategories();
 
-    await pumpCategoriesTab(tester);
+    await pumpCategoriesScreen(tester);
 
     final empty = find.ancestor(
       of: find.text('カテゴリがありません'),
@@ -137,7 +139,7 @@ void main() {
       ),
     );
 
-    await pumpCategoriesTab(tester);
+    await pumpCategoriesScreen(tester);
     await tapDeleteOn(tester, cats.first.name);
     final deleteButton = tester.widget<TextButton>(
       find.widgetWithText(TextButton, '削除'),
@@ -165,7 +167,7 @@ void main() {
     final cats = await db.getCategories();
     final target = cats[1];
 
-    await pumpCategoriesTab(tester);
+    await pumpCategoriesScreen(tester);
     await tapDeleteOn(tester, target.name);
     await confirmDelete(tester);
 

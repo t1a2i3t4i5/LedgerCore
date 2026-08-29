@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../logging/operation_logger.dart';
+import 'settings_screen.dart';
+import 'split_screen.dart';
 import 'summary_screen.dart';
 import 'transactions_screen.dart';
-import 'categories_screen.dart';
-import 'split_screen.dart';
-import 'members_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -21,38 +20,21 @@ class _MainScreenState extends State<MainScreen> {
   final _screens = const [
     SummaryScreen(),
     TransactionsScreen(),
-    CategoriesScreen(),
     SplitScreen(),
+    SettingsScreen(),
   ];
 
-  final _titles = const ['月次サマリー', '取引一覧', 'カテゴリ', '割り勘'];
+  final _titles = const ['月次サマリー', '取引一覧', '割り勘', '設定'];
 
   /// ログに載せるタブ名。**画面表示用の [_titles] とは別に持つ。**
   /// op が英字なので detail も英字で揃え、画面の文言を変えてもログの
   /// 集計が壊れないようにする
-  static const _logNames = ['summary', 'transactions', 'categories', 'split'];
+  static const _logNames = ['summary', 'transactions', 'split', 'settings'];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_titles[_currentIndex]),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.people_outline),
-            tooltip: 'メンバー管理',
-            onPressed: () {
-              context.read<OperationLogger>().info(
-                'screen.open',
-                detail: {'name': 'members'},
-              );
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const MembersScreen()));
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(_titles[_currentIndex])),
       body: _screens[_currentIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
@@ -81,7 +63,7 @@ class _MainScreenState extends State<MainScreen> {
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),
             selectedIcon: Icon(Icons.bar_chart),
-            label: 'サマリー',
+            label: 'ホーム',
           ),
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
@@ -89,14 +71,14 @@ class _MainScreenState extends State<MainScreen> {
             label: '取引',
           ),
           NavigationDestination(
-            icon: Icon(Icons.label_outline),
-            selectedIcon: Icon(Icons.label),
-            label: 'カテゴリ',
-          ),
-          NavigationDestination(
             icon: Icon(Icons.balance_outlined),
             selectedIcon: Icon(Icons.balance),
             label: '割り勘',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: '設定',
           ),
         ],
       ),

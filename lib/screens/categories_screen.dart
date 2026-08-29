@@ -112,6 +112,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     return Consumer<CategoryProvider>(
       builder: (context, provider, _) {
         return Scaffold(
+          appBar: AppBar(title: const Text('カテゴリ管理')),
           body:
               provider.loading
                   ? const Center(child: CircularProgressIndicator())

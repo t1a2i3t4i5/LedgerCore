@@ -22,7 +22,7 @@ void main() {
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
-  /// アプリを起動して、AppBar からメンバー管理画面へ push する
+  /// アプリを起動して、設定からメンバー管理画面へ移動する
   Future<void> pumpMembersScreen(WidgetTester tester) async {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1.0;
@@ -31,9 +31,16 @@ void main() {
     await tester.pumpWidget(LedgerApp(db: db, clock: () => fixedNow));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.people_outline));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.byIcon(Icons.settings_outlined),
+      ),
+    );
     await tester.pumpAndSettle();
-    expect(find.text('メンバー管理'), findsOneWidget);
+    await tester.tap(find.text('メンバー管理'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'メンバー管理'), findsOneWidget);
   }
 
   /// [name] の行の削除ボタンを押す
