@@ -42,6 +42,7 @@
 - 金額表示は `widgets/amount_format.dart` の `formatYen()`、入力欄は `AmountInputFormatter`、構成比は `formatRatio()`、年月は `widgets/period_format.dart` の `formatPeriod()` / `formatPeriodShort()` を使い、画面側で書式を組み立て直さない
 - グラフの色は `widgets/chart_palette.dart` を使い直書きしない。グラフウィジェットは `AppDatabase` も Provider も参照せず、表示データを引数で受け取る
 - 配色・書体・角丸・影は `lib/theme/` の `ColorScheme` / `LedgerTokens` から採り、画面に色リテラルを書かない
+- 画面の大見出しは `widgets/page_header.dart` を使い、本文と一緒にスクロールさせる。ホームは `MonthSelector` の年月を見出しとし、取引追加・編集画面の `AppBar` だけは #122 までの例外
 - 操作ログは `lib/logging/` の `OperationLogger` だけを通す。取引のメモ本文とフィルターの検索語を書かず、例外文字列は `log_entry.dart` の `sanitizeError()` を通す。`info()` / `error()` は `void` で呼び出し側に `await` させない
 - 書き込み系（`create` / `update` / `delete`）にログのために足した `try` は必ず `rethrow` する
 

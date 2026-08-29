@@ -7,6 +7,7 @@ import 'package:ledger_app/main.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
+import 'package:ledger_app/widgets/page_header.dart';
 
 /// カテゴリ画面で、削除できなかったことがユーザーに伝わるかを確かめる。
 ///
@@ -43,7 +44,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('カテゴリ管理'));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(AppBar, 'カテゴリ管理'), findsOneWidget);
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.widgetWithText(PageHeader, 'カテゴリ'), findsOneWidget);
+    expect(find.byType(BackButton), findsOneWidget);
   }
 
   /// [name] の行の削除ボタンを押す。
@@ -76,6 +79,16 @@ void main() {
 
   bool isEllipsized(WidgetTester tester, String text) =>
       tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
+
+  testWidgets('カテゴリ見出しの戻るボタンで設定画面へ戻れる', (tester) async {
+    await pumpCategoriesScreen(tester);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(PageHeader, 'カテゴリ'), findsNothing);
+    expect(find.text('カテゴリ管理'), findsOneWidget);
+  });
 
   testWidgets('カテゴリ行は色ドット付きカードで、6文字名が1行の高さに収まる', (tester) async {
     const name = '食費（外食）';

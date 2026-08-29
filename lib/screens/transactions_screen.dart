@@ -8,6 +8,7 @@ import '../theme/ledger_tokens.dart';
 import '../widgets/amount_format.dart';
 import '../widgets/chart_palette.dart';
 import '../widgets/month_selector.dart';
+import '../widgets/page_header.dart';
 import 'add_transaction_screen.dart';
 import 'transaction_filter_sheet.dart';
 
@@ -101,170 +102,185 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         final filtered = provider.filteredTransactions;
         final activeCount = provider.activeFilterCount;
         return Scaffold(
-          body: Column(
-            children: [
-              // 月選択 + フィルターボタン
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: MonthSelector(
-                  year: provider.year,
-                  month: provider.month,
-                  onPrev: () => provider.changeMonth(-1),
-                  onNext: () => provider.changeMonth(1),
-                  onToday:
-                      provider.isCurrentMonth
-                          ? null
-                          : provider.goToCurrentMonth,
-                  actions: [
-                    // フィルターボタン（適用中の数をバッジ表示）
-                    IconButton(
-                      tooltip: 'ソート・フィルター',
-                      onPressed: _openFilterSheet,
-                      icon: Badge(
-                        isLabelVisible: activeCount > 0,
-                        label: Text('$activeCount'),
-                        backgroundColor:
-                            Theme.of(context).colorScheme.secondary,
-                        textColor: Theme.of(context).colorScheme.onSurface,
-                        child: const Icon(Icons.filter_list),
+          body: RefreshIndicator(
+            onRefresh: _fetch,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  sliver: SliverToBoxAdapter(
+                    child: PageHeader(
+                      title: '取引',
+                      actions: [
+                        // フィルターボタン（適用中の数をバッジ表示）
+                        IconButton(
+                          tooltip: 'ソート・フィルター',
+                          onPressed: _openFilterSheet,
+                          icon: Badge(
+                            isLabelVisible: activeCount > 0,
+                            label: Text('$activeCount'),
+                            backgroundColor:
+                                Theme.of(context).colorScheme.secondary,
+                            textColor: Theme.of(context).colorScheme.onSurface,
+                            child: const Icon(Icons.filter_list),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // 月選択
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  sliver: SliverToBoxAdapter(
+                    child: MonthSelector(
+                      year: provider.year,
+                      month: provider.month,
+                      onPrev: () => provider.changeMonth(-1),
+                      onNext: () => provider.changeMonth(1),
+                      onToday:
+                          provider.isCurrentMonth
+                              ? null
+                              : provider.goToCurrentMonth,
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                // 合計パネル
+                SliverToBoxAdapter(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    child: Row(
+                      children: [
+                        Text(
+                          '${filtered.length}件',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const Spacer(),
+                        // 合計は件数ぶん膨らむ（上限額 × 件数）。金額を省略すると
+                        // 桁を読み違えるので、縮小して収める
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('合計'),
+                                const SizedBox(width: 8),
+                                Text(
+                                  formatYen(provider.filteredTotal),
+                                  style: LedgerTokens.amountRow,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: Divider(height: 1)),
+                if (provider.loading)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (provider.error != null)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Text(
+                        'エラー: ${provider.error}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              // 合計パネル
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: Row(
-                  children: [
-                    Text(
-                      '${filtered.length}件',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                  )
+                else if (filtered.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _EmptyTransactions(
+                      message:
+                          provider.transactions.isEmpty
+                              ? '取引がありません'
+                              : '該当する取引がありません',
                     ),
-                    const Spacer(),
-                    // 合計は件数ぶん膨らむ（上限額 × 件数）。金額を省略すると
-                    // 桁を読み違えるので、縮小して収める
-                    Flexible(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('合計'),
-                            const SizedBox(width: 8),
-                            Text(
-                              formatYen(provider.filteredTotal),
+                  )
+                else
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      if (index.isOdd) return const Divider(height: 1);
+
+                      final t = filtered[index ~/ 2];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          radius: 5,
+                          backgroundColor: categoryColor(t.categoryId),
+                        ),
+                        minLeadingWidth: 10,
+                        horizontalTitleGap: 12,
+                        title: Text(
+                          t.categoryName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: _dateFmt.format(t.spentAt),
+                                style: const TextStyle(
+                                  color: LedgerTokens.subtext,
+                                ),
+                              ),
+                              TextSpan(
+                                text:
+                                    ' · ${t.memberName}${t.memo != null && t.memo!.isNotEmpty ? ' · ${t.memo}' : ''}',
+                              ),
+                            ],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 140),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              formatYen(t.amount),
                               style: LedgerTokens.amountRow,
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child:
-                    provider.loading
-                        ? const Center(child: CircularProgressIndicator())
-                        : provider.error != null
-                        ? Center(
-                          child: Text(
-                            'エラー: ${provider.error}',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => AddTransactionScreen(existing: t),
                             ),
-                          ),
-                        )
-                        : filtered.isEmpty
-                        ? _EmptyTransactions(
-                          message:
-                              provider.transactions.isEmpty
-                                  ? '取引がありません'
-                                  : '該当する取引がありません',
-                        )
-                        : RefreshIndicator(
-                          onRefresh: _fetch,
-                          child: ListView.separated(
-                            itemCount: filtered.length,
-                            separatorBuilder:
-                                (_, __) => const Divider(height: 1),
-                            itemBuilder: (context, index) {
-                              final t = filtered[index];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  radius: 5,
-                                  backgroundColor: categoryColor(t.categoryId),
-                                ),
-                                minLeadingWidth: 10,
-                                horizontalTitleGap: 12,
-                                title: Text(
-                                  t.categoryName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                subtitle: Text.rich(
-                                  TextSpan(
-                                    children: [
-                                      TextSpan(
-                                        text: _dateFmt.format(t.spentAt),
-                                        style: const TextStyle(
-                                          color: LedgerTokens.subtext,
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text:
-                                            ' · ${t.memberName}${t.memo != null && t.memo!.isNotEmpty ? ' · ${t.memo}' : ''}',
-                                      ),
-                                    ],
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.bodyMedium?.copyWith(
-                                    color:
-                                        Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                trailing: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 140,
-                                  ),
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.centerRight,
-                                    child: Text(
-                                      formatYen(t.amount),
-                                      style: LedgerTokens.amountRow,
-                                    ),
-                                  ),
-                                ),
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder:
-                                          (_) =>
-                                              AddTransactionScreen(existing: t),
-                                    ),
-                                  );
-                                },
-                                onLongPress: () => _delete(t.id),
-                              );
-                            },
-                          ),
-                        ),
-              ),
-            ],
+                          );
+                        },
+                        onLongPress: () => _delete(t.id),
+                      );
+                    }, childCount: filtered.length * 2 - 1),
+                  ),
+              ],
+            ),
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () {

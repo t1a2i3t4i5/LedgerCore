@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/member_provider.dart';
 import '../widgets/chart_palette.dart';
 import '../widgets/ledger_card.dart';
+import '../widgets/page_header.dart';
 
 /// 割り勘の対象となるメンバーを管理する画面。
 class MembersScreen extends StatefulWidget {
@@ -116,59 +117,81 @@ class _MembersScreenState extends State<MembersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('メンバー管理')),
-      body: Consumer<MemberProvider>(
-        builder: (context, provider, _) {
-          if (provider.membersLoading && provider.members.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final members = provider.members;
-          if (members.isEmpty) {
-            return const _EmptyMembers();
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: members.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final m = members[index];
-              final avatarColor = memberColor(m.id);
-              return LedgerCard(
-                padding: EdgeInsets.zero,
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: avatarColor,
-                    foregroundColor: labelColorOn(avatarColor),
-                    child: Text(m.name.substring(0, 1)),
-                  ),
-                  title: Text(
-                    m.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed:
-                            () =>
-                                _showEditDialog(id: m.id, currentName: m.name),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          Icons.delete_outline,
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                        onPressed: () => _delete(m.id, m.name, members.length),
-                      ),
-                    ],
+      body: SafeArea(
+        child: Consumer<MemberProvider>(
+          builder: (context, provider, _) {
+            final members = provider.members;
+            return CustomScrollView(
+              slivers: [
+                const SliverPadding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  sliver: SliverToBoxAdapter(
+                    child: PageHeader(title: 'メンバー', leading: BackButton()),
                   ),
                 ),
-              );
-            },
-          );
-        },
+                if (provider.membersLoading && members.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (members.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _EmptyMembers(),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    sliver: SliverList.separated(
+                      itemCount: members.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final m = members[index];
+                        final avatarColor = memberColor(m.id);
+                        return LedgerCard(
+                          padding: EdgeInsets.zero,
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: avatarColor,
+                              foregroundColor: labelColorOn(avatarColor),
+                              child: Text(m.name.substring(0, 1)),
+                            ),
+                            title: Text(
+                              m.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed:
+                                      () => _showEditDialog(
+                                        id: m.id,
+                                        currentName: m.name,
+                                      ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.delete_outline,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                  onPressed:
+                                      () =>
+                                          _delete(m.id, m.name, members.length),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showEditDialog(),

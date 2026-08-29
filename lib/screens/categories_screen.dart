@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/category_provider.dart';
 import '../widgets/chart_palette.dart';
 import '../widgets/ledger_card.dart';
+import '../widgets/page_header.dart';
 
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
@@ -109,28 +110,44 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CategoryProvider>(
-      builder: (context, provider, _) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('カテゴリ管理')),
-          body:
-              provider.loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : provider.error != null
-                  ? Center(
-                    child: Text(
-                      'エラー: ${provider.error}',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
+    return Scaffold(
+      body: SafeArea(
+        child: Consumer<CategoryProvider>(
+          builder: (context, provider, _) {
+            final scrollView = CustomScrollView(
+              slivers: [
+                const SliverPadding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  sliver: SliverToBoxAdapter(
+                    child: PageHeader(title: 'カテゴリ', leading: BackButton()),
+                  ),
+                ),
+                if (provider.loading)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (provider.error != null)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Text(
+                        'エラー: ${provider.error}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ),
                   )
-                  : provider.categories.isEmpty
-                  ? const _EmptyCategories()
-                  : RefreshIndicator(
-                    onRefresh: _fetch,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.all(16),
+                else if (provider.categories.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _EmptyCategories(),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    sliver: SliverList.separated(
                       itemCount: provider.categories.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
@@ -174,12 +191,22 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       },
                     ),
                   ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => _showDialog(),
-            child: const Icon(Icons.add),
-          ),
-        );
-      },
+              ],
+            );
+
+            if (!provider.loading &&
+                provider.error == null &&
+                provider.categories.isNotEmpty) {
+              return RefreshIndicator(onRefresh: _fetch, child: scrollView);
+            }
+            return scrollView;
+          },
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showDialog(),
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
