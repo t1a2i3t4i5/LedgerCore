@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
@@ -163,6 +164,20 @@ void main() {
     await pumpSplit(tester);
     expect(find.text(formatYen(kMaxAmount)), findsWidgets);
     expect(tester.takeException(), isNull);
+
+    for (final label in ['合計', '一人当たり']) {
+      final amount = find.byKey(ValueKey('summary-amount-$label'));
+      final fitted = find.byKey(ValueKey('summary-amount-fitted-$label'));
+      final paragraph = tester.renderObject<RenderParagraph>(amount);
+      final intrinsicWidth = paragraph.getMaxIntrinsicWidth(double.infinity);
+      final availableWidth = tester.getSize(fitted).width;
+      final paintedWidth = tester.getRect(amount).width;
+
+      // 上限金額は二分割した欄へ素の幅では収まらない。この前提と、
+      // FittedBox の変換後は実際の描画幅が欄内へ収まることを対で見る。
+      expect(intrinsicWidth, greaterThan(availableWidth));
+      expect(paintedWidth, lessThanOrEqualTo(availableWidth));
+    }
 
     await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pumpAndSettle();

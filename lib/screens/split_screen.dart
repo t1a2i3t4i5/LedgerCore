@@ -188,10 +188,15 @@ class _AmountSummary extends StatelessWidget {
       children: [
         Text(label, style: const TextStyle(fontSize: 12)),
         const SizedBox(height: 2),
-        Text(
-          formatYen(amount),
-          key: ValueKey('summary-amount-$label'),
-          style: LedgerTokens.amountRow,
+        FittedBox(
+          key: ValueKey('summary-amount-fitted-$label'),
+          fit: BoxFit.scaleDown,
+          child: Text(
+            formatYen(amount),
+            key: ValueKey('summary-amount-$label'),
+            maxLines: 1,
+            style: LedgerTokens.amountRow,
+          ),
         ),
       ],
     );
