@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../models/split.dart';
 import '../providers/summary_provider.dart';
+import '../theme/ledger_tokens.dart';
 import '../widgets/amount_format.dart';
+import '../widgets/chart_palette.dart';
+import '../widgets/ledger_card.dart';
 import '../widgets/month_selector.dart';
+import '../widgets/ratio_bar.dart';
 
 class SplitScreen extends StatefulWidget {
   const SplitScreen({super.key});
@@ -62,55 +68,44 @@ class _SplitScreenState extends State<SplitScreen> {
                 const Center(child: Text('データがありません'))
               else ...[
                 // 合計・均等割
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            children: [
-                              const Text('合計', style: TextStyle(fontSize: 12)),
-                              Text(
-                                formatYen(provider.split!.total),
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
+                LedgerCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _AmountSummary(
+                          label: '合計',
+                          amount: provider.split!.total,
                         ),
-                        const VerticalDivider(),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              const Text(
-                                '一人当たり',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              Text(
-                                formatYen(provider.split!.fairShare),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                            ],
-                          ),
+                      ),
+                      SizedBox(
+                        height: 48,
+                        child: VerticalDivider(
+                          color: Theme.of(context).colorScheme.outlineVariant,
                         ),
-                      ],
-                    ),
+                      ),
+                      Expanded(
+                        child: _AmountSummary(
+                          label: '一人当たり',
+                          amount: provider.split!.fairShare,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 16),
 
                 // 精算結果
-                Card(
-                  color: Theme.of(context).colorScheme.primaryContainer,
+                DecoratedBox(
+                  key: const ValueKey('settlement-card'),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: BorderRadius.circular(
+                      LedgerTokens.cardRadiusLarge,
+                    ),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -118,7 +113,7 @@ class _SplitScreenState extends State<SplitScreen> {
                           children: [
                             Icon(
                               Icons.swap_horiz,
-                              color: Theme.of(context).colorScheme.primary,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -126,13 +121,21 @@ class _SplitScreenState extends State<SplitScreen> {
                               style: Theme.of(
                                 context,
                               ).textTheme.titleMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
+                                color: Theme.of(context).colorScheme.onPrimary,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Text(provider.split!.settlement),
+                        Text(
+                          provider.split!.settlement,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            height: 1.6,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -145,52 +148,129 @@ class _SplitScreenState extends State<SplitScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-                ...provider.split!.members.map((m) {
-                  final isOver = m.balance > 0;
-                  final isUnder = m.balance < 0;
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(child: Text(m.memberName[0])),
-                      title: Text(m.memberName),
-                      subtitle: Text('支払済み: ${formatYen(m.paid)}'),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            // 黒字だけ + を前置する。負値は formatYen が
-                            // ¥-1,000 の形で符号を出す
-                            isOver
-                                ? '+${formatYen(m.balance)}'
-                                : formatYen(m.balance),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color:
-                                  isOver
-                                      ? Colors.green
-                                      : isUnder
-                                      ? Colors.red
-                                      : Colors.grey,
-                            ),
+                LedgerCard(
+                  child: Column(
+                    children: [
+                      for (final (index, member)
+                          in provider.split!.members.indexed) ...[
+                        if (index > 0)
+                          Divider(
+                            height: 32,
+                            color: Theme.of(context).colorScheme.outlineVariant,
                           ),
-                          Text(
-                            isOver
-                                ? '受け取り'
-                                : isUnder
-                                ? '支払い'
-                                : '均等',
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
+                        _MemberBalanceRow(
+                          key: ValueKey('member-balance-${member.memberId}'),
+                          member: member,
+                          total: provider.split!.total,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _AmountSummary extends StatelessWidget {
+  const _AmountSummary({required this.label, required this.amount});
+
+  final String label;
+  final double amount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12)),
+        const SizedBox(height: 2),
+        Text(
+          formatYen(amount),
+          key: ValueKey('summary-amount-$label'),
+          style: LedgerTokens.amountRow,
+        ),
+      ],
+    );
+  }
+}
+
+class _MemberBalanceRow extends StatelessWidget {
+  const _MemberBalanceRow({
+    super.key,
+    required this.member,
+    required this.total,
+  });
+
+  final MemberBalance member;
+  final double total;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = memberColor(member.memberId);
+    final (status, balanceColor) = switch (member.balance) {
+      > 0 => ('受け取り', LedgerTokens.balancePositive),
+      < 0 => ('支払い', LedgerTokens.balanceNegative),
+      _ => ('均等', LedgerTokens.balanceEven),
+    };
+    // 黒字だけ + を前置する。負値は formatYen が
+    // ¥-1,000 の形で符号を出す。
+    final balance =
+        member.balance > 0
+            ? '+${formatYen(member.balance)}'
+            : formatYen(member.balance);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            CircleAvatar(radius: 5, backgroundColor: color),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                member.memberName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              status,
+              style: const TextStyle(fontSize: 11, color: LedgerTokens.subtext),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            balance,
+            key: ValueKey('member-balance-amount-${member.memberId}'),
+            style: LedgerTokens.amountRow.copyWith(color: balanceColor),
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          '支払済み',
+          style: TextStyle(fontSize: 12, color: LedgerTokens.bodyMuted),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            formatYen(member.paid),
+            key: ValueKey('member-paid-${member.memberId}'),
+            style: LedgerTokens.amountSmall,
+          ),
+        ),
+        const SizedBox(height: 8),
+        RatioBar(amount: member.paid, total: total, color: color),
+      ],
     );
   }
 }
