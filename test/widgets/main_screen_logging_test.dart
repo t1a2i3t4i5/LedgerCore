@@ -68,6 +68,30 @@ void main() {
     expect(changes.single['detail'], {'from': 'summary', 'to': 'transactions'});
   });
 
+  testWidgets('既存のタブアイコンを維持する', (tester) async {
+    await pumpApp(tester);
+
+    final navigationBar = tester.widget<NavigationBar>(
+      find.byType(NavigationBar),
+    );
+    final destinations =
+        navigationBar.destinations.cast<NavigationDestination>().toList();
+
+    expect(destinations.map((destination) => (destination.icon as Icon).icon), [
+      Icons.bar_chart_outlined,
+      Icons.receipt_long_outlined,
+      Icons.label_outline,
+      Icons.balance_outlined,
+    ]);
+    expect(
+      destinations.map(
+        (destination) => (destination.selectedIcon! as Icon).icon,
+      ),
+      [Icons.bar_chart, Icons.receipt_long, Icons.label, Icons.balance],
+    );
+    expect(find.byIcon(Icons.people_outline), findsOneWidget);
+  });
+
   testWidgets('タブを渡り歩いた順がそのまま残る', (tester) async {
     await pumpApp(tester);
 

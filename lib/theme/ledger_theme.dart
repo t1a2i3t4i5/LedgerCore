@@ -58,6 +58,26 @@ final ledgerTheme = _baseTheme.copyWith(
     surfaceTintColor: Colors.transparent,
     scrolledUnderElevation: 0,
   ),
+  navigationBarTheme: NavigationBarThemeData(
+    backgroundColor: _ledgerColorScheme.surfaceContainerLowest,
+    indicatorColor: _ledgerColorScheme.secondaryContainer,
+    iconTheme: WidgetStateProperty.resolveWith(
+      (states) => IconThemeData(
+        color:
+            states.contains(WidgetState.selected)
+                ? _ledgerColorScheme.onSecondaryContainer
+                : _ledgerColorScheme.onSurfaceVariant,
+      ),
+    ),
+    labelTextStyle: WidgetStateProperty.resolveWith(
+      (states) => _baseTheme.textTheme.labelMedium?.copyWith(
+        color:
+            states.contains(WidgetState.selected)
+                ? _ledgerColorScheme.onSurface
+                : _ledgerColorScheme.onSurfaceVariant,
+      ),
+    ),
+  ),
   cardTheme: CardThemeData(
     color: _ledgerColorScheme.surfaceContainerLow,
     surfaceTintColor: Colors.transparent,

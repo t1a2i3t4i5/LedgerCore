@@ -21,7 +21,33 @@ void main() {
   });
 
   test('AppBar はスクロール時にも elevation を付けない', () {
+    expect(
+      ledgerTheme.appBarTheme.backgroundColor,
+      ledgerTheme.colorScheme.surface,
+    );
+    expect(
+      ledgerTheme.appBarTheme.foregroundColor,
+      ledgerTheme.colorScheme.onSurface,
+    );
     expect(ledgerTheme.appBarTheme.scrolledUnderElevation, 0);
+  });
+
+  test('NavigationBar は白い面とアプリコットの選択色を使う', () {
+    final theme = ledgerTheme.navigationBarTheme;
+    final selectedIcon = theme.iconTheme?.resolve({WidgetState.selected});
+    final unselectedIcon = theme.iconTheme?.resolve({});
+    final selectedLabel = theme.labelTextStyle?.resolve({WidgetState.selected});
+    final unselectedLabel = theme.labelTextStyle?.resolve({});
+
+    expect(
+      theme.backgroundColor,
+      ledgerTheme.colorScheme.surfaceContainerLowest,
+    );
+    expect(theme.indicatorColor, ledgerTheme.colorScheme.secondaryContainer);
+    expect(selectedIcon?.color, ledgerTheme.colorScheme.onSecondaryContainer);
+    expect(unselectedIcon?.color, ledgerTheme.colorScheme.onSurfaceVariant);
+    expect(selectedLabel?.color, ledgerTheme.colorScheme.onSurface);
+    expect(unselectedLabel?.color, ledgerTheme.colorScheme.onSurfaceVariant);
   });
 
   test('中見出しは Zen Kaku Gothic New を使う', () {

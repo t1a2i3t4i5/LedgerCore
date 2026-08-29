@@ -128,7 +128,7 @@ lib/
 │   ├── transaction_provider.dart
 │   └── summary_provider.dart
 ├── screens/
-│   ├── main_screen.dart       # ボトムナビゲーションと 5 タブの束ね
+│   ├── main_screen.dart       # ボトムナビゲーションと 4 タブの束ね
 │   ├── transactions_screen.dart   # 取引一覧
 │   ├── add_transaction_screen.dart# 取引の追加・編集
 │   ├── transaction_filter_sheet.dart # 一覧のソート・フィルター設定

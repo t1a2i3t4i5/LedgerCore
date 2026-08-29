@@ -389,6 +389,11 @@ SnackBar になる。**失敗をログに残すために足した `try` は、�
 落とさない。チェックマークを出さないぶん、選択状態は塗りだけでなく濃色枠でも区別する。
 削除確認の破壊的操作だけは、操作の意味を持つ呼び出し側で `colorScheme.error` を指定する。
 
+`NavigationBar` は白い `surfaceContainerLowest` を面に使い、選択中の行き先を
+`secondaryContainer` のインジケータと `onSecondaryContainer` のアイコンで示す。
+未選択のアイコンとラベルは `onSurfaceVariant`、選択中のラベルは `onSurface` とし、
+状態別の色は `ledger_theme.dart` に集約する。タブごとに色を指定しない。
+
 ### 期間を選ぶ部品は共通の形を使う
 
 取引一覧・集計・割り勘の年月見出しは `MonthSelector` に集約し、月を 38px、年を
