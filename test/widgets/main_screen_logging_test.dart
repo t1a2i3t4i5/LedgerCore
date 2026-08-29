@@ -7,6 +7,7 @@ import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/logging/log_sink.dart';
 import 'package:ledger_app/logging/operation_logger.dart';
 import 'package:ledger_app/main.dart';
+import 'package:ledger_app/widgets/page_header.dart';
 
 /// タブの切り替えと画面遷移がログに残るかを、**実際に押して**確かめる。
 ///
@@ -131,7 +132,11 @@ void main() {
     await tester.tap(find.text('カテゴリ管理'));
     await tester.pumpAndSettle();
     await flushLog(tester);
-    expect(find.widgetWithText(AppBar, 'カテゴリ管理'), findsOneWidget);
+    expect(find.byType(AppBar), findsNothing);
+    expect(
+      find.descendant(of: find.byType(PageHeader), matching: find.text('カテゴリ')),
+      findsOneWidget,
+    );
     expect(entriesOf('screen.open').last['detail'], {'name': 'categories'});
 
     await tester.pageBack();
@@ -140,7 +145,11 @@ void main() {
     await tester.pumpAndSettle();
     await flushLog(tester);
 
-    expect(find.widgetWithText(AppBar, 'メンバー管理'), findsOneWidget);
+    expect(find.byType(AppBar), findsNothing);
+    expect(
+      find.descendant(of: find.byType(PageHeader), matching: find.text('メンバー')),
+      findsOneWidget,
+    );
     expect(entriesOf('screen.open').last['detail'], {'name': 'members'});
   });
 
@@ -177,6 +186,9 @@ void main() {
     // 置き忘れると main_screen の context.read<OperationLogger>() が
     // ProviderNotFoundException を投げ、タブが切り替わらなくなる
     expect(tester.takeException(), isNull);
-    expect(find.text('取引一覧'), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(PageHeader), matching: find.text('取引')),
+      findsOneWidget,
+    );
   });
 }

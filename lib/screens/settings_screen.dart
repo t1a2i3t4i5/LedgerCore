@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../logging/operation_logger.dart';
 import '../widgets/ledger_card.dart';
+import '../widgets/page_header.dart';
 import 'categories_screen.dart';
 import 'members_screen.dart';
 
@@ -27,6 +28,8 @@ class SettingsScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        const PageHeader(title: '設定'),
+        const SizedBox(height: 24),
         Text('家計', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
         LedgerCard(

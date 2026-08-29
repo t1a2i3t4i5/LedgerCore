@@ -7,6 +7,7 @@ import 'package:ledger_app/main.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
+import 'package:ledger_app/widgets/page_header.dart';
 
 /// メンバー画面で、削除できなかったことがユーザーに伝わるかを確かめる。
 ///
@@ -40,7 +41,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('メンバー管理'));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(AppBar, 'メンバー管理'), findsOneWidget);
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.widgetWithText(PageHeader, 'メンバー'), findsOneWidget);
+    expect(find.byType(BackButton), findsOneWidget);
   }
 
   /// [name] の行の削除ボタンを押す
@@ -70,6 +73,32 @@ void main() {
 
   bool isEllipsized(WidgetTester tester, String text) =>
       tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
+
+  testWidgets('メンバー見出しの戻るボタンで設定画面へ戻れる', (tester) async {
+    await pumpMembersScreen(tester);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(PageHeader, 'メンバー'), findsNothing);
+    expect(find.text('メンバー管理'), findsOneWidget);
+  });
+
+  testWidgets('一覧を下までスクロールしても戻るボタンを操作できる', (tester) async {
+    for (var index = 1; index <= 10; index++) {
+      await db.insertMember('メンバー$index');
+    }
+    await pumpMembersScreen(tester);
+
+    await tester.fling(
+      find.byType(CustomScrollView),
+      const Offset(0, -600),
+      1200,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BackButton).hitTestable(), findsOneWidget);
+  });
 
   testWidgets('メンバー行は識別色アバター付きカードで、6文字名が1行の高さに収まる', (tester) async {
     const name = '子供の習い事';

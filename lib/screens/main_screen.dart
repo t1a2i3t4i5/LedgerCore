@@ -24,9 +24,7 @@ class _MainScreenState extends State<MainScreen> {
     SettingsScreen(),
   ];
 
-  final _titles = const ['月次サマリー', '取引一覧', '割り勘', '設定'];
-
-  /// ログに載せるタブ名。**画面表示用の [_titles] とは別に持つ。**
+  /// ログに載せるタブ名。**画面内の見出しとは別に持つ。**
   /// op が英字なので detail も英字で揃え、画面の文言を変えてもログの
   /// 集計が壊れないようにする
   static const _logNames = ['summary', 'transactions', 'split', 'settings'];
@@ -34,8 +32,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_titles[_currentIndex])),
-      body: _screens[_currentIndex],
+      body: SafeArea(bottom: false, child: _screens[_currentIndex]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {

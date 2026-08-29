@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'ledger_tokens.dart';
+
+/// ライトテーマの画面上端で使うシステム UI の外観。
+///
+/// ナビゲーションバー側はプラットフォーム既定値を変えない。
+const ledgerSystemUiOverlayStyle = SystemUiOverlayStyle(
+  statusBarColor: Colors.transparent,
+  statusBarIconBrightness: Brightness.dark,
+  statusBarBrightness: Brightness.light,
+);
 
 final _ledgerColorScheme = ColorScheme.fromSeed(
   seedColor: const Color(0xFF2E2620),
@@ -57,6 +67,7 @@ final ledgerTheme = _baseTheme.copyWith(
     foregroundColor: _ledgerColorScheme.onSurface,
     surfaceTintColor: Colors.transparent,
     scrolledUnderElevation: 0,
+    systemOverlayStyle: ledgerSystemUiOverlayStyle,
   ),
   navigationBarTheme: NavigationBarThemeData(
     backgroundColor: _ledgerColorScheme.surfaceContainerLowest,

@@ -141,6 +141,7 @@ lib/
     ├── chart_palette.dart     # グラフの色（カテゴリ ID から決まる色・推移グラフの棒の色）
     ├── category_breakdown_row.dart # カテゴリ別の名前・金額・構成比・横帯を束ねる行
     ├── ledger_card.dart       # 白地・角丸・影付きの共通カード
+    ├── page_header.dart       # 画面内の大見出し（戻る導線・右側操作を任意で配置）
     ├── month_selector.dart    # 月・年の期間選択 UI
     ├── period_bar_chart.dart  # 月別・年別の支出推移を描く棒グラフ
     ├── period_format.dart     # 年月の表示整形（'2026年7月' / 軸用の '7月'）

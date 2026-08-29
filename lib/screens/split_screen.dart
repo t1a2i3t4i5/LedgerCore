@@ -8,6 +8,7 @@ import '../widgets/amount_format.dart';
 import '../widgets/chart_palette.dart';
 import '../widgets/ledger_card.dart';
 import '../widgets/month_selector.dart';
+import '../widgets/page_header.dart';
 import '../widgets/ratio_bar.dart';
 
 class SplitScreen extends StatefulWidget {
@@ -37,6 +38,9 @@ class _SplitScreenState extends State<SplitScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              const PageHeader(title: '精算'),
+              const SizedBox(height: 16),
+
               // 月選択
               MonthSelector(
                 year: provider.year,
