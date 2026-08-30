@@ -213,6 +213,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         _spentAt.year != shown.year || _spentAt.month != shown.month;
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             _TransactionHeader(
@@ -447,25 +448,25 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ),
               ),
             ),
+            SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: FilledButton(
+                onPressed: _loading ? null : _save,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(56),
+                  shape: const StadiumBorder(),
+                ),
+                child:
+                    _loading
+                        ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Text('保存する'),
+              ),
+            ),
           ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: FilledButton(
-          onPressed: _loading ? null : _save,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(56),
-            shape: const StadiumBorder(),
-          ),
-          child:
-              _loading
-                  ? const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                  : const Text('保存する'),
         ),
       ),
     );

@@ -199,6 +199,20 @@ void main() {
     expect(tester.widget<Material>(material).type, MaterialType.transparency);
   });
 
+  testWidgets('キーボード表示中も下部の保存ボタン全体が上端より上に残る', (tester) async {
+    await pumpScreen(tester);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pumpAndSettle();
+
+    final saveRect = tester.getRect(find.widgetWithText(FilledButton, '保存する'));
+    const keyboardTop = 690 - 300;
+    expect(
+      saveRect.bottom,
+      lessThanOrEqualTo(keyboardTop),
+      reason: '保存ボタンがキーボードに隠れている',
+    );
+  });
+
   testWidgets('下部の保存ボタンからも同じ保存処理を実行できる', (tester) async {
     await pumpScreen(tester);
     await selectFirstCategory(tester);
