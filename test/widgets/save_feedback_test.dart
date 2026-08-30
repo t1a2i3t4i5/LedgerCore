@@ -89,6 +89,19 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('キャンセルで入力を保存せず一覧へ戻る', (tester) async {
+    await pumpApp(tester);
+    await openAddScreen(tester);
+    await tester.enterText(find.byType(TextFormField).first, '1500');
+
+    await tester.tap(find.text('キャンセル'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('支出を追加'), findsNothing);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(await db.getAllTransactions(), isEmpty);
+  });
+
   testWidgets('表示月と同じ月に保存すると一覧に出て、保存した旨が出る', (tester) async {
     await pumpApp(tester);
     expect(find.text('2026年7月'), findsOneWidget);
@@ -211,8 +224,8 @@ void main() {
     expect(find.text('保存しました'), findsNothing);
     expect(find.textContaining('保存失敗'), findsOneWidget);
     // 失敗したのだから画面は閉じない（入力をやり直せる）
-    expect(find.text('取引を編集'), findsNothing);
-    expect(find.text('取引を追加'), findsOneWidget);
+    expect(find.text('支出を編集'), findsNothing);
+    expect(find.text('支出を追加'), findsOneWidget);
   });
 
   testWidgets('別月の案内は表示中の Provider の月を基準にする', (tester) async {
@@ -272,7 +285,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 追加画面が開く。月が動いていない（＝アクションを踏んでいない）
-    expect(find.text('取引を追加'), findsOneWidget);
+    expect(find.text('支出を追加'), findsOneWidget);
     expect(find.text('2026年8月'), findsNothing);
   });
 

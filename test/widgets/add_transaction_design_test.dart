@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -10,6 +12,7 @@ import 'package:ledger_app/providers/transaction_provider.dart';
 import 'package:ledger_app/screens/add_transaction_screen.dart';
 import 'package:ledger_app/theme/ledger_theme.dart';
 import 'package:ledger_app/theme/ledger_tokens.dart';
+import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:provider/provider.dart';
 
 class _EmptyMemberProvider extends MemberProvider {
@@ -17,6 +20,19 @@ class _EmptyMemberProvider extends MemberProvider {
 
   @override
   Future<void> fetchMembers() async {}
+}
+
+class _BlockingTransactionProvider extends TransactionProvider {
+  _BlockingTransactionProvider(super.db);
+
+  final blocker = Completer<void>();
+  int createCalls = 0;
+
+  @override
+  Future<void> create(TransactionInput input) async {
+    createCalls++;
+    await blocker.future;
+  }
 }
 
 RenderEditable _findRenderEditable(RenderObject root) {
@@ -43,6 +59,7 @@ void main() {
     WidgetTester tester, {
     TextScaler textScaler = TextScaler.noScaling,
     MemberProvider? memberProvider,
+    TransactionProvider? transactionProvider,
     Size size = const Size(360, 690),
   }) async {
     tester.view.physicalSize = size;
@@ -56,7 +73,9 @@ void main() {
           ChangeNotifierProvider.value(
             value: memberProvider ?? MemberProvider(db),
           ),
-          ChangeNotifierProvider(create: (_) => TransactionProvider(db)),
+          ChangeNotifierProvider.value(
+            value: transactionProvider ?? TransactionProvider(db),
+          ),
         ],
         child: MaterialApp(
           theme: ledgerTheme,
@@ -99,6 +118,102 @@ void main() {
     );
     expect(fittedBoxFinder, findsOneWidget);
     expect(tester.widget<FittedBox>(fittedBoxFinder).fit, BoxFit.scaleDown);
+  });
+
+  testWidgets('3分割ヘッダと下部保存ボタン、内容と日付のカードを表示する', (tester) async {
+    await pumpScreen(tester);
+
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.text('キャンセル'), findsOneWidget);
+    expect(find.text('支出を追加'), findsOneWidget);
+    expect(find.text('保存'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '保存する'), findsOneWidget);
+
+    final card = find.byType(LedgerCard);
+    expect(card, findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.text('内容')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('日付')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('メモ（任意）')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.byIcon(Icons.calendar_today)),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('320px幅かつ文字倍率2.0でも3分割ヘッダが溢れない', (tester) async {
+    await pumpScreen(
+      tester,
+      textScaler: const TextScaler.linear(2),
+      size: const Size(320, 690),
+    );
+
+    expect(tester.takeException(), isNull);
+    final cancelRect = tester.getRect(find.text('キャンセル'));
+    final titleRect = tester.getRect(find.text('支出を追加'));
+    final saveRect = tester.getRect(find.text('保存'));
+    final cancelButtonRect = tester.getRect(
+      find.widgetWithText(TextButton, 'キャンセル'),
+    );
+    final saveButtonRect = tester.getRect(
+      find.widgetWithText(TextButton, '保存'),
+    );
+    expect(cancelRect.right, lessThanOrEqualTo(titleRect.left));
+    expect(titleRect.right, lessThanOrEqualTo(saveRect.left));
+    expect(titleRect.center.dx, closeTo(160, 2));
+    expect(cancelButtonRect.width, closeTo((320 - 16) / 3, 1));
+    expect(saveButtonRect.width, closeTo(cancelButtonRect.width, 1));
+  });
+
+  testWidgets('下部の保存ボタンからも同じ保存処理を実行できる', (tester) async {
+    await pumpScreen(tester);
+    await selectFirstCategory(tester);
+    await tester.enterText(find.byType(TextFormField).first, '1200');
+
+    await tester.tap(find.text('保存する'));
+    await tester.pumpAndSettle();
+
+    expect((await db.getAllTransactions()).single.amount, 1200);
+  });
+
+  testWidgets('保存中は上下の保存導線を無効化し下部ボタンに進捗を出す', (tester) async {
+    final provider = _BlockingTransactionProvider(db);
+    await pumpScreen(tester, transactionProvider: provider);
+    await selectFirstCategory(tester);
+    await tester.enterText(find.byType(TextFormField).first, '1200');
+
+    await tester.tap(find.text('保存する'));
+    await tester.pump();
+
+    expect(provider.createCalls, 1);
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, '保存'))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, 'キャンセル'))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    provider.blocker.complete();
+    await tester.pumpAndSettle();
   });
 
   testWidgets('選択済みの登録者チップを押しても解除されず保存できる', (tester) async {

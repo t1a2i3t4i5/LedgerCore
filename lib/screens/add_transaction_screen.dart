@@ -8,6 +8,7 @@ import '../providers/member_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../theme/ledger_tokens.dart';
 import '../widgets/amount_format.dart';
+import '../widgets/ledger_card.dart';
 import '../widgets/period_format.dart';
 
 class AddTransactionScreen extends StatefulWidget {
@@ -211,203 +212,344 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     final savingToOtherMonth =
         _spentAt.year != shown.year || _spentAt.month != shown.month;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEdit ? '取引を編集' : '取引を追加'),
-        actions: [
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            TextButton(onPressed: _save, child: const Text('保存')),
-        ],
-      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // 金額
-                Text(
-                  '金額',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: LedgerTokens.subtext),
-                ),
-                SizedBox(
-                  width: double.infinity,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: SizedBox(
-                      width: _amountFieldWidth(context),
-                      child: TextFormField(
-                        controller: _amountCtrl,
-                        // 小数を受け付けないので小数点キーの要らない number に戻す
-                        keyboardType: TextInputType.number,
-                        inputFormatters: const [AmountInputFormatter()],
+        child: Column(
+          children: [
+            _TransactionHeader(
+              title: isEdit ? '支出を編集' : '支出を追加',
+              onCancel: _loading ? null : () => Navigator.of(context).pop(),
+              onSave: _loading ? null : _save,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 金額
+                      Text(
+                        '金額',
                         textAlign: TextAlign.center,
-                        style: LedgerTokens.amountLarge,
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: LedgerTokens.subtext,
                         ),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) return '金額を入力してください';
-                          final amount = double.tryParse(v);
-                          if (amount == null) return '有効な数値を入力してください';
-                          // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
-                          if (amount <= 0) return '金額は 0 より大きい値を入力してください';
-                          // Infinity は `> 0` を満たすため上限の比較で止める。
-                          // 弾かないと合計が `¥∞`、構成比が `NaN%` になって復旧できない
-                          if (!amount.isFinite || amount > kMaxAmount) {
-                            return '金額が大きすぎます';
-                          }
-                          // フォーマッタが小数点を通さないので実質到達しないが、
-                          // コントローラへの直接代入も含めて DB の CHECK と揃える
-                          if (amount != amount.roundToDouble()) {
-                            return '金額は整数で入力してください';
-                          }
-                          return null;
-                        },
                       ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // カテゴリ選択
-                Consumer<CategoryProvider>(
-                  builder: (context, catProvider, _) {
-                    final cats = catProvider.categories;
-                    return DropdownButtonFormField<int>(
-                      initialValue: _selectedCategoryId,
-                      decoration: const InputDecoration(
-                        labelText: 'カテゴリ',
-                        prefixIcon: Icon(Icons.label_outline),
-                        border: OutlineInputBorder(),
-                      ),
-                      items:
-                          cats
-                              .map(
-                                (c) => DropdownMenuItem(
-                                  value: c.id,
-                                  child: Text(c.name),
-                                ),
-                              )
-                              .toList(),
-                      onChanged: (v) => setState(() => _selectedCategoryId = v),
-                      validator: (v) => v == null ? 'カテゴリを選択してください' : null,
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // 登録者（メンバー）選択
-                Consumer<MemberProvider>(
-                  builder: (context, memberProvider, _) {
-                    final members = memberProvider.members;
-                    return FormField<int>(
-                      initialValue: _selectedMemberId,
-                      validator:
-                          (_) =>
-                              _selectedMemberId == null ? '登録者を選択してください' : null,
-                      builder: (state) {
-                        return InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: '登録者',
-                            prefixIcon: const Icon(Icons.person_outline),
-                            border: const OutlineInputBorder(),
-                            errorText: state.errorText,
-                            // チップを並べるため内側の余白を調整
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
+                      SizedBox(
+                        width: double.infinity,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: SizedBox(
+                            width: _amountFieldWidth(context),
+                            child: TextFormField(
+                              controller: _amountCtrl,
+                              // 小数を受け付けないので小数点キーの要らない number に戻す
+                              keyboardType: TextInputType.number,
+                              inputFormatters: const [AmountInputFormatter()],
+                              textAlign: TextAlign.center,
+                              style: LedgerTokens.amountLarge,
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                              ),
+                              validator: (v) {
+                                if (v == null || v.isEmpty) {
+                                  return '金額を入力してください';
+                                }
+                                final amount = double.tryParse(v);
+                                if (amount == null) return '有効な数値を入力してください';
+                                // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
+                                if (amount <= 0) return '金額は 0 より大きい値を入力してください';
+                                // Infinity は `> 0` を満たすため上限の比較で止める。
+                                // 弾かないと合計が `¥∞`、構成比が `NaN%` になって復旧できない
+                                if (!amount.isFinite || amount > kMaxAmount) {
+                                  return '金額が大きすぎます';
+                                }
+                                // フォーマッタが小数点を通さないので実質到達しないが、
+                                // コントローラへの直接代入も含めて DB の CHECK と揃える
+                                if (amount != amount.roundToDouble()) {
+                                  return '金額は整数で入力してください';
+                                }
+                                return null;
+                              },
                             ),
                           ),
-                          child:
-                              members.isEmpty
-                                  ? Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                    child: Text(
-                                      'メンバー情報を読み込み中...',
-                                      style: TextStyle(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // カテゴリ選択
+                      Consumer<CategoryProvider>(
+                        builder: (context, catProvider, _) {
+                          final cats = catProvider.categories;
+                          return DropdownButtonFormField<int>(
+                            initialValue: _selectedCategoryId,
+                            decoration: const InputDecoration(
+                              labelText: 'カテゴリ',
+                              prefixIcon: Icon(Icons.label_outline),
+                              border: OutlineInputBorder(),
+                            ),
+                            items:
+                                cats
+                                    .map(
+                                      (c) => DropdownMenuItem(
+                                        value: c.id,
+                                        child: Text(c.name),
                                       ),
-                                    ),
-                                  )
-                                  : Wrap(
-                                    spacing: 8,
-                                    runSpacing: 0,
-                                    children:
-                                        members.map((m) {
-                                          final selected =
-                                              _selectedMemberId == m.id;
-                                          return ChoiceChip(
-                                            label: Text(m.name),
-                                            selected: selected,
-                                            onSelected: (value) {
-                                              if (!value) return;
-                                              setState(
-                                                () => _selectedMemberId = m.id,
-                                              );
-                                              state.didChange(m.id);
-                                            },
-                                          );
-                                        }).toList(),
+                                    )
+                                    .toList(),
+                            onChanged:
+                                (v) => setState(() => _selectedCategoryId = v),
+                            validator:
+                                (v) => v == null ? 'カテゴリを選択してください' : null,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 登録者（メンバー）選択
+                      Consumer<MemberProvider>(
+                        builder: (context, memberProvider, _) {
+                          final members = memberProvider.members;
+                          return FormField<int>(
+                            initialValue: _selectedMemberId,
+                            validator:
+                                (_) =>
+                                    _selectedMemberId == null
+                                        ? '登録者を選択してください'
+                                        : null,
+                            builder: (state) {
+                              return InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: '登録者',
+                                  prefixIcon: const Icon(Icons.person_outline),
+                                  border: const OutlineInputBorder(),
+                                  errorText: state.errorText,
+                                  // チップを並べるため内側の余白を調整
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 4,
                                   ),
-                        );
-                      },
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
+                                ),
+                                child:
+                                    members.isEmpty
+                                        ? Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                          child: Text(
+                                            'メンバー情報を読み込み中...',
+                                            style: TextStyle(
+                                              color:
+                                                  Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                            ),
+                                          ),
+                                        )
+                                        : Wrap(
+                                          spacing: 8,
+                                          runSpacing: 0,
+                                          children:
+                                              members.map((m) {
+                                                final selected =
+                                                    _selectedMemberId == m.id;
+                                                return ChoiceChip(
+                                                  label: Text(m.name),
+                                                  selected: selected,
+                                                  onSelected: (value) {
+                                                    if (!value) return;
+                                                    setState(
+                                                      () =>
+                                                          _selectedMemberId =
+                                                              m.id,
+                                                    );
+                                                    state.didChange(m.id);
+                                                  },
+                                                );
+                                              }).toList(),
+                                        ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
 
-                // 日付選択
-                InkWell(
-                  onTap: _pickDate,
-                  child: InputDecorator(
-                    decoration: InputDecoration(
-                      labelText: '日付',
-                      prefixIcon: const Icon(Icons.calendar_today),
-                      border: const OutlineInputBorder(),
-                      helperText:
-                          savingToOtherMonth
-                              ? '表示中の${formatPeriod(shown.year, shown.month)}とは別の月です'
-                              : null,
-                      helperMaxLines: 2,
-                    ),
-                    child: Text(DateFormat('yyyy年MM月dd日').format(_spentAt)),
+                      // 内容と日付は、ラベルと値を左右で読める 1 枚のカードにまとめる
+                      LedgerCard(
+                        padding: EdgeInsets.zero,
+                        child: Column(
+                          children: [
+                            _DetailRow(
+                              label: '内容',
+                              child: TextFormField(
+                                controller: _memoCtrl,
+                                maxLines: 3,
+                                textAlign: TextAlign.end,
+                                decoration: const InputDecoration(
+                                  hintText: 'メモ（任意）',
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ),
+                            const Divider(height: 1),
+                            InkWell(
+                              onTap: _loading ? null : _pickDate,
+                              borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(
+                                  LedgerTokens.cardRadius,
+                                ),
+                              ),
+                              child: _DetailRow(
+                                label: '日付',
+                                child: InputDecorator(
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.zero,
+                                    helperText:
+                                        savingToOtherMonth
+                                            ? '表示中の${formatPeriod(shown.year, shown.month)}とは別の月です'
+                                            : null,
+                                    helperMaxLines: 2,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          DateFormat(
+                                            'yyyy年MM月dd日',
+                                          ).format(_spentAt),
+                                          textAlign: TextAlign.end,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(Icons.calendar_today),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: FilledButton(
+          onPressed: _loading ? null : _save,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(56),
+            shape: const StadiumBorder(),
+          ),
+          child:
+              _loading
+                  ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                  : const Text('保存する'),
+        ),
+      ),
+    );
+  }
+}
 
-                // メモ
-                TextFormField(
-                  controller: _memoCtrl,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'メモ（任意）',
-                    prefixIcon: Icon(Icons.notes),
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
+/// 追加・編集の両方で使う 3 分割ヘッダ。
+///
+/// 各領域を [Expanded] で等分し、文字倍率を上げたときは
+/// 各領域内で高さ方向に伸びる。中央の見出しを左右の文字幅で
+/// ずらさず、横 overflow も起こさない。
+class _TransactionHeader extends StatelessWidget {
+  const _TransactionHeader({
+    required this.title,
+    required this.onCancel,
+    required this.onSave,
+  });
+
+  final String title;
+  final VoidCallback? onCancel;
+  final VoidCallback? onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: TextButton(
+              onPressed: onCancel,
+              child: const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('キャンセル', textAlign: TextAlign.left),
+              ),
             ),
           ),
-        ),
+          Expanded(
+            child: Center(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: TextButton(
+              onPressed: onSave,
+              child: const Align(
+                alignment: Alignment.centerRight,
+                child: Text('保存', textAlign: TextAlign.right),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 入力カード内の「左ラベル / 右に入力値」の 1 行。
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 48,
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: child),
+        ],
       ),
     );
   }
