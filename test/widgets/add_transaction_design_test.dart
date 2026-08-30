@@ -60,6 +60,7 @@ void main() {
     TextScaler textScaler = TextScaler.noScaling,
     MemberProvider? memberProvider,
     TransactionProvider? transactionProvider,
+    TransactionView? existing,
     Size size = const Size(360, 690),
   }) async {
     tester.view.physicalSize = size;
@@ -84,7 +85,7 @@ void main() {
                 data: MediaQuery.of(context).copyWith(textScaler: textScaler),
                 child: child!,
               ),
-          home: const AddTransactionScreen(),
+          home: AddTransactionScreen(existing: existing),
         ),
       ),
     );
@@ -129,6 +130,15 @@ void main() {
     expect(find.text('保存'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, '保存する'), findsOneWidget);
 
+    final button = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(button.style?.shape, isNull, reason: 'ボタン形状は画面ではなくテーマで決める');
+    expect(
+      Theme.of(
+        tester.element(find.byType(FilledButton)),
+      ).filledButtonTheme.style?.shape?.resolve({}),
+      isA<StadiumBorder>(),
+    );
+
     final card = find.byType(LedgerCard);
     expect(card, findsOneWidget);
     expect(
@@ -171,6 +181,15 @@ void main() {
     expect(titleRect.center.dx, closeTo(160, 2));
     expect(cancelButtonRect.width, closeTo((320 - 16) / 3, 1));
     expect(saveButtonRect.width, closeTo(cancelButtonRect.width, 1));
+    final title = tester.widget<Text>(find.text('支出を追加'));
+    expect(title.maxLines, isNull);
+    expect(title.overflow, isNull);
+    expect(
+      tester
+          .renderObject<RenderParagraph>(find.text('支出を追加'))
+          .didExceedMaxLines,
+      isFalse,
+    );
   });
 
   testWidgets('320px幅かつ文字倍率2.0でも別月警告の末尾を省略しない', (tester) async {
@@ -194,9 +213,18 @@ void main() {
     await pumpScreen(tester);
 
     final card = find.byType(LedgerCard);
-    final material = find.descendant(of: card, matching: find.byType(Material));
-    expect(material, findsOneWidget);
-    expect(tester.widget<Material>(material).type, MaterialType.transparency);
+    final dateInkWell = find.ancestor(
+      of: find.byIcon(Icons.calendar_today),
+      matching: find.byType(InkWell),
+    );
+    expect(find.descendant(of: card, matching: dateInkWell), findsOneWidget);
+    final transparentAncestors = find
+        .ancestor(of: dateInkWell, matching: find.byType(Material))
+        .evaluate()
+        .map((element) => element.widget)
+        .whereType<Material>()
+        .where((material) => material.type == MaterialType.transparency);
+    expect(transparentAncestors, hasLength(1));
   });
 
   testWidgets('キーボード表示中も下部の保存ボタン全体が上端より上に残る', (tester) async {
@@ -213,6 +241,40 @@ void main() {
     );
   });
 
+  testWidgets('低い画面でキーボードを表示しても溢れず保存ボタンを押せる', (tester) async {
+    await pumpScreen(tester, size: const Size(360, 400));
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    final saveButton = find.widgetWithText(FilledButton, '保存する');
+    expect(saveButton.hitTestable(), findsOneWidget);
+    expect(tester.getRect(saveButton).bottom, lessThanOrEqualTo(100));
+    await tester.tap(saveButton);
+    await tester.pump();
+    expect(find.text('金額を入力してください'), findsOneWidget);
+  });
+
+  testWidgets('上下の保存を同一フレームで操作しても1回だけ作成する', (tester) async {
+    final provider = _BlockingTransactionProvider(db);
+    await pumpScreen(tester, transactionProvider: provider);
+    await selectFirstCategory(tester);
+    await tester.enterText(find.byType(TextFormField).first, '1200');
+
+    tester
+        .widget<TextButton>(find.widgetWithText(TextButton, '保存'))
+        .onPressed!();
+    tester.widget<FilledButton>(find.byType(FilledButton)).onPressed!();
+    await tester.pump();
+
+    try {
+      expect(provider.createCalls, 1);
+    } finally {
+      provider.blocker.complete();
+      await tester.pumpAndSettle();
+    }
+  });
+
   testWidgets('下部の保存ボタンからも同じ保存処理を実行できる', (tester) async {
     await pumpScreen(tester);
     await selectFirstCategory(tester);
@@ -222,6 +284,31 @@ void main() {
     await tester.pumpAndSettle();
 
     expect((await db.getAllTransactions()).single.amount, 1200);
+  });
+
+  testWidgets('編集画面の見出しを表示し下部ボタンから更新できる', (tester) async {
+    final category = (await db.getCategories()).first;
+    final member = (await db.getMembers()).first;
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: member.id,
+        categoryId: category.id,
+        amount: 1200,
+        spentAt: DateTime(2026, 8, 30),
+      ),
+    );
+    final existing = (await db.getAllTransactions()).single;
+    await pumpScreen(tester, existing: existing);
+
+    expect(find.text('支出を編集'), findsOneWidget);
+    expect(find.text('支出を追加'), findsNothing);
+    await tester.enterText(find.byType(TextFormField).last, '更新済み');
+    await tester.tap(find.text('保存する'));
+    await tester.pumpAndSettle();
+
+    final saved = (await db.getAllTransactions()).single;
+    expect(saved.id, existing.id);
+    expect(saved.memo, '更新済み');
   });
 
   testWidgets('保存中は上下の保存導線を無効化し下部ボタンに進捗を出す', (tester) async {

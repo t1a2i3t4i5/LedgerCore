@@ -93,6 +93,11 @@ void main() {
     await pumpApp(tester);
     await openAddScreen(tester);
     await tester.enterText(find.byType(TextFormField).first, '1500');
+    final firstCategory = (await db.getCategories()).first.name;
+    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(firstCategory).last);
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('キャンセル'));
     await tester.pumpAndSettle();
