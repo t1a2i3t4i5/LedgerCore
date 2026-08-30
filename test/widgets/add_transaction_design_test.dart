@@ -173,6 +173,32 @@ void main() {
     expect(saveButtonRect.width, closeTo(cancelButtonRect.width, 1));
   });
 
+  testWidgets('320px幅かつ文字倍率2.0でも別月警告の末尾を省略しない', (tester) async {
+    final provider = TransactionProvider(
+      db,
+      clock: () => DateTime(2000, 1, 15),
+    );
+    await pumpScreen(
+      tester,
+      textScaler: const TextScaler.linear(2),
+      transactionProvider: provider,
+      size: const Size(320, 690),
+    );
+
+    const warning = '表示中の2000年1月とは別の月です';
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(warning));
+    expect(paragraph.didExceedMaxLines, isFalse);
+  });
+
+  testWidgets('日付行の波紋をカード背景より手前に描くMaterialを持つ', (tester) async {
+    await pumpScreen(tester);
+
+    final card = find.byType(LedgerCard);
+    final material = find.descendant(of: card, matching: find.byType(Material));
+    expect(material, findsOneWidget);
+    expect(tester.widget<Material>(material).type, MaterialType.transparency);
+  });
+
   testWidgets('下部の保存ボタンからも同じ保存処理を実行できる', (tester) async {
     await pumpScreen(tester);
     await selectFirstCategory(tester);

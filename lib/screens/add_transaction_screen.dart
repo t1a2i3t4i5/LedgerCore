@@ -379,60 +379,67 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       // 内容と日付は、ラベルと値を左右で読める 1 枚のカードにまとめる
                       LedgerCard(
                         padding: EdgeInsets.zero,
-                        child: Column(
-                          children: [
-                            _DetailRow(
-                              label: '内容',
-                              child: TextFormField(
-                                controller: _memoCtrl,
-                                maxLines: 3,
-                                textAlign: TextAlign.end,
-                                decoration: const InputDecoration(
-                                  hintText: 'メモ（任意）',
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            ),
-                            const Divider(height: 1),
-                            InkWell(
-                              onTap: _loading ? null : _pickDate,
-                              borderRadius: const BorderRadius.vertical(
-                                bottom: Radius.circular(
-                                  LedgerTokens.cardRadius,
-                                ),
-                              ),
-                              child: _DetailRow(
-                                label: '日付',
-                                child: InputDecorator(
-                                  decoration: InputDecoration(
+                        child: Material(
+                          type: MaterialType.transparency,
+                          borderRadius: BorderRadius.circular(
+                            LedgerTokens.cardRadius,
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            children: [
+                              _DetailRow(
+                                label: '内容',
+                                child: TextFormField(
+                                  controller: _memoCtrl,
+                                  maxLines: 3,
+                                  textAlign: TextAlign.end,
+                                  decoration: const InputDecoration(
+                                    hintText: 'メモ（任意）',
                                     border: InputBorder.none,
                                     contentPadding: EdgeInsets.zero,
-                                    helperText:
-                                        savingToOtherMonth
-                                            ? '表示中の${formatPeriod(shown.year, shown.month)}とは別の月です'
-                                            : null,
-                                    helperMaxLines: 2,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          DateFormat(
-                                            'yyyy年MM月dd日',
-                                          ).format(_spentAt),
-                                          textAlign: TextAlign.end,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Icon(Icons.calendar_today),
-                                    ],
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                              const Divider(height: 1),
+                              InkWell(
+                                onTap: _loading ? null : _pickDate,
+                                borderRadius: const BorderRadius.vertical(
+                                  bottom: Radius.circular(
+                                    LedgerTokens.cardRadius,
+                                  ),
+                                ),
+                                child: _DetailRow(
+                                  label: '日付',
+                                  child: InputDecorator(
+                                    decoration: InputDecoration(
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.zero,
+                                      helperText:
+                                          savingToOtherMonth
+                                              ? '表示中の${formatPeriod(shown.year, shown.month)}とは別の月です'
+                                              : null,
+                                      helperMaxLines: 3,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            DateFormat(
+                                              'yyyy年MM月dd日',
+                                            ).format(_spentAt),
+                                            textAlign: TextAlign.end,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Icon(Icons.calendar_today),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
