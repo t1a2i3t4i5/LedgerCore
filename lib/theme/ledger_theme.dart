@@ -43,10 +43,8 @@ final _baseTheme = ThemeData(
   fontFamily: 'ZenMaruGothic',
 );
 
-const _headingStyle = TextStyle(
-  fontFamily: 'ZenKakuGothicNew',
-  fontWeight: FontWeight.w700,
-);
+/// 見出しスロットへ重ねる書体。強調にも使うので実体は [LedgerTokens.heading]。
+const _headingStyle = LedgerTokens.heading;
 
 /// ライトモード専用のアプリテーマ。
 final ledgerTheme = _baseTheme.copyWith(

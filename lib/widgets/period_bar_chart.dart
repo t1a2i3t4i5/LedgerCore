@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../models/summary.dart';
+import '../theme/ledger_tokens.dart';
 import 'amount_format.dart';
 import 'chart_palette.dart';
 import 'period_format.dart';
@@ -192,10 +193,11 @@ class PeriodBarChart extends StatelessWidget {
                       // 年月まで出す長い形にする。金額は実額なので formatYen
                       '${formatPeriod(item.year, item.month)}\n'
                       '${formatYen(item.total)}',
-                      TextStyle(
+                      LedgerTokens.heading.copyWith(
                         // 背景に棒と同じ色を敷くので、文字色は輝度から選ぶ
                         color: labelColorOn(barColor),
-                        fontWeight: FontWeight.bold,
+                        // Canvas 描画でも DefaultTextStyle を継ぐため、
+                        // 本文書体の代替太字にせず同梱の見出し書体を指定する
                         fontSize: 12,
                       ),
                     );

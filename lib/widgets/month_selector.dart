@@ -245,11 +245,11 @@ class _TodayButton extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.clip,
-            style: TextStyle(
+            // 本文書体に太字を同梱しないので、強調は見出し書体で出す
+            style: LedgerTokens.heading.copyWith(
               color:
                   onPressed == null ? disabledForegroundColor : foregroundColor,
               fontSize: 11,
-              fontWeight: FontWeight.w700,
             ),
           ),
         ),

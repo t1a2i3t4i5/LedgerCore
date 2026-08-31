@@ -65,6 +65,47 @@ void main() {
     expect(LedgerTokens.amountLarge.fontFamily, 'Outfit');
   });
 
+  test('強調の書体は Zen Kaku Gothic New の Bold', () {
+    expect(LedgerTokens.heading.fontFamily, 'ZenKakuGothicNew');
+    expect(LedgerTokens.heading.fontWeight, FontWeight.w700);
+  });
+
+  test('本文書体へ太字を要求するスロットが無い', () {
+    // Zen Maru Gothic は Regular だけを同梱する（test/bundled_fonts_test.dart）。
+    // ラベルの w500 は既存の代替描画を許容する。明示的な強調に当たる
+    // w600 以上は同梱の見出し書体で出す
+    final textTheme = ledgerTheme.textTheme;
+    final slots = <String, TextStyle?>{
+      'displayLarge': textTheme.displayLarge,
+      'displayMedium': textTheme.displayMedium,
+      'displaySmall': textTheme.displaySmall,
+      'headlineLarge': textTheme.headlineLarge,
+      'headlineMedium': textTheme.headlineMedium,
+      'headlineSmall': textTheme.headlineSmall,
+      'titleLarge': textTheme.titleLarge,
+      'titleMedium': textTheme.titleMedium,
+      'titleSmall': textTheme.titleSmall,
+      'bodyLarge': textTheme.bodyLarge,
+      'bodyMedium': textTheme.bodyMedium,
+      'bodySmall': textTheme.bodySmall,
+      'labelLarge': textTheme.labelLarge,
+      'labelMedium': textTheme.labelMedium,
+      'labelSmall': textTheme.labelSmall,
+    };
+
+    for (final MapEntry(key: name, value: style) in slots.entries) {
+      // fontFamily 未指定のスロットは ThemeData.fontFamily を継ぐので本文書体
+      final usesBodyFont =
+          style?.fontFamily == null || style?.fontFamily == 'ZenMaruGothic';
+      if (!usesBodyFont) continue;
+      expect(
+        style?.fontWeight?.value ?? FontWeight.w400.value,
+        lessThanOrEqualTo(FontWeight.w500.value),
+        reason: '$name が本文書体に太字を要求している',
+      );
+    }
+  });
+
   testWidgets('AlertDialog の解決後の面は白く角丸24になる', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

@@ -27,6 +27,16 @@ abstract final class LedgerTokens {
     spreadRadius: -18,
   );
 
+  /// 見出しと強調に使う書体。
+  ///
+  /// 本文の Zen Maru Gothic は Regular だけを同梱するため、太字にしたい箇所は
+  /// `fontWeight` だけを上げず、この書体へ切り替える。同梱していないウェイトの
+  /// 代替描画に強調を任せない（#106）。
+  static const heading = TextStyle(
+    fontFamily: 'ZenKakuGothicNew',
+    fontWeight: FontWeight.w700,
+  );
+
   static const amountLarge = TextStyle(
     fontFamily: 'Outfit',
     fontFamilyFallback: ['ZenKakuGothicNew'],

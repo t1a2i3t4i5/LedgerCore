@@ -43,6 +43,7 @@
 - 金額表示は `widgets/amount_format.dart` の `formatYen()`、入力欄は `AmountInputFormatter`、構成比は `formatRatio()`、年月は `widgets/period_format.dart` の `formatPeriod()` / `formatPeriodShort()` を使い、画面側で書式を組み立て直さない
 - グラフの色は `widgets/chart_palette.dart` を使い直書きしない。グラフウィジェットは `AppDatabase` も Provider も参照せず、表示データを引数で受け取る
 - 配色・書体・角丸・影は `lib/theme/` の `ColorScheme` / `LedgerTokens` から採り、画面に色リテラルを書かない
+- 本文の Zen Maru Gothic は Regular のみ同梱する。明示的な太字は `LedgerTokens.heading` を使う（M3 ラベルの w500 は代替描画を許容。詳細は `docs/design-notes.md`）
 - 画面の大見出しは `widgets/page_header.dart` を使い、ルートタブでは本文と一緒にスクロールさせる。ホームは月・年で `MonthSelector`、全期間で `PageHeader` を使う。push 先のカテゴリ・メンバー管理は唯一の戻る導線を残す `PinnedBackPageHeader`。取引追加・編集画面は専用の 3 分割ヘッダを使う
 - 取引入力のカテゴリは `FormField<int>` 内の `ChoiceChip` を `Wrap` で並べ、選択時に保存値と `didChange()` を同期する。件数が多い場合も画面全体の縦スクロールで選べるようにする
 - 操作ログは `lib/logging/` の `OperationLogger` だけを通す。取引のメモ本文とフィルターの検索語を書かず、例外文字列は `log_entry.dart` の `sanitizeError()` を通す。`info()` / `error()` は `void` で呼び出し側に `await` させない
