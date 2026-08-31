@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 
 import 'db/database.dart';
 import 'logging/file_log_sink.dart';
+import 'logging/file_log_share.dart';
+import 'logging/log_share.dart';
 import 'logging/operation_logger.dart';
 import 'providers/category_provider.dart';
 import 'providers/member_provider.dart';
@@ -30,7 +32,8 @@ void main() {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
       _registerFontLicenses();
-      logger = await _createLogger();
+      final logging = await _createLogging();
+      logger = logging.logger;
 
       // 描画中の例外。presentError を呼び直して、今までどおり赤い画面と
       // コンソール出力も出す（ログに移すのではなく、ログにも残す）
@@ -40,7 +43,7 @@ void main() {
       };
 
       final db = AppDatabase();
-      runApp(LedgerApp(db: db, logger: logger));
+      runApp(LedgerApp(db: db, logger: logger, logShare: logging.share));
     },
     (error, stack) {
       // 非同期の未捕捉例外。スタックは error 側に載せて、長すぎるぶんは
@@ -77,15 +80,23 @@ void _registerFontLicenses() {
 ///
 /// **失敗してもアプリは必ず起動する。** 書き込み先が取れない端末で家計簿が
 /// 使えなくなるほうが、ログが残らないことより重い
-Future<OperationLogger> _createLogger() async {
+Future<({OperationLogger logger, LogShare share})> _createLogging() async {
   try {
     // パスの解決はここだけで行う。FileLogSink はディレクトリを引数で受け取る
     // ので、テストは path_provider を通さずに一時ディレクトリを渡せる
     final directory = await getApplicationDocumentsDirectory();
-    return OperationLogger(FileLogSink(directory));
+    final logger = OperationLogger(FileLogSink(directory));
+    return (
+      logger: logger,
+      share: FileLogShare(
+        directory: directory,
+        logger: logger,
+        temporaryDirectory: getTemporaryDirectory,
+      ),
+    );
   } catch (e) {
     debugPrint('操作ログの初期化に失敗しました。ログ無しで起動します: $e');
-    return OperationLogger.noop();
+    return (logger: OperationLogger.noop(), share: const NoopLogShare());
   }
 }
 
@@ -100,7 +111,16 @@ class LedgerApp extends StatelessWidget {
   /// テストから [MemoryLogSink] 付きのロガーを注入して中身を確かめる
   final OperationLogger? logger;
 
-  const LedgerApp({super.key, required this.db, this.clock, this.logger});
+  /// 共有の入口。省略時は OS やファイルに触らない。
+  final LogShare? logShare;
+
+  const LedgerApp({
+    super.key,
+    required this.db,
+    this.clock,
+    this.logger,
+    this.logShare,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -112,6 +132,7 @@ class LedgerApp extends StatelessWidget {
         // ツリーに置いて context.read<OperationLogger>() で拾えるようにする。
         // ChangeNotifier ではないので素の Provider
         Provider<OperationLogger>.value(value: log),
+        Provider<LogShare>.value(value: logShare ?? const NoopLogShare()),
         ChangeNotifierProvider(create: (_) => MemberProvider(db, logger: log)),
         ChangeNotifierProvider(
           create: (_) => TransactionProvider(db, clock: clock, logger: log),

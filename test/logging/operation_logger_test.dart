@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -99,6 +100,28 @@ void main() {
   });
 
   group('順序', () {
+    test('読み出しは先行する書き込みを待ち、完了まで後続の書き込みを止める', () async {
+      final sink = _DelayedLogSink([const Duration(milliseconds: 50)]);
+      final logger = OperationLogger(sink);
+      final started = Completer<void>();
+      final release = Completer<void>();
+      logger.info('before');
+      final reading = logger.withPausedWrites(() async {
+        started.complete();
+        await release.future;
+        return sink.lines.map((line) => decode(line)['op']).toList();
+      });
+      await started.future;
+      expect(sink.lines.map((line) => decode(line)['op']), ['before']);
+      logger.info('after');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(sink.lines.map((line) => decode(line)['op']), ['before']);
+      release.complete();
+      expect(await reading, ['before']);
+      await logger.flush();
+      expect(sink.lines.map((line) => decode(line)['op']), ['before', 'after']);
+    });
+
     test('書き出しが遅い行があっても呼んだ順に並ぶ', () async {
       // 1 件目だけ書き込みが遅い sink を使う。各呼び出しが独立に write を
       // 始める実装だと、完了の速い 2 件目が先にファイルへ着いて

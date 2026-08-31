@@ -14,12 +14,14 @@ dependencies:
   drift: ^2.20.0
   drift_flutter: ^0.2.0
   fl_chart: ^1.2.0
-  # 操作ログの書き込み先を解決するために使う（lib/logging/）。
+  # 操作ログの保存先と共有用の一時領域を解決するために使う（lib/logging/）。
   # どちらも drift_flutter 経由で既に pubspec.lock に入っていた推移的依存を
   # 直接依存へ昇格しただけで、新しく取ってくるパッケージではない。
   # ネットワークは絡まない（このアプリに通信を伴う実装は無い）
   path_provider: ^2.1.6
   path: ^1.9.1
+  # OS の共有シートへログを渡す。SDK 下限・Android の既存設定を維持する。
+  share_plus: ^11.1.0
 
 dev_dependencies:
   flutter_test:
