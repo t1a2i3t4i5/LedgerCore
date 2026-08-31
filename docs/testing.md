@@ -38,7 +38,7 @@ Zen Maru Gothic / Zen Kaku Gothic New / Outfit の字形では描画されない
 できない。既存の幅テストも出荷される字幅を測っていないため、フォント asset の宣言漏れや
 パス誤りは実機またはアプリ実行時の目視で確認する。
 
-`settlement_summary_card_test.dart` は横並びと縦配置の切り替えを実際の字幅で検証するため、
+`settlement_summary_card_test.dart` と `monthly_summary_chips_test.dart` は横並びと折り返しを実際の字幅で検証するため、
 例外的に `FontLoader` で同梱フォントを明示的に読み込む。Ahem の字幅では、通常サイズでも
 横並びに収まらず、添付デザインの配置を検証できないため。
 

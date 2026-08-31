@@ -9,6 +9,9 @@ abstract final class LedgerTokens {
   static const subtext = Color(0xFFA39288);
   static const bodyMuted = Color(0xFF4A4038);
   static const barTrack = Color(0xFFEFE4D8);
+  static const countSurface = Color(0xFFF2F1ED);
+  // secondaryContainer上で小さな先月比ラベルも読める濃さにする。
+  static const comparisonText = Color(0xFFA65330);
 
   static const balancePositive = Color(0xFF5E8776);
   static const balancePositiveSurface = Color(0xFFE9F0EC);

@@ -83,6 +83,30 @@ SnackBar が出るのは `MainScreen` の Scaffold（ルートの `ScaffoldMesse
 
 `YearlySummary` は `byMonth` と `byCategory` しか持たない。issue #9 は「年モードでも必要なら `buildYearlySummary` に追加する」と留保していたが、追加すると `models/summary.dart`・`summary_calculator.dart` と、既にテスト済みの `summary_calculator_test.dart` / `database_test.dart` まで波及する。カテゴリ別と違って「年間で誰がいくら払ったか」は割り勘タブの関心に近く、月単位の割り勘と二重に見える懸念もある。**足すなら別 issue で、割り勘を年単位にするかどうかと一緒に決める。**
 
+### 月の合計カードには先月比と取引件数を並べる
+
+`MonthlySummary.transactionCount` は取引リストの件数で、カテゴリ数・メンバー数ではない。
+月モードの `SummaryProvider.fetch()` は前月の `getMonthlySummary()` を追加で1回呼ぶ。
+当月・前月とも合計と件数は `buildMonthlySummary()`、差額は `buildMonthlyComparison()` の
+純関数で求める。DBスキーマは変えず、既存の半開区間 `[月初, 翌月初)` を再利用する。
+前月は取得したサマリーの年月から求め、1月なら前年12月と比較する。
+
+`MonthlySummaryChips` は合計カードの金額直下に「先月比」「N件」を非操作のピルとして置く。
+比較は表示月の集計済み支出と前月の1か月分で、月の途中でも日割りや同日までの比較はしない。
+年モード・全期間モードでは両方とも出さず、前月の追加取得もしない。
+月モードへ戻る際と再取得時に比較を作り直し、過去の取引の追加・編集・削除を反映する。
+
+率は差額の絶対値と前月合計を `formatRatio()` に渡し、小数1桁で表示して符号を添える。
+増加は `+12.0%`、減少は `-25.0%`、同額や丸め後がゼロなら `0.0%` とする。
+前月が0円なら当月の有無にかかわらず「先月比 —」とし、ツールチップで理由を示す。
+前月が正で当月が0円なら `-100.0%`、件数は `0件` になる。
+
+先月比は `secondaryContainer` の淡いオレンジ、件数は `LedgerTokens.countSurface` の
+薄いグレーとする。先月比の小さな文字には、背景上で4.5:1を満たす
+`LedgerTokens.comparisonText` を使う。増減は色だけでなく符号で区別する。
+幅が足りなければ `Wrap` で次の行へ送り、ピル自体も文字を折り返して高さ方向へ伸ばす。
+固定高・省略・文字倍率の無効化は使わない。
+
 ### ホームの精算サマリは月モードの合計直下に置く
 
 `SettlementSummaryCard` は共有の `SummaryProvider.split` を受け取り、既存の
@@ -160,7 +184,7 @@ SnackBar が出るのは `MainScreen` の Scaffold（ルートの `ScaffoldMesse
 
 `formatYen()` と同じファイルに置いてある。金額の整形ではないが、**同じ行に並ぶ 2 つの数字の書式が対で決まる**ため隣に置く。`CategoryBreakdownRow` は金額と % を同じ上段へ置き、その下の `RatioBar` にも同じ `amount` / `total` を渡す。文字と帯で除算の入力を分けない。
 
-導入当初（PR #65）は円グラフの扇形ラベルと集計画面のリストの 2 か所に同じ値が出ており、桁が食い違わないことが集約の主目的だった。**円グラフを外した今（PR #66 相当）、呼び出しは `category_breakdown_row.dart` の 1 か所だけ**だが、`toStringAsFixed` をウィジェットに書き戻さない。#9 の推移グラフのように、構成比を出す表示が再び増えたときに同じ食い違いが起きる。
+導入当初（PR #65）は円グラフの扇形ラベルと集計画面のリストの 2 か所に同じ値が出ており、桁が食い違わないことが集約の主目的だった。円グラフを外した後も `category_breakdown_row.dart` に加え、月の合計カードの先月比で同じ書式を使う。`toStringAsFixed` をウィジェットに書き戻さない。
 
 **丸めて合計 100% にならないのは仕様。** 3 等分なら 33.3% × 3 = 99.9% になるが、補正する処理は入れない。
 

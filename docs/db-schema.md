@@ -150,7 +150,7 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | `HouseholdMember` | `members` | `id` / `name` のみ |
 | `TransactionView` | `transactions` + `members` + `categories` の JOIN | 下記のフィールド対応を参照 |
 | `TransactionInput` | 書き込み用の入力 | `memberId` が `member_id` に入る |
-| `MonthlySummary` / `YearlySummary` / `CategorySummaryItem` / `MemberSummaryItem` / `PeriodTotal` | なし | `summary_calculator.dart` が取引リストから計算する導出値。DB には保存されない |
+| `MonthlySummary` / `MonthlyComparisonView` / `YearlySummary` / `CategorySummaryItem` / `MemberSummaryItem` / `PeriodTotal` | なし | `summary_calculator.dart` が取引リストから計算する導出値。DB には保存されない |
 | `SplitResult` / `MemberBalance` | なし | 同上（割り勘の計算結果） |
 
 ### `TransactionView` のフィールド対応

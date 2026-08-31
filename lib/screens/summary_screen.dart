@@ -10,6 +10,7 @@ import '../widgets/category_breakdown_row.dart';
 import '../widgets/chart_palette.dart';
 import '../widgets/ledger_card.dart';
 import '../widgets/month_selector.dart';
+import '../widgets/monthly_summary_chips.dart';
 import '../widgets/page_header.dart';
 import '../widgets/period_bar_chart.dart';
 import '../widgets/period_format.dart';
@@ -166,6 +167,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
             provider.isCurrentMonth
                 ? '今月の支出'
                 : '${formatPeriod(provider.year, provider.month)}の支出',
+        footer:
+            provider.comparison == null
+                ? null
+                : MonthlySummaryChips(
+                  comparison: provider.comparison!,
+                  transactionCount: summary.transactionCount,
+                ),
       ),
       const SizedBox(height: 16),
       if (provider.split case final split?) ...[
@@ -220,6 +228,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     BuildContext context,
     double total, {
     required String label,
+    Widget? footer,
   }) {
     return LedgerCard(
       child: Column(
@@ -245,6 +254,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
               ),
             ),
           ),
+          if (footer != null) ...[const SizedBox(height: 16), footer],
         ],
       ),
     );

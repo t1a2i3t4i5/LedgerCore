@@ -46,7 +46,7 @@ String formatYen(double amount) => '¥${_displayFormat.format(amount)}';
 
 /// 全体に占める割合を `35.2%` の形にする。
 ///
-/// 現在の呼び出しは `CategoryBreakdownRow` の 1 か所だけだが、
+/// `CategoryBreakdownRow` の構成比と `MonthlySummaryChips` の先月比で共有する。
 /// `toStringAsFixed` を画面に書き戻さない。ここに置くのは、**同じ行に並ぶ
 /// 金額と % の書式が対で決まる**ため。行の上段で [formatYen] の結果と並び、
 /// 下段の `RatioBar` にも同じ `amount` / `total` が渡る。

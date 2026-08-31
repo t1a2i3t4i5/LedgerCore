@@ -1,4 +1,5 @@
 import '../db/database.dart';
+import '../db/summary_calculator.dart';
 import '../models/summary.dart';
 import '../models/split.dart';
 import 'month_scoped_provider.dart';
@@ -24,6 +25,7 @@ class SummaryProvider extends MonthScopedProvider {
   final AppDatabase _db;
 
   MonthlySummary? _summary;
+  MonthlyComparisonView? _comparison;
   SplitResult? _split;
   SummaryPeriod _period = SummaryPeriod.month;
   YearlySummary? _yearly;
@@ -48,6 +50,9 @@ class SummaryProvider extends MonthScopedProvider {
 
   // year / month は MonthScopedProvider が持つ
   MonthlySummary? get summary => _summary;
+
+  /// 月モードだけで表示する、表示月とその前月の比較。
+  MonthlyComparisonView? get comparison => _comparison;
   SplitResult? get split => _split;
   SummaryPeriod get period => _period;
 
@@ -119,7 +124,19 @@ class SummaryProvider extends MonthScopedProvider {
       // 年モードだからという理由で split を落とすと、割り勘タブを開いた人に
       // 「データがありません」が出る。月次サマリーも月モードの合計カードと
       // カテゴリ別に要る
-      _summary = await _db.getMonthlySummary(year, month);
+      final summary = await _db.getMonthlySummary(year, month);
+      _summary = summary;
+      if (_period == SummaryPeriod.month) {
+        // 取得済みのサマリーの年月を使う。1月の前月は前年12月に正規化される。
+        final previousMonth = DateTime(summary.year, summary.month - 1);
+        final previous = await _db.getMonthlySummary(
+          previousMonth.year,
+          previousMonth.month,
+        );
+        _comparison = buildMonthlyComparison(summary, previous);
+      } else {
+        _comparison = null;
+      }
       _split = await _db.getSplit(year, month);
 
       // 年次データだけをモードで出し分ける。全部を毎回取ると、月モードしか
