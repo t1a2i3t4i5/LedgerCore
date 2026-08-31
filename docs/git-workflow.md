@@ -140,6 +140,8 @@ PR を作成・更新すると GitHub Actions の `Analyze` と `Test` が並列
 gh pr merge --squash --delete-branch
 ```
 
+worktree から実行する場合と、子 PR が積み上がっている場合は経路が変わる。トラブルシューティングを参照するか、`/merge` を使う。
+
 ### Step 8. `main` を最新化
 
 ```bash
@@ -147,9 +149,14 @@ git switch main
 git pull
 ```
 
-## スキルで通す — `/implement`
+## スキルで通す — `/implement` と `/merge`
 
-`/implement <issue 番号>` は Step 2〜5（ブランチ作成から PR 作成まで）を 1 本で通す。入力は issue 番号 1 つで、終端は PR 作成まで。中断条件を含む手順の正本は [`.claude/skills/implement/SKILL.md`](../.claude/skills/implement/SKILL.md)。
+| コマンド | 通す範囲 | 入力 | 手順の正本 |
+| --- | --- | --- | --- |
+| `/implement <issue 番号>` | Step 2〜5（ブランチ作成から PR 作成まで） | issue 番号 1 つ | [`.claude/skills/implement/SKILL.md`](../.claude/skills/implement/SKILL.md) |
+| `/merge [PR 番号]` | Step 7〜8（squash merge から `main` 最新化・worktree 片付けまで） | PR 番号。省略時は現在のブランチの PR | [`.claude/skills/merge/SKILL.md`](../.claude/skills/merge/SKILL.md) |
+
+`/merge` は実装もレビューも修正もせず、落ちた CI も直さない。worktree の削除はユーザーが明示したときだけ行う。
 
 ## トラブルシューティング
 
@@ -162,6 +169,19 @@ gh api -X PUT repos/<owner>/<repo>/pulls/<num>/merge -f merge_method=squash
 gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>
 git -C /path/to/parent pull --ff-only origin main
 ```
+
+### 積み上げ PR の親をマージすると子 PR がクローズされる
+
+子 PR の base が親ブランチのまま `gh api -X DELETE .../git/refs/heads/<親>` や `git push origin --delete <親>` で ref を消すと、子 PR は base が `main` へ付け替わるのではなくクローズされる。クローズ後は base が無いため `gh pr reopen` も `gh pr edit --base` も通らない。GitHub が自動で付け替えるのは `gh pr merge --delete-branch` と Web UI の Delete branch だけで、生の ref 削除はその経路を通らないため。
+
+親を消す前に、先に子の base を付け替える。
+
+```bash
+gh pr edit <子PR> --base main     # 先にこれ
+git push origin --delete <親ブランチ>
+```
+
+squash merge 運用なので、付け替えた子 PR は `main` と必ずコンフリクトする。付け替えたあと子ブランチを `main` へ rebase する作業が別途要る。
 
 ### worktree の活用
 
