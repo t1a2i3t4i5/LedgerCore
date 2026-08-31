@@ -92,6 +92,21 @@ void main() {
       find.descendant(of: avatars.last, matching: find.text('自')),
       findsOneWidget,
     );
+    // 頭文字は塗り色から選ぶ。固定の明色だと淡いメンバー色に溶ける。
+    for (final (avatar, initial, member) in [
+      (avatars.first, 'み', members.last),
+      (avatars.last, '自', members.first),
+    ]) {
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(of: avatar, matching: find.text(initial)),
+            )
+            .style
+            ?.color,
+        labelColorOn(memberColor(member.id)),
+      );
+    }
     final leftAvatar = tester.getRect(avatars.first);
     final rightAvatar = tester.getRect(avatars.last);
     expect(leftAvatar.overlaps(rightAvatar), isTrue);
@@ -228,7 +243,7 @@ void main() {
     await pay(members[1].id, 300);
     await pumpApp(tester);
 
-    expect(inCard('メンバーごとの支払い額'), findsOneWidget);
+    expect(inCard('精算に必要な支払い'), findsOneWidget);
     expect(inCard('みく は\n¥100'), findsOneWidget);
     expect(inCard('たいち は\n¥400'), findsOneWidget);
     expect(inCard('自分 は\n¥500'), findsNothing);

@@ -53,7 +53,7 @@ class SettlementSummaryCard extends StatelessWidget {
             debtors.single.balance.abs(),
           )
         else ...[
-          const Text('メンバーごとの支払い額'),
+          const Text('精算に必要な支払い'),
           // 3人以上の送金先は既存の計算結果に無い。新たに割り当てず、
           // 各メンバーの不足額を省略せずに並べる。
           for (final debtor in debtors) ...[
@@ -211,7 +211,7 @@ class _MemberAvatars extends StatelessWidget {
                             ? '?'
                             : member.memberName.characters.first,
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimary,
+                          color: labelColorOn(memberColor(member.memberId)),
                         ),
                       ),
                     ),
