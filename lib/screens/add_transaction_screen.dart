@@ -8,6 +8,7 @@ import '../providers/member_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../theme/ledger_tokens.dart';
 import '../widgets/amount_format.dart';
+import '../widgets/chart_palette.dart';
 import '../widgets/ledger_card.dart';
 import '../widgets/period_format.dart';
 
@@ -307,28 +308,63 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                             Consumer<CategoryProvider>(
                               builder: (context, catProvider, _) {
                                 final cats = catProvider.categories;
-                                return DropdownButtonFormField<int>(
+                                return FormField<int>(
                                   initialValue: _selectedCategoryId,
-                                  decoration: const InputDecoration(
-                                    labelText: 'カテゴリ',
-                                    prefixIcon: Icon(Icons.label_outline),
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  items:
-                                      cats
-                                          .map(
-                                            (c) => DropdownMenuItem(
-                                              value: c.id,
-                                              child: Text(c.name),
-                                            ),
-                                          )
-                                          .toList(),
-                                  onChanged:
-                                      (v) => setState(
-                                        () => _selectedCategoryId = v,
-                                      ),
                                   validator:
                                       (v) => v == null ? 'カテゴリを選択してください' : null,
+                                  builder: (state) {
+                                    return InputDecorator(
+                                      decoration: InputDecoration(
+                                        labelText: 'カテゴリ',
+                                        prefixIcon: const Icon(
+                                          Icons.label_outline,
+                                        ),
+                                        border: const OutlineInputBorder(),
+                                        errorText: state.errorText,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 4,
+                                            ),
+                                      ),
+                                      // 件数に応じて縦に伸ばし、画面全体の
+                                      // スクロールで末尾のカテゴリまで選べるようにする。
+                                      child: Wrap(
+                                        spacing: 8,
+                                        children:
+                                            cats.map((c) {
+                                              return ChoiceChip(
+                                                avatar: DecoratedBox(
+                                                  decoration: BoxDecoration(
+                                                    color: categoryColor(c.id),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const SizedBox.square(
+                                                    dimension: 10,
+                                                  ),
+                                                ),
+                                                label: Text(
+                                                  c.name,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                                tooltip: c.name,
+                                                selected: state.value == c.id,
+                                                onSelected: (selected) {
+                                                  if (!selected) return;
+                                                  setState(
+                                                    () =>
+                                                        _selectedCategoryId =
+                                                            c.id,
+                                                  );
+                                                  state.didChange(c.id);
+                                                },
+                                              );
+                                            }).toList(),
+                                      ),
+                                    );
+                                  },
                                 );
                               },
                             ),

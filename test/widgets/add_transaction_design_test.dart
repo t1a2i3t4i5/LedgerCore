@@ -23,7 +23,8 @@ class _EmptyMemberProvider extends MemberProvider {
 }
 
 class _BlockingTransactionProvider extends TransactionProvider {
-  _BlockingTransactionProvider(super.db);
+  _BlockingTransactionProvider(super.db)
+    : super(clock: () => DateTime(2026, 7, 15));
 
   final blocker = Completer<void>();
   int createCalls = 0;
@@ -75,7 +76,9 @@ void main() {
             value: memberProvider ?? MemberProvider(db),
           ),
           ChangeNotifierProvider.value(
-            value: transactionProvider ?? TransactionProvider(db),
+            value:
+                transactionProvider ??
+                TransactionProvider(db, clock: () => DateTime(2026, 7, 15)),
           ),
         ],
         child: MaterialApp(
@@ -94,9 +97,12 @@ void main() {
 
   Future<void> selectFirstCategory(WidgetTester tester) async {
     final firstCategory = (await db.getCategories()).first.name;
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    final chip = find.widgetWithText(ChoiceChip, firstCategory);
+    await tester.ensureVisible(chip);
     await tester.pumpAndSettle();
-    await tester.tap(find.text(firstCategory).last);
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.widgetWithText(TextButton, '保存'));
     await tester.pumpAndSettle();
   }
 
@@ -330,7 +336,10 @@ void main() {
 
     expect(find.text('支出を編集'), findsOneWidget);
     expect(find.text('支出を追加'), findsNothing);
-    await tester.enterText(find.byType(TextFormField).last, '更新済み');
+    final memoField = find.byType(TextFormField).last;
+    await tester.ensureVisible(memoField);
+    await tester.pumpAndSettle();
+    await tester.enterText(memoField, '更新済み');
     await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
@@ -374,16 +383,16 @@ void main() {
   testWidgets('選択済みの登録者チップを押しても解除されず保存できる', (tester) async {
     await pumpScreen(tester);
 
-    final memberId = (await db.getMembers()).first.id;
-    final chip = tester.widget<ChoiceChip>(find.byType(ChoiceChip).first);
+    final member = (await db.getMembers()).first;
+    final memberChip = find.widgetWithText(ChoiceChip, member.name);
+    final chip = tester.widget<ChoiceChip>(memberChip);
     expect(chip.selected, isTrue);
 
-    await tester.tap(find.byType(ChoiceChip).first);
+    await tester.ensureVisible(memberChip);
+    await tester.pumpAndSettle();
+    await tester.tap(memberChip);
     await tester.pump();
-    expect(
-      tester.widget<ChoiceChip>(find.byType(ChoiceChip).first).selected,
-      isTrue,
-    );
+    expect(tester.widget<ChoiceChip>(memberChip).selected, isTrue);
 
     await selectFirstCategory(tester);
     await tester.enterText(find.byType(TextFormField).first, '1200');
@@ -391,7 +400,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final saved = (await db.getAllTransactions()).single;
-    expect(saved.memberId, memberId);
+    expect(saved.memberId, member.id);
     expect(find.text('登録者を選択してください'), findsNothing);
   });
 
@@ -418,7 +427,10 @@ void main() {
       isFalse,
     );
 
-    await tester.tap(find.widgetWithText(ChoiceChip, secondMember.name));
+    final secondMemberChip = find.widgetWithText(ChoiceChip, secondMember.name);
+    await tester.ensureVisible(secondMemberChip);
+    await tester.pumpAndSettle();
+    await tester.tap(secondMemberChip);
     await tester.pump();
 
     expect(
