@@ -12,6 +12,7 @@ abstract final class LedgerTokens {
 
   static const balancePositive = Color(0xFF5E8776);
   static const balancePositiveSurface = Color(0xFFE9F0EC);
+  static const settlementSurface = Color(0xFFF5EEE5);
   static const balanceNegative = Color(0xFFC4633A);
   static const balanceEven = Color(0xFFA39288);
 

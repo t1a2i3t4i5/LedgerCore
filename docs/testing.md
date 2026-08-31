@@ -38,6 +38,10 @@ Zen Maru Gothic / Zen Kaku Gothic New / Outfit の字形では描画されない
 できない。既存の幅テストも出荷される字幅を測っていないため、フォント asset の宣言漏れや
 パス誤りは実機またはアプリ実行時の目視で確認する。
 
+`settlement_summary_card_test.dart` は横並びと縦配置の切り替えを実際の字幅で検証するため、
+例外的に `FontLoader` で同梱フォントを明示的に読み込む。Ahem の字幅では、通常サイズでも
+横並びに収まらず、添付デザインの配置を検証できないため。
+
 ### fl_chart は「どこが Canvas 直描きか」で検証手段が変わる
 
 かつてここには「fl_chart が扇形や軸に描く文字は `Canvas` 直描きなので `find.text()` では拾えない」と書いてあった。**軸については fl_chart 1.x で成り立たない。** `side_titles_widget.dart` が `SideTitles.getTitlesWidget` の返り値をそのままウィジェットツリーに載せるため、軸ラベルは通常の `Text` として存在する。削除した円グラフ（0.x 系）の扇形ラベルだけを見て一般化したのが元の記述で、`period_bar_chart_test.dart` を書く段で誤りが分かった。
