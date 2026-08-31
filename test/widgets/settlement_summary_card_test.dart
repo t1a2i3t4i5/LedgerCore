@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/logging/log_sink.dart';
@@ -11,12 +12,25 @@ import 'package:ledger_app/main.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/screens/split_screen.dart';
 import 'package:ledger_app/theme/ledger_theme.dart';
+import 'package:ledger_app/theme/ledger_tokens.dart';
+import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/settlement_summary_card.dart';
 
 void main() {
   late AppDatabase db;
   final fixedNow = DateTime(2026, 7, 15);
   final card = find.byType(SettlementSummaryCard);
+
+  setUpAll(() async {
+    // 横並びの可否を実際の字幅で判断するため、同梱フォントを明示的に読む。
+    for (final (family, path) in [
+      ('ZenMaruGothic', 'assets/fonts/ZenMaruGothic-Regular.ttf'),
+      ('ZenKakuGothicNew', 'assets/fonts/ZenKakuGothicNew-Bold.ttf'),
+      ('Outfit', 'assets/fonts/Outfit-SemiBold.ttf'),
+    ]) {
+      await (FontLoader(family)..addFont(rootBundle.load(path))).load();
+    }
+  });
 
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() async => db.close());
@@ -54,8 +68,51 @@ void main() {
     await pay((await db.getMembers()).first.id, 124980);
     await pumpApp(tester);
 
-    expect(inCard('みく → 自分 に ¥62,490'), findsOneWidget);
+    expect(inCard('みく → 自分 に\n¥62,490'), findsOneWidget);
     expect(inCard('精算する'), findsOneWidget);
+    final avatars = find.descendant(
+      of: card,
+      matching: find.byType(CircleAvatar),
+    );
+    expect(avatars, findsNWidgets(2));
+    final members = await db.getMembers();
+    expect(
+      tester.widget<CircleAvatar>(avatars.first).backgroundColor,
+      memberColor(members.last.id),
+    );
+    expect(
+      tester.widget<CircleAvatar>(avatars.last).backgroundColor,
+      memberColor(members.first.id),
+    );
+    expect(
+      find.descendant(of: avatars.first, matching: find.text('み')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: avatars.last, matching: find.text('自')),
+      findsOneWidget,
+    );
+    final leftAvatar = tester.getRect(avatars.first);
+    final rightAvatar = tester.getRect(avatars.last);
+    expect(leftAvatar.overlaps(rightAvatar), isTrue);
+    expect(leftAvatar.left, lessThan(rightAvatar.left));
+    final button = find.descendant(
+      of: card,
+      matching: find.byType(FilledButton),
+    );
+    final payment = tester.getRect(inCard('みく → 自分 に\n¥62,490'));
+    expect(rightAvatar.right, lessThan(payment.left));
+    expect(payment.right, lessThanOrEqualTo(tester.getRect(button).left));
+    expect(tester.getCenter(button).dy, closeTo(tester.getCenter(card).dy, 1));
+    final material = tester.widget<Material>(
+      find.descendant(of: card, matching: find.byType(Material)).first,
+    );
+    expect(material.color, LedgerTokens.settlementSurface);
+    final buttonMaterial = tester.widget<Material>(
+      find.descendant(of: button, matching: find.byType(Material)).first,
+    );
+    expect(buttonMaterial.color, ledgerTheme.colorScheme.primary);
+    expect(buttonMaterial.shape, isA<StadiumBorder>());
     expect(
       tester.getBottomLeft(find.text('¥124,980').first).dy,
       lessThan(tester.getTopLeft(card).dy),
@@ -64,6 +121,10 @@ void main() {
       tester.getBottomLeft(card).dy,
       lessThan(tester.getTopLeft(find.text('カテゴリ別')).dy),
     );
+    // ピル型ボタン自身からも、本文と同じ割り勘タブへ移れる。
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.byType(SplitScreen), findsOneWidget);
   });
 
   testWidgets('割り切れない差額も formatYen と同じ整数円表示にする', (tester) async {
@@ -71,7 +132,7 @@ void main() {
     await pay((await db.getMembers()).first.id, 2469);
     await pumpApp(tester);
 
-    expect(inCard('みく → 自分 に ¥1,235'), findsOneWidget);
+    expect(inCard('みく → 自分 に\n¥1,235'), findsOneWidget);
   });
 
   testWidgets('月送りで金額が変わり、カードから同じ月の割り勘へ移る', (tester) async {
@@ -86,8 +147,8 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.chevron_left));
     await tester.pumpAndSettle();
-    expect(inCard('自分 → みく に ¥2,000'), findsOneWidget);
-    expect(inCard('みく → 自分 に ¥62,490'), findsNothing);
+    expect(inCard('自分 → みく に\n¥2,000'), findsOneWidget);
+    expect(inCard('みく → 自分 に\n¥62,490'), findsNothing);
 
     ScaffoldMessenger.of(tester.element(card)).showSnackBar(
       const SnackBar(content: Text('前のタブの案内'), duration: Duration(minutes: 1)),
@@ -95,7 +156,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('前のタブの案内'), findsOneWidget);
     // ボタン文言だけでなく、要点の本文もタップ領域に含まれる。
-    await tester.tap(inCard('自分 → みく に ¥2,000'));
+    await tester.tap(inCard('自分 → みく に\n¥2,000'));
     await tester.pumpAndSettle();
     await tester.pump();
 
@@ -120,7 +181,7 @@ void main() {
     await db.insertMember('みく');
     await pay((await db.getMembers()).first.id, 4000);
     await pumpApp(tester);
-    expect(inCard('みく → 自分 に ¥2,000'), findsOneWidget);
+    expect(inCard('みく → 自分 に\n¥2,000'), findsOneWidget);
 
     for (final period in ['年', '全期間']) {
       await tester.tap(find.text(period));
@@ -129,7 +190,7 @@ void main() {
     }
     await tester.tap(find.text('月'));
     await tester.pumpAndSettle();
-    expect(inCard('みく → 自分 に ¥2,000'), findsOneWidget);
+    expect(inCard('みく → 自分 に\n¥2,000'), findsOneWidget);
   });
 
   for (final (count, hasPayments, message) in [
@@ -168,9 +229,9 @@ void main() {
     await pumpApp(tester);
 
     expect(inCard('メンバーごとの支払い額'), findsOneWidget);
-    expect(inCard('みく は ¥100'), findsOneWidget);
-    expect(inCard('たいち は ¥400'), findsOneWidget);
-    expect(inCard('自分 は ¥500'), findsNothing);
+    expect(inCard('みく は\n¥100'), findsOneWidget);
+    expect(inCard('たいち は\n¥400'), findsOneWidget);
+    expect(inCard('自分 は\n¥500'), findsNothing);
     expect(inCard('精算する'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -203,7 +264,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    final text = '${'い' * 50} → ${'あ' * 50} に ¥999,999,999,999';
+    final text = '${'い' * 50} → ${'あ' * 50} に\n¥999,999,999,999';
     await pumpCard(1);
     final normalHeight = tester.getSize(card).height;
     await pumpCard(2);
@@ -226,6 +287,14 @@ void main() {
       greaterThanOrEqualTo(bounds.left),
     );
     expect(tester.getRect(inCard(text)).right, lessThanOrEqualTo(bounds.right));
+    final button = find.descendant(
+      of: card,
+      matching: find.byType(FilledButton),
+    );
+    expect(
+      tester.getRect(button).top,
+      greaterThanOrEqualTo(tester.getRect(inCard(text)).bottom),
+    );
     await tester.ensureVisible(inCard('精算する'));
     await tester.pumpAndSettle();
     expect(inCard('精算する').hitTestable(), findsOneWidget);

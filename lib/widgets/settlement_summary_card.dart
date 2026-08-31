@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/split.dart';
 import '../theme/ledger_tokens.dart';
 import 'amount_format.dart';
+import 'chart_palette.dart';
 
 /// 月の割り勘結果をホームに表示する。計算とデータ取得は行わない。
 class SettlementSummaryCard extends StatelessWidget {
@@ -16,63 +17,111 @@ class SettlementSummaryCard extends StatelessWidget {
     final creditors = split.members.where((member) => member.balance > 0);
     final debtors = split.members.where((member) => member.balance < 0);
     final needsSettlement = creditors.isNotEmpty && debtors.isNotEmpty;
-    final colorScheme = Theme.of(context).colorScheme;
+    final pair = split.members.length == 2 && needsSettlement;
+    final avatarMembers =
+        pair
+            ? [debtors.single, creditors.single]
+            : split.members.take(3).toList();
+    final action =
+        onTap == null
+            ? null
+            : FilledButton(
+              onPressed: onTap,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+              ),
+              child: Text(needsSettlement ? '精算する' : '割り勘を見る'),
+            );
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (split.members.length < 2)
+          Text(
+            split.members.isEmpty ? 'メンバーを登録すると精算できます' : '精算には2人以上のメンバーが必要です',
+          )
+        else if (!needsSettlement)
+          const Text('精算不要')
+        else if (pair)
+          _payment(
+            context,
+            '${debtors.single.memberName} → ${creditors.single.memberName} に',
+            debtors.single.balance.abs(),
+          )
+        else ...[
+          const Text('メンバーごとの支払い額'),
+          // 3人以上の送金先は既存の計算結果に無い。新たに割り当てず、
+          // 各メンバーの不足額を省略せずに並べる。
+          for (final debtor in debtors) ...[
+            const SizedBox(height: 8),
+            _payment(context, '${debtor.memberName} は', debtor.balance.abs()),
+          ],
+        ],
+      ],
+    );
 
     return Material(
-      color: LedgerTokens.balancePositiveSurface,
+      color: LedgerTokens.settlementSurface,
       borderRadius: BorderRadius.circular(LedgerTokens.cardRadius),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (split.members.length < 2)
-                Text(
-                  split.members.isEmpty
-                      ? 'メンバーを登録すると精算できます'
-                      : '精算には2人以上のメンバーが必要です',
-                )
-              else if (!needsSettlement)
-                const Text('精算不要')
-              else if (split.members.length == 2)
-                _payment(
-                  context,
-                  '${debtors.single.memberName} → ${creditors.single.memberName} に ',
-                  debtors.single.balance.abs(),
-                )
-              else ...[
-                const Text('メンバーごとの支払い額'),
-                // 3人以上の送金先は既存の計算結果に無い。新たに割り当てず、
-                // 各メンバーの不足額を省略せずに並べる。
-                for (final debtor in debtors) ...[
-                  const SizedBox(height: 8),
-                  _payment(
-                    context,
-                    '${debtor.memberName} は ',
-                    debtor.balance.abs(),
-                  ),
-                ],
-              ],
-              if (onTap != null) ...[
-                const SizedBox(height: 8),
-                Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // 実際の書体と文字倍率で測り、アイコン・本文・ボタンが
+              // 収まるときだけ横並びにする。長い名前や上限額は縦へ逃がす。
+              final textTheme = Theme.of(context).textTheme;
+              final inline =
+                  pair &&
+                  60 +
+                          12 +
+                          _pairWidth(
+                            context,
+                            debtors.single,
+                            creditors.single,
+                          ) +
+                          (action == null
+                              ? 0
+                              : 12 +
+                                  32 +
+                                  _textWidth(
+                                    context,
+                                    '精算する',
+                                    textTheme.labelLarge!,
+                                  )) <=
+                      constraints.maxWidth;
+              if (inline) {
+                return Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        needsSettlement ? '精算する' : '割り勘を見る',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                    Icon(Icons.chevron_right, color: colorScheme.primary),
+                    _MemberAvatars(members: avatarMembers),
+                    const SizedBox(width: 12),
+                    Expanded(child: content),
+                    if (action != null) ...[const SizedBox(width: 12), action],
                   ],
-                ),
-              ],
-            ],
+                );
+              }
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (avatarMembers.isNotEmpty) ...[
+                    _MemberAvatars(members: avatarMembers),
+                    const SizedBox(height: 12),
+                  ],
+                  content,
+                  if (action != null) ...[
+                    const SizedBox(height: 8),
+                    Align(alignment: Alignment.centerRight, child: action),
+                  ],
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -80,15 +129,98 @@ class SettlementSummaryCard extends StatelessWidget {
   }
 
   Widget _payment(BuildContext context, String label, double amount) {
-    // 文と金額を一続きで折り返し、文字倍率を上げても固定高で切らない。
+    // 名前と金額を2段に分け、各段は文字倍率に応じてさらに折り返せる。
     return Text.rich(
       TextSpan(
         children: [
-          TextSpan(text: label),
-          TextSpan(text: formatYen(amount), style: LedgerTokens.amountSmall),
+          TextSpan(text: '$label\n'),
+          TextSpan(
+            text: formatYen(amount),
+            style: LedgerTokens.amountRow.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
         ],
       ),
-      style: Theme.of(context).textTheme.bodyMedium,
+      style: Theme.of(
+        context,
+      ).textTheme.bodyMedium?.copyWith(color: LedgerTokens.bodyMuted),
+    );
+  }
+
+  double _pairWidth(
+    BuildContext context,
+    MemberBalance from,
+    MemberBalance to,
+  ) {
+    final style = Theme.of(context).textTheme.bodyMedium!;
+    final labelWidth = _textWidth(
+      context,
+      '${from.memberName} → ${to.memberName} に',
+      style,
+    );
+    final amountWidth = _textWidth(
+      context,
+      formatYen(from.balance.abs()),
+      style.merge(LedgerTokens.amountRow),
+    );
+    return labelWidth > amountWidth ? labelWidth : amountWidth;
+  }
+
+  double _textWidth(BuildContext context, String text, TextStyle style) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
+  }
+}
+
+/// 送金元を左、送金先を右に重ねる。名前は本文にあるため読み上げは重ねない。
+class _MemberAvatars extends StatelessWidget {
+  const _MemberAvatars({required this.members});
+
+  final List<MemberBalance> members;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: 36 + 24.0 * (members.length - 1),
+        height: 36,
+        child: Stack(
+          children: [
+            for (final (index, member) in members.indexed)
+              PositionedDirectional(
+                start: index * 24.0,
+                child: DecoratedBox(
+                  decoration: const BoxDecoration(
+                    color: LedgerTokens.settlementSurface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: memberColor(member.memberId),
+                      child: Text(
+                        member.memberName.isEmpty
+                            ? '?'
+                            : member.memberName.characters.first,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
