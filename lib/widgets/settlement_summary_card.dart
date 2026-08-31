@@ -77,61 +77,56 @@ class SettlementSummaryCard extends StatelessWidget {
       color: LedgerTokens.settlementSurface,
       borderRadius: BorderRadius.circular(LedgerTokens.cardRadius),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // 実際の書体と文字倍率で測り、アイコン・本文・ボタンが
-              // 収まるときだけ横並びにする。長い名前や上限額は縦へ逃がす。
-              final textTheme = Theme.of(context).textTheme;
-              final inline =
-                  pair &&
-                  60 +
-                          12 +
-                          _pairWidth(
-                            context,
-                            debtors.single,
-                            creditors.single,
-                          ) +
-                          (action == null
-                              ? 0
-                              : 12 +
-                                  32 +
-                                  _textWidth(
-                                    context,
-                                    '精算する',
-                                    textTheme.labelLarge!,
-                                  )) <=
-                      constraints.maxWidth;
-              if (inline) {
-                return Row(
-                  children: [
-                    _MemberAvatars(members: avatarMembers),
-                    const SizedBox(width: 12),
-                    Expanded(child: content),
-                    if (action != null) ...[const SizedBox(width: 12), action],
-                  ],
-                );
-              }
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+      // カード全体はタップ領域にしない。移動できるのはボタンだけで、
+      // 本文や余白を押しても割り勘タブへ飛ばない。
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // 実際の書体と文字倍率で測り、アイコン・本文・ボタンが
+            // 収まるときだけ横並びにする。長い名前や上限額は縦へ逃がす。
+            final textTheme = Theme.of(context).textTheme;
+            final inline =
+                pair &&
+                60 +
+                        12 +
+                        _pairWidth(context, debtors.single, creditors.single) +
+                        (action == null
+                            ? 0
+                            : 12 +
+                                32 +
+                                _textWidth(
+                                  context,
+                                  '精算する',
+                                  textTheme.labelLarge!,
+                                )) <=
+                    constraints.maxWidth;
+            if (inline) {
+              return Row(
                 children: [
-                  if (avatarMembers.isNotEmpty) ...[
-                    _MemberAvatars(members: avatarMembers),
-                    const SizedBox(height: 12),
-                  ],
-                  content,
-                  if (action != null) ...[
-                    const SizedBox(height: 8),
-                    Align(alignment: Alignment.centerRight, child: action),
-                  ],
+                  _MemberAvatars(members: avatarMembers),
+                  const SizedBox(width: 12),
+                  Expanded(child: content),
+                  if (action != null) ...[const SizedBox(width: 12), action],
                 ],
               );
-            },
-          ),
+            }
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (avatarMembers.isNotEmpty) ...[
+                  _MemberAvatars(members: avatarMembers),
+                  const SizedBox(height: 12),
+                ],
+                content,
+                if (action != null) ...[
+                  const SizedBox(height: 8),
+                  Align(alignment: Alignment.centerRight, child: action),
+                ],
+              ],
+            );
+          },
         ),
       ),
     );

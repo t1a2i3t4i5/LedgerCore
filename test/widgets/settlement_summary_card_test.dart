@@ -170,8 +170,13 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('前のタブの案内'), findsOneWidget);
-    // ボタン文言だけでなく、要点の本文もタップ領域に含まれる。
+    // 本文を押しても移動しない。押せるのはボタンだけ。
     await tester.tap(inCard('自分 → みく に\n¥2,000'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SplitScreen), findsNothing);
+    expect(find.text('前のタブの案内'), findsOneWidget);
+
+    await tester.tap(find.descendant(of: card, matching: find.text('精算する')));
     await tester.pumpAndSettle();
     await tester.pump();
 
