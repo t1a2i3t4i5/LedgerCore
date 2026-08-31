@@ -53,6 +53,7 @@ void main() {
       final s = buildMonthlySummary(2026, 7, txns);
 
       expect(s.total, 2300);
+      expect(s.transactionCount, 3);
       // 降順: 交通費(1500) > 食費(800)
       expect(s.byCategory.first.categoryName, '交通費');
       expect(s.byCategory.first.total, 1500);
@@ -76,9 +77,38 @@ void main() {
     test('取引が無ければ total は 0', () {
       final s = buildMonthlySummary(2026, 7, []);
       expect(s.total, 0);
+      expect(s.transactionCount, 0);
       expect(s.byCategory, isEmpty);
       expect(s.byMember, isEmpty);
     });
+  });
+
+  group('buildMonthlyComparison', () {
+    for (final (currentAmount, previousAmount, expectedChange) in [
+      (1120.0, 1000.0, 120.0),
+      (750.0, 1000.0, -250.0),
+      (1000.0, 1000.0, 0.0),
+      (0.0, 1000.0, -1000.0),
+      (1000.0, 0.0, 1000.0),
+      (0.0, 0.0, 0.0),
+      (kMaxAmount, 1.0, kMaxAmount - 1),
+    ]) {
+      test('当月$currentAmount / 前月$previousAmountの差額と前月合計を返す', () {
+        final current = buildMonthlySummary(2026, 7, [
+          if (currentAmount > 0)
+            _tx(memberId: 1, memberName: 'A', amount: currentAmount),
+        ]);
+        final previous = buildMonthlySummary(2026, 6, [
+          if (previousAmount > 0)
+            _tx(memberId: 1, memberName: 'A', amount: previousAmount),
+        ]);
+
+        final comparison = buildMonthlyComparison(current, previous);
+
+        expect(comparison.previousTotal, previousAmount);
+        expect(comparison.amountChange, expectedChange);
+      });
+    }
   });
 
   group('buildYearlySummary', () {

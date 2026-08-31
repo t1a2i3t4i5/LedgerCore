@@ -37,10 +37,20 @@ MonthlySummary buildMonthlySummary(
     year: year,
     month: month,
     total: total,
+    transactionCount: txns.length,
     byCategory: byCategory,
     byMember: byMember,
   );
 }
+
+/// 同じ月次集計の純関数で求めた当月・前月の合計から差額を求める。
+MonthlyComparisonView buildMonthlyComparison(
+  MonthlySummary current,
+  MonthlySummary previous,
+) => MonthlyComparisonView(
+  previousTotal: previous.total,
+  amountChange: current.total - previous.total,
+);
 
 /// 指定年の年次サマリーを組み立てる。
 /// 月別合計は取引の無い月も 0 で埋めた 12 件を返す（グラフの X 軸を欠けさせないため）。

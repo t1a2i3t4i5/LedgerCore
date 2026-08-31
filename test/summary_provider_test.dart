@@ -62,6 +62,83 @@ void main() {
     });
   });
 
+  group('前月との比較', () {
+    for (final (year, month) in [(2026, 1), (2024, 3)]) {
+      test('$year年$month月と前月を半開区間で取得する', () async {
+        final start = DateTime(year, month);
+        final previousStart = DateTime(year, month - 1);
+        await seed(previousStart.subtract(const Duration(seconds: 1)), 9000);
+        await seed(previousStart, 300);
+        await seed(start.subtract(const Duration(seconds: 1)), 700);
+        await seed(start, 400);
+        await seed(
+          DateTime(year, month + 1).subtract(const Duration(seconds: 1)),
+          720,
+        );
+        await seed(DateTime(year, month + 1), 8000);
+
+        await provider.goToMonth(year, month);
+
+        expect(provider.error, isNull);
+        expect(provider.summary!.year, year);
+        expect(provider.summary!.month, month);
+        expect(provider.summary!.total, 1120);
+        expect(provider.summary!.transactionCount, 2);
+        expect(provider.comparison!.previousTotal, 1000);
+        expect(provider.comparison!.amountChange, 120);
+        expect(provider.split!.total, 1120);
+      });
+    }
+
+    test('再取得で当月の件数と前月の編集・削除を反映する', () async {
+      await seed(DateTime(2026, 6, 15), 1000);
+      await seed(DateTime(2026, 7, 15), 1120);
+      await provider.fetch();
+      expect(provider.summary!.transactionCount, 1);
+      expect(provider.comparison!.amountChange, 120);
+
+      final previous = (await db.getTransactionsByMonth(2026, 6)).single;
+      await db.updateTransaction(
+        previous.id,
+        TransactionInput(
+          memberId: previous.memberId,
+          categoryId: previous.categoryId,
+          amount: 2000,
+          spentAt: previous.spentAt,
+        ),
+      );
+      await seed(DateTime(2026, 7, 20), 880);
+      await provider.fetch();
+      expect(provider.summary!.transactionCount, 2);
+      expect(provider.comparison!.previousTotal, 2000);
+      expect(provider.comparison!.amountChange, 0);
+
+      await db.deleteTransaction(previous.id);
+      await provider.fetch();
+      expect(provider.comparison!.previousTotal, 0);
+      expect(provider.comparison!.amountChange, 2000);
+    });
+
+    test('年・全期間では比較を捨て、月へ戻ると表示月の前月を取り直す', () async {
+      await seed(DateTime(2026, 6, 15), 1000);
+      await seed(DateTime(2026, 7, 15), 1120);
+      await provider.fetch();
+      expect(provider.comparison!.previousTotal, 1000);
+
+      for (final period in [SummaryPeriod.year, SummaryPeriod.all]) {
+        await provider.setPeriod(period);
+        expect(provider.comparison, isNull);
+        expect(provider.summary!.transactionCount, 1);
+        expect(provider.split!.total, 1120);
+      }
+      await provider.goToMonth(2026, 8);
+      await provider.setPeriod(SummaryPeriod.month);
+      expect(provider.summary!.transactionCount, 0);
+      expect(provider.comparison!.previousTotal, 1120);
+      expect(provider.comparison!.amountChange, -1120);
+    });
+  });
+
   group('年モード', () {
     test('12 か月ぶんを取り、取引の無い月は 0 になる', () async {
       await seedThreeYears();

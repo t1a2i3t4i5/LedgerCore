@@ -38,6 +38,7 @@ class MonthlySummary {
   final int year;
   final int month;
   final double total;
+  final int transactionCount;
   final List<CategorySummaryItem> byCategory;
   final List<MemberSummaryItem> byMember;
 
@@ -45,8 +46,20 @@ class MonthlySummary {
     required this.year,
     required this.month,
     required this.total,
+    required this.transactionCount,
     required this.byCategory,
     required this.byMember,
+  });
+}
+
+/// 月次合計の比較。割合の書式と、前月が0円の表示は表示層で決める。
+class MonthlyComparisonView {
+  final double previousTotal;
+  final double amountChange;
+
+  const MonthlyComparisonView({
+    required this.previousTotal,
+    required this.amountChange,
   });
 }
 
