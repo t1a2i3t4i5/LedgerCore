@@ -32,7 +32,11 @@ void main() {
         providers: [
           ChangeNotifierProvider(create: (_) => CategoryProvider(db)),
           ChangeNotifierProvider(create: (_) => MemberProvider(db)),
-          ChangeNotifierProvider(create: (_) => TransactionProvider(db)),
+          ChangeNotifierProvider(
+            create:
+                (_) =>
+                    TransactionProvider(db, clock: () => DateTime(2026, 7, 15)),
+          ),
         ],
         child: MaterialApp(home: AddTransactionScreen(existing: existing)),
       ),
@@ -44,9 +48,12 @@ void main() {
   /// カテゴリ未選択で保存が止まらないよう、先頭カテゴリを選んでおく
   Future<void> selectFirstCategory(WidgetTester tester) async {
     final firstCategory = (await db.getCategories()).first.name;
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    final chip = find.widgetWithText(ChoiceChip, firstCategory);
+    await tester.ensureVisible(chip);
     await tester.pumpAndSettle();
-    await tester.tap(find.text(firstCategory).last);
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.widgetWithText(TextButton, '保存'));
     await tester.pumpAndSettle();
   }
 
@@ -143,7 +150,12 @@ void main() {
     // 金額に触らず保存し直しても値は変わらない。
     // ただし「保存後も 1234」だけを見ると、保存が一度も実行されなくても
     // 通ってしまう。メモを書き換えて、更新が実際に走ったことを併せて確かめる
-    await tester.enterText(find.byType(TextFormField).last, '保存し直した');
+    final memoField = find.byType(TextFormField).last;
+    await tester.ensureVisible(memoField);
+    await tester.pumpAndSettle();
+    await tester.enterText(memoField, '保存し直した');
+    await tester.ensureVisible(find.widgetWithText(TextButton, '保存'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
 

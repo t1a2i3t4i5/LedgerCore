@@ -147,6 +147,11 @@ bool _isEllipsized(WidgetTester tester, String text) =>
 
 左右の矢印を入れ替えても Provider 側のテストは全部通る。矢印と「今月に戻る」は `tester.tap` で実際に押す。
 
+取引入力ではカテゴリと登録者の両方が `ChoiceChip` を使うため、`find.byType(ChoiceChip).first` で
+選択対象を決めない。カテゴリ欄や登録者名で対象を特定し、画面外なら `ensureVisible` してから押す。
+カテゴリが多いケースでは、末尾までスクロールして選んだ ID が実 DB に保存されることも確認する。
+チップの件数や選択色だけでは、保存用の値との同期漏れを検出できない。
+
 月選択の UI 自体は `lib/widgets/month_selector.dart` の `MonthSelector` に集約してあるので、**画面を足すときに Row を手で複製しない**。ただし集約したのは見た目だけで、どの Provider を渡してどのコールバックを結ぶかは画面ごとに違う。テストも 2 段に分かれる。
 
 - `test/widgets/month_selector_test.dart` — `MonthSelector` 単体。DB も Provider も組み立てず、渡したコールバックが押した矢印どおりに呼ばれるかを直接見る

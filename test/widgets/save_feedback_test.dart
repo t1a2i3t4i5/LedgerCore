@@ -47,12 +47,13 @@ void main() {
   /// カレンダーの升目を辿ると初期表示月が実時刻依存になるため、
   /// テキスト入力モードに切り替えて日付を直接打ち込む
   Future<void> pickDate(WidgetTester tester, DateTime date) async {
-    await tester.tap(
-      find.ancestor(
-        of: find.byIcon(Icons.calendar_today),
-        matching: find.byType(InkWell),
-      ),
+    final dateRow = find.ancestor(
+      of: find.byIcon(Icons.calendar_today),
+      matching: find.byType(InkWell),
     );
+    await tester.ensureVisible(dateRow);
+    await tester.pumpAndSettle();
+    await tester.tap(dateRow);
     await tester.pumpAndSettle();
 
     // カレンダー ⇄ テキスト入力の切り替えボタン
@@ -74,16 +75,25 @@ void main() {
 
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.widgetWithText(TextButton, '保存'));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> selectCategory(WidgetTester tester, String name) async {
+    final chip = find.widgetWithText(ChoiceChip, name);
+    await tester.ensureVisible(chip);
+    await tester.pumpAndSettle();
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.widgetWithText(TextButton, '保存'));
+    await tester.pumpAndSettle();
   }
 
   /// 金額とカテゴリを埋めて保存する
   Future<void> fillAndSave(WidgetTester tester, String amount) async {
     final firstCategory = (await db.getCategories()).first.name;
     await tester.enterText(find.byType(TextFormField).first, amount);
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(firstCategory).last);
-    await tester.pumpAndSettle();
+    await selectCategory(tester, firstCategory);
 
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
@@ -94,10 +104,7 @@ void main() {
     await openAddScreen(tester);
     await tester.enterText(find.byType(TextFormField).first, '1500');
     final firstCategory = (await db.getCategories()).first.name;
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(firstCategory).last);
-    await tester.pumpAndSettle();
+    await selectCategory(tester, firstCategory);
 
     await tester.tap(find.text('キャンセル'));
     await tester.pumpAndSettle();
@@ -219,10 +226,7 @@ void main() {
 
       final firstCategory = (await db.getCategories()).first;
       await tester.enterText(find.byType(TextFormField).first, '1500');
-      await tester.tap(find.byType(DropdownButtonFormField<int>));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(firstCategory.name).last);
-      await tester.pumpAndSettle();
+      await selectCategory(tester, firstCategory.name);
 
       await db.deleteCategory(firstCategory.id);
       tester.view.viewInsets = FakeViewPadding(bottom: keyboardHeight);
