@@ -76,6 +76,18 @@ class OperationLogger {
   /// ログの中身を確かめるテストが、書き出しの完了を待つための口
   Future<void> flush() async => _pending;
 
+  /// 先行する書き込み後に読み出しを行い、その間の追記・世代交代を待たせる。
+  /// 共有シートの待機はこの中へ含めない。失敗しても後続の書き込みは再開する。
+  Future<T> withPausedWrites<T>(Future<T> Function() read) {
+    final previous = _pending;
+    final result = () async {
+      if (previous != null) await previous;
+      return read();
+    }();
+    _pending = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result;
+  }
+
   void _enqueue(
     LogLevel lv,
     String op,

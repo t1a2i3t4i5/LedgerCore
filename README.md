@@ -19,6 +19,7 @@
   - 全期間 — 年別の支出推移を棒グラフで表示する
 - **割り勘** — メンバー全員で均等割りし、各自の過不足と精算方法を算出（すべて端末内で計算）
   - ホームの月モードでも精算の要点を確認でき、カードのボタンから同じ月の割り勘タブへ移動する
+- **操作ログの共有** — 設定の「ログを共有」から退避・現行ログを1本の `.txt` として OS の共有シートへ渡す。カテゴリ名・メンバー名・金額が含まれるため、共有先に注意する。DB は共有しない
 
 ## 必要環境
 
@@ -64,7 +65,8 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 | 日付整形   | `intl`                                                  |
 | グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし。支出推移の棒グラフで使う） |
 | 操作ログ   | 自前実装（`lib/logging/`）。端末内のファイルへ JSON Lines で追記する |
-| ファイル配置 | `path_provider` + `path`（ログの書き込み先の解決だけに使う） |
+| ファイル配置 | `path_provider` + `path`（ログの保存先と共有用の一時領域を解決する） |
+| ログ共有 | `share_plus`（OS の共有シート。アプリ自身は通信しない） |
 | コード生成 | `drift_dev` + `build_runner`                            |
 | Lint       | `flutter_lints`（`analysis_options.yaml`）              |
 
@@ -152,7 +154,10 @@ lib/
 │   ├── operation_logger.dart  # 記録の入口と書き出しキュー
 │   ├── log_entry.dart         # ログ 1 行のデータと JSON Lines への整形（純関数）
 │   ├── log_sink.dart          # 書き出し先の抽象・何もしない実装・テスト用のメモリ実装
-│   └── file_log_sink.dart     # ファイルへの追記とサイズによる世代交代
+│   ├── file_log_sink.dart     # ファイルへの追記とサイズによる世代交代
+│   ├── log_share.dart         # 共有の抽象と何もしない実装
+│   ├── log_export.dart        # ログの読み出し・連結・共有ファイル名
+│   └── file_log_share.dart    # 共有用コピーの作成・OS 共有シート・後片付け
 ├── providers/                 # 状態管理（provider / ChangeNotifier）
 │   ├── month_scoped_provider.dart # 表示月の共通基底
 │   ├── member_provider.dart
@@ -161,7 +166,7 @@ lib/
 │   └── summary_provider.dart
 ├── screens/
 │   ├── main_screen.dart       # ボトムナビゲーションと 4 タブの束ね
-│   ├── settings_screen.dart   # カテゴリ・メンバー管理への設定導線
+│   ├── settings_screen.dart   # カテゴリ・メンバー管理とログ共有への設定導線
 │   ├── transactions_screen.dart   # 取引一覧
 │   ├── add_transaction_screen.dart# 取引の追加・編集
 │   ├── transaction_filter_sheet.dart # 一覧のソート・フィルター設定

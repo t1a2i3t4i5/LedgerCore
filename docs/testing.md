@@ -196,9 +196,25 @@ bool _isEllipsized(WidgetTester tester, String text) =>
 Provider にも `LedgerApp` にも `logger` を任意引数で渡せるので、ログを見ないテストは今までどおりの
 書き方のまま動く（省略時は何も書かない `NoopLogSink`）。
 
-`FileLogSink` のテストだけは `Directory.systemTemp.createTemp()` を渡す。書き込み先のディレクトリを
+`FileLogSink` とログ共有のファイル処理のテストは `Directory.systemTemp.createTemp()` を渡す。書き込み先のディレクトリを
 コンストラクタ引数にしてあるのは、**`path_provider` がプラグインで素の `flutter test` では答えない**ため。
-パスの解決は `main.dart` の `_createLogger` に閉じてあり、そこはテストしない。
+パスの解決は `main.dart` の `_createLogging` に閉じてあり、そこはテストしない。
+
+ログ共有の画面テストは `LogShare` の記録用実装を注入し、添付・キュー・後片付けは
+`test/logging/file_log_share_test.dart` の通常の `test()` で実ファイルを使って見る。
+OS の共有シート自体はウィジェットテストでは開かない。プラグインへ渡すファイル数・MIME・矩形は
+MethodChannel の引数まで確かめるが、共有候補や受け取り側アプリの挙動を保証するテストではない。
+シミュレータでは「ファイルに保存」と元ログとの照合、LINE の候補表示は実機で確認する。
+
+共有プラグインの Future 完了を送信完了とみなさない。macOS は共有先を選ぶだけで戻るため、
+テストでは macOS に切り替えたうえで MethodChannel が共有先名を返した後も添付を読めること、
+次の共有で前の添付が消えないことを見る。他プラットフォームの削除テストも残す。
+タブ離脱の通知テストは、ホームをタップした直後と描画完了後の両方で共有を完了させる。
+`pumpAndSettle()` の後だけだと `mounted` だけのガードが通り、次の描画前の通知漏れを見逃す。
+
+空ログの判定では、共有呼び出しの直後に `logger.info('log.share')` を積むケースを置く。
+共有前に押下記録を書いてしまう変更は、ファイルを空にして読むだけのテストでは見つからない。
+世代交代との競合は小さい `maxBytes` と共有前後の書き込みで起こし、共有した本文の順序と欠落まで見る。
 
 失敗ログは `expect(entry['error'], isNotNull)` で終わらせない。理由（`CHECK constraint failed` など）まで見る。例外は `test/matchers.dart` のマッチャで型と文言を縛る。
 
