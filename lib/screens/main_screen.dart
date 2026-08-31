@@ -17,11 +17,11 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final _screens = const [
-    SummaryScreen(),
-    TransactionsScreen(),
-    SplitScreen(),
-    SettingsScreen(),
+  late final _screens = [
+    SummaryScreen(onOpenSplit: () => _selectTab(2)),
+    const TransactionsScreen(),
+    const SplitScreen(),
+    const SettingsScreen(),
   ];
 
   /// ログに載せるタブ名。**画面内の見出しとは別に持つ。**
@@ -29,33 +29,27 @@ class _MainScreenState extends State<MainScreen> {
   /// 集計が壊れないようにする
   static const _logNames = ['summary', 'transactions', 'split', 'settings'];
 
+  /// ナビゲーションバーとホームの精算カードで、通知とログの扱いを揃える。
+  void _selectTab(int index) {
+    // 前のタブ向けの案内（取引保存後の「その月を表示」など）を残さない。
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    // 選択中のタブを押し直したときは記録しない。
+    if (index != _currentIndex) {
+      context.read<OperationLogger>().info(
+        'tab.change',
+        detail: {'from': _logNames[_currentIndex], 'to': _logNames[index]},
+      );
+    }
+    setState(() => _currentIndex = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(bottom: false, child: _screens[_currentIndex]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          // 別のタブへ移ったら、前のタブ向けの案内は消す。
-          // SnackBar はこの Scaffold（ルートの ScaffoldMessenger）に出るので、
-          // 放っておくとタブを移っても残る。取引の保存後に出る
-          // 「その月を表示」をサマリータブで押すと、画面は何も変わらないまま
-          // 取引一覧の表示月だけが裏で動く
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          // 選択中のタブを押し直したときは記録しない。NavigationBar は
-          // 同じ行き先でもこのコールバックを呼ぶので、素直に書くと
-          // from と to が同じ行がログに溜まる
-          if (index != _currentIndex) {
-            context.read<OperationLogger>().info(
-              'tab.change',
-              detail: {
-                'from': _logNames[_currentIndex],
-                'to': _logNames[index],
-              },
-            );
-          }
-          setState(() => _currentIndex = index);
-        },
+        onDestinationSelected: _selectTab,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),

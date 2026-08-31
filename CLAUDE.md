@@ -37,6 +37,7 @@
 - Provider は `AppDatabase` をコンストラクタ注入で受け取り、状態更新後に `notifyListeners()` を呼ぶ
 - 表示用モデルは読み出しが `*View`、書き込みが `*Input`。支払者は `memberId` / `memberName` とし、`User` 系・`Response` / `Request` 系の名前を持ち込まない
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する
+- ホームの精算カードは月モードだけに置き、共有の `SummaryProvider.split` を表示する。カードからのタブ移動も `MainScreen._selectTab` を通す（詳細は `docs/design-notes.md`）
 - 表示月の判断に画面から `DateTime.now()` を読まず、`MonthScopedProvider` の `clock` に集約する。取引追加画面の `_spentAt` だけが意図的な例外
 - 金額は正の整数のみ。上限は `models/transaction.dart` の `kMaxAmount` だけを直す（validator と DB の CHECK 制約が参照するスキーマ定義値）
 - 金額表示は `widgets/amount_format.dart` の `formatYen()`、入力欄は `AmountInputFormatter`、構成比は `formatRatio()`、年月は `widgets/period_format.dart` の `formatPeriod()` / `formatPeriodShort()` を使い、画面側で書式を組み立て直さない

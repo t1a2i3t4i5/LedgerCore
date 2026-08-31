@@ -13,12 +13,15 @@ import '../widgets/month_selector.dart';
 import '../widgets/page_header.dart';
 import '../widgets/period_bar_chart.dart';
 import '../widgets/period_format.dart';
+import '../widgets/settlement_summary_card.dart';
 
 /// デスクトップ幅でも名前と金額を 1 行として追える本文幅。
 const double _maxContentWidth = 480;
 
 class SummaryScreen extends StatefulWidget {
-  const SummaryScreen({super.key});
+  const SummaryScreen({super.key, this.onOpenSplit});
+
+  final VoidCallback? onOpenSplit;
 
   @override
   State<SummaryScreen> createState() => _SummaryScreenState();
@@ -165,6 +168,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 : '${formatPeriod(provider.year, provider.month)}の支出',
       ),
       const SizedBox(height: 16),
+      if (provider.split case final split?) ...[
+        SettlementSummaryCard(split: split, onTap: widget.onOpenSplit),
+        const SizedBox(height: 16),
+      ],
       ..._categorySection(context, summary.byCategory, summary.total),
       const Divider(),
       const SizedBox(height: 8),
