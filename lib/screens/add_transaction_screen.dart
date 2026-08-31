@@ -77,10 +77,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (picked != null) setState(() => _spentAt = picked);
   }
 
+  void _cancel() {
+    // 再描画前の古いコールバックと、退場中の二度目の操作も止める。
+    if (!mounted || _loading || ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+    Navigator.of(context).pop();
+  }
+
   Future<void> _save() async {
     // 上下の保存導線は同じフレーム内なら、再描画で無効になる前に
     // どちらも呼べる。最初の保存が終わるまでは後続を受け付けない。
-    if (_loading) return;
+    if (!mounted || _loading) return;
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isCurrent) return;
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCategoryId == null) {
       ScaffoldMessenger.of(
@@ -122,7 +132,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         await provider.create(input);
       }
 
-      if (mounted) {
+      // 端末の戻る操作では保存中でも退場しうる。アニメーション中は
+      // mounted が true のため、この画面が最前面かも確認してから閉じる。
+      if (mounted && route.isCurrent) {
         navigator.pop();
         _showSavedFeedback(
           messenger: messenger,
@@ -133,7 +145,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && route.isCurrent) {
         messenger.showSnackBar(SnackBar(content: Text('保存失敗: $e')));
       }
     } finally {
@@ -225,8 +237,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   children: [
                     _TransactionHeader(
                       title: isEdit ? '支出を編集' : '支出を追加',
-                      onCancel:
-                          _loading ? null : () => Navigator.of(context).pop(),
+                      onCancel: _loading ? null : _cancel,
                       onSave: _loading ? null : _save,
                     ),
                     Padding(
@@ -522,17 +533,22 @@ class _TransactionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final actionStyle = TextButton.styleFrom(
+      minimumSize: const Size(48, 48),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: TextButton(
-              onPressed: onCancel,
-              child: const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('キャンセル', textAlign: TextAlign.left),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: onCancel,
+                style: actionStyle,
+                child: const Text('キャンセル', textAlign: TextAlign.left),
               ),
             ),
           ),
@@ -549,11 +565,12 @@ class _TransactionHeader extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: TextButton(
-              onPressed: onSave,
-              child: const Align(
-                alignment: Alignment.centerRight,
-                child: Text('保存', textAlign: TextAlign.right),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onSave,
+                style: actionStyle,
+                child: const Text('保存', textAlign: TextAlign.right),
               ),
             ),
           ),
@@ -577,8 +594,8 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 48,
+          ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48),
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(

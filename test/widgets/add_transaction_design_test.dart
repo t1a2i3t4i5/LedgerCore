@@ -179,8 +179,20 @@ void main() {
     expect(cancelRect.right, lessThanOrEqualTo(titleRect.left));
     expect(titleRect.right, lessThanOrEqualTo(saveRect.left));
     expect(titleRect.center.dx, closeTo(160, 2));
-    expect(cancelButtonRect.width, closeTo((320 - 16) / 3, 1));
-    expect(saveButtonRect.width, closeTo(cancelButtonRect.width, 1));
+    final header = find.ancestor(
+      of: find.text('支出を追加'),
+      matching: find.byType(Row),
+    );
+    final slots = find.descendant(of: header, matching: find.byType(Expanded));
+    expect(slots, findsNWidgets(3));
+    for (var i = 0; i < 3; i++) {
+      expect(tester.getRect(slots.at(i)).width, closeTo((320 - 16) / 3, 1));
+    }
+    for (final rect in [cancelButtonRect, saveButtonRect]) {
+      expect(rect.width, greaterThanOrEqualTo(48));
+      expect(rect.height, greaterThanOrEqualTo(48));
+      expect(rect.width, lessThanOrEqualTo((320 - 16) / 3));
+    }
     final title = tester.widget<Text>(find.text('支出を追加'));
     expect(title.maxLines, isNull);
     expect(title.overflow, isNull);
@@ -207,6 +219,22 @@ void main() {
     const warning = '表示中の2000年1月とは別の月です';
     final paragraph = tester.renderObject<RenderParagraph>(find.text(warning));
     expect(paragraph.didExceedMaxLines, isFalse);
+  });
+
+  testWidgets('文字倍率2.0でも内容と日付のラベルを1行で読める', (tester) async {
+    await pumpScreen(
+      tester,
+      textScaler: const TextScaler.linear(2),
+      size: const Size(320, 690),
+    );
+    for (final label in ['内容', '日付']) {
+      final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
+      expect(
+        paragraph.size.width,
+        greaterThanOrEqualTo(paragraph.getMaxIntrinsicWidth(double.infinity)),
+        reason: '$label の2文字が折り返されている',
+      );
+    }
   });
 
   testWidgets('日付行の波紋をカード背景より手前に描くMaterialを持つ', (tester) async {
