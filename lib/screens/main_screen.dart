@@ -21,7 +21,7 @@ class _MainScreenState extends State<MainScreen> {
     SummaryScreen(onOpenSplit: () => _selectTab(2)),
     const TransactionsScreen(),
     const SplitScreen(),
-    const SettingsScreen(),
+    SettingsScreen(isActive: () => _currentIndex == 3),
   ];
 
   /// ログに載せるタブ名。**画面内の見出しとは別に持つ。**

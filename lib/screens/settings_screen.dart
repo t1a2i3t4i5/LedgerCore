@@ -10,7 +10,10 @@ import 'members_screen.dart';
 
 /// 家計に関わる管理画面への入口をまとめる画面。
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  /// 再描画前でも、タブの選択が変わった時点で false になる。
+  final bool Function() isActive;
+
+  const SettingsScreen({super.key, required this.isActive});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -20,7 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _sharing = false;
 
   Future<void> _shareLogs(BuildContext buttonContext) async {
-    if (_sharing) return;
+    if (_sharing || !mounted || !widget.isActive()) return;
     setState(() => _sharing = true);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     final logger = context.read<OperationLogger>();
@@ -32,7 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // 読み出しを先に予約し、押下記録だけで空ログ判定が変わるのを防ぐ。
       logger.info('log.share');
       final shared = await pending;
-      if (!mounted) return;
+      if (!mounted || !widget.isActive()) return;
       if (!shared) {
         ScaffoldMessenger.of(
           context,
@@ -40,12 +43,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
     } catch (e) {
       logger.error('log.share', e);
-      if (!mounted) return;
+      if (!mounted || !widget.isActive()) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('ログの共有に失敗しました')));
     } finally {
-      if (mounted) setState(() => _sharing = false);
+      if (mounted && widget.isActive()) setState(() => _sharing = false);
     }
   }
 

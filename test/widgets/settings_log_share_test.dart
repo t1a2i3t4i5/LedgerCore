@@ -128,25 +128,29 @@ void main() {
     expect(tester.widget<ListTile>(shareTile()).enabled, isTrue);
   });
 
-  for (final fails in [false, true]) {
-    testWidgets('共有中にタブを離れても例外や遅れた通知を出さない: error=$fails', (tester) async {
-      final pending = Completer<bool>();
-      share.result = () => pending.future;
-      await pumpApp(tester);
-      await tester.tap(find.text('ログを共有'));
-      await tester.pump();
-      expect(share.origins, hasLength(1));
-      await tester.tap(find.text('ホーム'));
-      await tester.pumpAndSettle();
-      if (fails) {
-        pending.completeError(StateError('遅れて失敗'));
-      } else {
-        pending.complete(false);
-      }
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      expect(find.byType(SnackBar), findsNothing);
-    });
+  for (final afterFrame in [false, true]) {
+    for (final fails in [false, true]) {
+      testWidgets('共有中にタブを離れても通知を出さない: 描画後=$afterFrame, error=$fails', (
+        tester,
+      ) async {
+        final pending = Completer<bool>();
+        share.result = () => pending.future;
+        await pumpApp(tester);
+        await tester.tap(find.text('ログを共有'));
+        await tester.pump();
+        expect(share.origins, hasLength(1));
+        await tester.tap(find.text('ホーム'));
+        if (afterFrame) await tester.pumpAndSettle();
+        if (fails) {
+          pending.completeError(StateError('遅れて失敗'));
+        } else {
+          pending.complete(false);
+        }
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(SnackBar), findsNothing);
+      });
+    }
   }
 
   testWidgets('文字倍率2倍でも注意書きを省略せず読める', (tester) async {

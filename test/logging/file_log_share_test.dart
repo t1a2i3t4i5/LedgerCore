@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/logging/file_log_share.dart';
@@ -135,6 +136,33 @@ void main() {
       await File(p.join(documents.path, kLogFileName)).readAsString(),
       contains('third'),
     );
+  });
+
+  test('macOSは共有先選択で戻っても添付を保持し、次の共有でも前の添付を消さない', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    await File(p.join(documents.path, kLogFileName)).writeAsString('送信するログ\n');
+    final attachments = <File>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          final paths = (call.arguments as Map)['paths'] as List;
+          attachments.add(File(paths.single as String));
+          // macOS の didChoose は受信先選択・送信完了より先に返る。
+          return 'AirDrop';
+        });
+    final share = createShare();
+    expect(await share.share(origin: origin), isTrue);
+    expect(attachments, hasLength(1));
+    expect(await attachments.first.exists(), isTrue);
+    expect(await attachments.first.readAsString(), '送信するログ\n');
+
+    expect(await share.share(origin: origin), isTrue);
+    expect(attachments, hasLength(2));
+    expect(attachments.first.path, isNot(attachments.last.path));
+    for (final file in attachments) {
+      expect(await file.readAsString(), '送信するログ\n');
+      expect(p.isWithin(temporary.path, file.path), isTrue);
+    }
   });
 
   test('共有シートの待機中もログを書け、重複して共有せず、完了後は再度共有できる', () async {

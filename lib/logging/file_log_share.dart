@@ -34,6 +34,7 @@ class FileLogShare implements LogShare {
     if (_sharing) return true;
     _sharing = true;
     Directory? exportDirectory;
+    var retainExport = false;
     try {
       // 最初の await より前にキューへ予約する。直後の log.share は
       // この読み出しより後へ並ぶので、空ログを押下記録だけで非空にしない。
@@ -50,11 +51,15 @@ class FileLogShare implements LogShare {
       await file.writeAsString(contents, flush: true);
       // OS を待つ間はロガーを止めない。元のログや DB は一切渡さない。
       await _shareFile(file, origin);
+      // macOS は送信完了ではなく共有先の選択（didChoose）で戻る。
+      // URL の参照先は送信中かもしれないため、次回共有時にも削除せず、
+      // OS の一時領域の回収に任せる。独自の期限で送信完了を推測しない。
+      retainExport = defaultTargetPlatform == TargetPlatform.macOS;
       return true;
     } finally {
       try {
         // iOS は共有の完了・キャンセル後に戻る。渡したコピーだけ片付ける。
-        if (exportDirectory != null) {
+        if (exportDirectory != null && !retainExport) {
           await exportDirectory.delete(recursive: true);
         }
       } catch (e) {
