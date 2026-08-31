@@ -89,6 +89,24 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('キャンセルで入力を保存せず一覧へ戻る', (tester) async {
+    await pumpApp(tester);
+    await openAddScreen(tester);
+    await tester.enterText(find.byType(TextFormField).first, '1500');
+    final firstCategory = (await db.getCategories()).first.name;
+    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(firstCategory).last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('キャンセル'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('支出を追加'), findsNothing);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(await db.getAllTransactions(), isEmpty);
+  });
+
   testWidgets('表示月と同じ月に保存すると一覧に出て、保存した旨が出る', (tester) async {
     await pumpApp(tester);
     expect(find.text('2026年7月'), findsOneWidget);
@@ -188,32 +206,59 @@ void main() {
     expect(find.text('¥1,500'), findsNWidgets(2));
   });
 
-  testWidgets('保存に失敗したときは成功の案内を出さない', (tester) async {
-    // 成功時 SnackBar を足したことで、失敗しても「保存しました」が出る
-    // 経路を作っていないことを見る。選択済みのカテゴリを DB から消して
-    // 外部キー制約で insert を落とす（画面の入力は正しいまま失敗する）
-    await pumpApp(tester);
-    await openAddScreen(tester);
-    await pickDate(tester, DateTime(2026, 7, 20));
+  for (final keyboardHeight in [0.0, 300.0]) {
+    testWidgets('保存に失敗しても通知が再試行を妨げない（キーボード${keyboardHeight}px）', (
+      tester,
+    ) async {
+      // 成功時 SnackBar を足したことで、失敗しても「保存しました」が出る
+      // 経路を作っていないことを見る。選択済みのカテゴリを DB から消して
+      // 外部キー制約で insert を落とす（画面の入力は正しいまま失敗する）
+      await pumpApp(tester);
+      await openAddScreen(tester);
+      await pickDate(tester, DateTime(2026, 7, 20));
 
-    final firstCategory = (await db.getCategories()).first;
-    await tester.enterText(find.byType(TextFormField).first, '1500');
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(firstCategory.name).last);
-    await tester.pumpAndSettle();
+      final firstCategory = (await db.getCategories()).first;
+      await tester.enterText(find.byType(TextFormField).first, '1500');
+      await tester.tap(find.byType(DropdownButtonFormField<int>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(firstCategory.name).last);
+      await tester.pumpAndSettle();
 
-    await db.deleteCategory(firstCategory.id);
-    await tester.tap(find.text('保存'));
-    await tester.pumpAndSettle();
+      await db.deleteCategory(firstCategory.id);
+      tester.view.viewInsets = FakeViewPadding(bottom: keyboardHeight);
+      await tester.pumpAndSettle();
+      final saveButton = find.widgetWithText(FilledButton, '保存する');
+      await tester.tap(saveButton);
+      await tester.pumpAndSettle();
 
-    expect(await db.getAllTransactions(), isEmpty);
-    expect(find.text('保存しました'), findsNothing);
-    expect(find.textContaining('保存失敗'), findsOneWidget);
-    // 失敗したのだから画面は閉じない（入力をやり直せる）
-    expect(find.text('取引を編集'), findsNothing);
-    expect(find.text('取引を追加'), findsOneWidget);
-  });
+      expect(await db.getAllTransactions(), isEmpty);
+      expect(find.text('保存しました'), findsNothing);
+      expect(find.textContaining('保存失敗'), findsOneWidget);
+      // 失敗したのだから画面は閉じない（入力をやり直せる）
+      expect(find.text('支出を編集'), findsNothing);
+      expect(find.text('支出を追加'), findsOneWidget);
+
+      final saveRect = tester.getRect(saveButton);
+      final snackRect = tester.getRect(find.byType(SnackBar));
+      expect(
+        snackRect.overlaps(saveRect),
+        isFalse,
+        reason: '失敗通知 $snackRect が再試行ボタン $saveRect を覆っている',
+      );
+      expect(saveRect.bottom, lessThanOrEqualTo(690 - keyboardHeight));
+
+      // 通知を閉じたり消えるまで待ったりせず再試行する。
+      // FK 違反の原因だけを取り除き、画面に残した入力で実際に保存する。
+      await db.customStatement(
+        'INSERT INTO categories (id, name) VALUES (?, ?)',
+        [firstCategory.id, firstCategory.name],
+      );
+      await tester.tap(saveButton);
+      await tester.pumpAndSettle();
+      expect((await db.getAllTransactions()).single.amount, 1500);
+      expect(find.text('支出を追加'), findsNothing);
+    });
+  }
 
   testWidgets('別月の案内は表示中の Provider の月を基準にする', (tester) async {
     // 月を送ってから追加すると、基準は「送った先の月」になる。
@@ -272,7 +317,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 追加画面が開く。月が動いていない（＝アクションを踏んでいない）
-    expect(find.text('取引を追加'), findsOneWidget);
+    expect(find.text('支出を追加'), findsOneWidget);
     expect(find.text('2026年8月'), findsNothing);
   });
 

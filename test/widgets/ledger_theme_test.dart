@@ -149,4 +149,11 @@ void main() {
     expect(selectedColor, ledgerTheme.colorScheme.secondaryContainer);
     expect(contrast, greaterThanOrEqualTo(4.5));
   });
+
+  test('FilledButton の形状はテーマで StadiumBorder に統一する', () {
+    expect(
+      ledgerTheme.filledButtonTheme.style?.shape?.resolve({}),
+      isA<StadiumBorder>(),
+    );
+  });
 }

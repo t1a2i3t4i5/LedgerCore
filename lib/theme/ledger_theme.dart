@@ -137,6 +137,9 @@ final ledgerTheme = _baseTheme.copyWith(
     backgroundColor: _ledgerColorScheme.primary,
     foregroundColor: _ledgerColorScheme.onPrimary,
   ),
+  filledButtonTheme: const FilledButtonThemeData(
+    style: ButtonStyle(shape: WidgetStatePropertyAll(StadiumBorder())),
+  ),
   snackBarTheme: SnackBarThemeData(
     backgroundColor: _ledgerColorScheme.onSurface,
     contentTextStyle: TextStyle(color: _ledgerColorScheme.surface),
