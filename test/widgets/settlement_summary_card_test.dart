@@ -235,6 +235,25 @@ void main() {
     });
   }
 
+  testWidgets('端数だけの差額は精算不要にし、¥0 の支払い行を出さない', (tester) async {
+    // 3人で 1000 円を等分すると各自の差額は ±0.33 で、0 ではないが ¥0 に丸まる。
+    await db.insertMember('みく');
+    await db.insertMember('たいち');
+    final members = await db.getMembers();
+    await pay(members[0].id, 334);
+    await pay(members[1].id, 333);
+    await pay(members[2].id, 333);
+    await pumpApp(tester);
+
+    expect(inCard('精算不要'), findsOneWidget);
+    expect(inCard('精算に必要な支払い'), findsNothing);
+    expect(inCard('みく は\n¥0'), findsNothing);
+    expect(inCard('たいち は\n¥0'), findsNothing);
+    expect(inCard('精算する'), findsNothing);
+    expect(inCard('割り勘を見る'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('3人以上は支払う人と各不足額を対応させて全行表示する', (tester) async {
     await db.insertMember('みく');
     await db.insertMember('たいち');
