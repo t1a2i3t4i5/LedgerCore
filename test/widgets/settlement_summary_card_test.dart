@@ -259,6 +259,27 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('受け取り側が端数でも、¥1 以上を払う人がいれば精算を出す', (tester) async {
+    // 3人で 2000 円を等分すると +0.33 / +0.33 / -0.67。受け取り側は ¥0 に
+    // 丸まるが、払う側は ¥1 になる。ここを精算不要にすると割り勘タブと食い違う。
+    await db.insertMember('みく');
+    await db.insertMember('たいち');
+    final members = await db.getMembers();
+    await pay(members[0].id, 667);
+    await pay(members[1].id, 667);
+    await pay(members[2].id, 666);
+    await pumpApp(tester);
+
+    expect(inCard('精算不要'), findsNothing);
+    expect(inCard('精算に必要な支払い'), findsOneWidget);
+    expect(inCard('たいち は\n¥1'), findsOneWidget);
+    expect(inCard('精算する'), findsOneWidget);
+
+    await tester.tap(find.descendant(of: card, matching: find.text('精算する')));
+    await tester.pumpAndSettle();
+    expect(find.text('たいち は 1 円の支払いが必要'), findsOneWidget);
+  });
+
   testWidgets('3人以上は支払う人と各不足額を対応させて全行表示する', (tester) async {
     await db.insertMember('みく');
     await db.insertMember('たいち');

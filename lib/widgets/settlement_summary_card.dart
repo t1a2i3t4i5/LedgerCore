@@ -14,16 +14,17 @@ class SettlementSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 差額は整数円に丸めて出す。丸めて ¥0 になる人を精算対象に数えると
+    // 差額は整数円に丸めて出す。丸めて ¥0 になる人を支払う側に数えると
     // 「¥0 を支払う」行が並ぶ（3人で 1000 円を等分すると各自 -0.33 になる）。
     // 丸めの規則を書き写さず、表示に使う formatYen() 自身に判定させる。
-    bool isVisible(MemberBalance member) =>
-        formatYen(member.balance.abs()) != formatYen(0);
-    final creditors = split.members.where(
-      (member) => member.balance > 0 && isVisible(member),
-    );
+    //
+    // 篩を掛けるのは支払う側だけ。受け取り側にも掛けると、3人で 2000 円を
+    // 等分した +0.33 / +0.33 / -0.67 で受け取り手がいなくなり、¥1 払う人が
+    // いるのに「精算不要」になって割り勘タブの精算文と食い違う。
+    final creditors = split.members.where((member) => member.balance > 0);
     final debtors = split.members.where(
-      (member) => member.balance < 0 && isVisible(member),
+      (member) =>
+          member.balance < 0 && formatYen(member.balance.abs()) != formatYen(0),
     );
     final needsSettlement = creditors.isNotEmpty && debtors.isNotEmpty;
     final pair = split.members.length == 2 && needsSettlement;
