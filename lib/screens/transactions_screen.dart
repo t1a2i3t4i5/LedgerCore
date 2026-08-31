@@ -161,7 +161,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       children: [
                         Text(
                           '${filtered.length}件',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          // 本文書体に太字を同梱しないので、強調は見出し書体で出す
+                          style: LedgerTokens.heading,
                         ),
                         const Spacer(),
                         // 合計は件数ぶん膨らむ（上限額 × 件数）。金額を省略すると

@@ -438,6 +438,20 @@ SnackBar になる。**失敗をログに残すために足した `try` は、�
 未選択のアイコンとラベルは `onSurfaceVariant`、選択中のラベルは `onSurface` とし、
 状態別の色は `ledger_theme.dart` に集約する。タブごとに色を指定しない。
 
+### 本文書体の太字を増やさず、強調は同梱の見出し書体で出す
+
+Zen Maru Gothic は Regular のみ同梱する。見出しはテーマの `title*` / `headline*` /
+`display*`、本文中の明示的な強調は `LedgerTokens.heading` を使い、既存の
+Zen Kaku Gothic New Bold へ揃える。本文に `fontWeight: w600` / `w700` だけを
+重ねると同梱していないウェイトの代替描画になるため、強調の方法には使わない。
+M3 ラベルの w500 は追加フォントを同梱せず、既存の代替描画を許容する。
+使用箇所・目視確認・容量の記録は [README の同梱フォント](../README.md#同梱フォント)。
+
+fl_chart のツールチップも対象。Canvas へ直接描くが、1.2.0 の
+`getThemeAwareTextStyle` は `DefaultTextStyle` とマージしてから `TextPainter` へ渡す。
+したがって `fontFamily` 未指定でもアプリ本文の書体を継ぐ。Canvas 直描きであることを
+理由にフォント構成の調査から外さず、ここも `LedgerTokens.heading` を指定する。
+
 ### 画面の大見出しはコンテンツ内で一緒にスクロールさせる
 
 `MainScreen` はタブ名を差し替える `AppBar` を持たない。ホームの月・年モードは既存の

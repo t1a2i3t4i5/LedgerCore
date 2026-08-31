@@ -32,12 +32,12 @@ flutter:
   uses-material-design: true
   # 実行時にネットワークから取得しないため、ttf を同梱する。
   # サブセット化しない: カテゴリ名などがユーザー入力なので、収録漏れを防ぐ。
+  # ウェイトは実際に要求されるものだけを置く。日本語フォントは 1 ウェイト
+  # 2〜4MB あるので、太字は ZenKakuGothicNew に一本化する（#106）。
   fonts:
     - family: ZenMaruGothic
       fonts:
         - asset: assets/fonts/ZenMaruGothic-Regular.ttf
-        - asset: assets/fonts/ZenMaruGothic-Bold.ttf
-          weight: 700
     - family: ZenKakuGothicNew
       fonts:
         - asset: assets/fonts/ZenKakuGothicNew-Bold.ttf

@@ -89,6 +89,17 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('合計パネルの件数は見出し書体で太字にする', (tester) async {
+    await seedTransaction(amount: 1200);
+    await pumpScreen(tester);
+
+    // 本文の Zen Maru Gothic は Regular しか同梱しないので、fontWeight を
+    // 上げるだけの代替描画にせず、太字は同梱の見出し書体へ切り替えて出す
+    final style = tester.widget<Text>(find.text('1件')).style;
+    expect(style?.fontFamily, LedgerTokens.heading.fontFamily);
+    expect(style?.fontWeight, LedgerTokens.heading.fontWeight);
+  });
+
   testWidgets('長押しで確認ダイアログが出る', (tester) async {
     final categoryName = await seedTransaction(amount: 1200);
     await pumpScreen(tester);

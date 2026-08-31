@@ -76,7 +76,7 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 
 | 書体 | 同梱ウェイト | 提供元 |
 | --- | --- | --- |
-| Zen Maru Gothic | Regular (400) / Bold (700) | [Google Fonts](https://github.com/google/fonts/tree/main/ofl/zenmarugothic) |
+| Zen Maru Gothic | Regular (400) | [Google Fonts](https://github.com/google/fonts/tree/main/ofl/zenmarugothic) |
 | Zen Kaku Gothic New | Bold (700) | [Google Fonts](https://github.com/google/fonts/tree/main/ofl/zenkakugothicnew) |
 | Outfit | SemiBold (600) | [Outfitio/Outfit-Fonts](https://github.com/Outfitio/Outfit-Fonts) |
 
@@ -87,13 +87,44 @@ mkdir -p assets/fonts
 GOOGLE_FONTS=https://raw.githubusercontent.com/google/fonts/main/ofl
 OUTFIT=https://raw.githubusercontent.com/Outfitio/Outfit-Fonts/main
 curl -L -o assets/fonts/ZenMaruGothic-Regular.ttf "$GOOGLE_FONTS/zenmarugothic/ZenMaruGothic-Regular.ttf"
-curl -L -o assets/fonts/ZenMaruGothic-Bold.ttf "$GOOGLE_FONTS/zenmarugothic/ZenMaruGothic-Bold.ttf"
 curl -L -o assets/fonts/ZenKakuGothicNew-Bold.ttf "$GOOGLE_FONTS/zenkakugothicnew/ZenKakuGothicNew-Bold.ttf"
 curl -L -o assets/fonts/Outfit-SemiBold.ttf "$OUTFIT/fonts/ttf/Outfit-SemiBold.ttf"
 curl -L -o assets/fonts/OFL-ZenMaruGothic.txt "$GOOGLE_FONTS/zenmarugothic/OFL.txt"
 curl -L -o assets/fonts/OFL-ZenKakuGothicNew.txt "$GOOGLE_FONTS/zenkakugothicnew/OFL.txt"
 curl -L -o assets/fonts/OFL-Outfit.txt "$OUTFIT/OFL.txt"
 ```
+
+### ウェイト整理の記録（#106、2026-08-31）
+
+本文・入力欄・グラフの軸は Zen Maru Gothic Regular、見出しと明示的な強調は
+Zen Kaku Gothic New Bold、金額と年の数字は Outfit SemiBold を使う。
+Zen Maru Gothic の w600 / w700 を要求していた取引件数・今月／今年ボタン・
+棒グラフのツールチップを見出し書体へ寄せ、不要になった Bold を外した。
+
+`titleMedium` は既に Zen Kaku Gothic New の w700 で、M3 既定の w500 ではない。
+`labelLarge` などの M3 ラベルは w500 を要求するが、**Medium は追加しない**。
+Flutter 3.41.6 / macOS 26.6.2 のアプリ描画で「保存する」「食費（外食）」
+「キャンセル」を確認し、ラベルは読め、塗りと枠でも操作・選択状態を識別できた。
+Zen Maru Gothic の w400 / w500 で同じ日本語・数字のサンプルを別々に描いた結果は
+ピクセル単位で一致した。この環境では w500 を合成太字と呼ぶより Regular の代替描画であり、
+その見え方を許容する。iOS / Android 実機の描画までは検証していない。
+代替描画はエンジンに依存するため、強調には同梱の Bold を使う
+（[Flutter のカスタムフォントの説明](https://docs.flutter.dev/cookbook/design/fonts)）。
+
+| 計測対象 | 整理前 | 整理後 | 削減量 |
+| --- | ---: | ---: | ---: |
+| 同梱 ttf の合計 | 10,002,304 B（9.54 MiB） | 6,223,296 B（5.94 MiB） | 3,779,008 B（3.60 MiB、37.8%） |
+| リポジトリのファイル実体 | 約 10.90 MiB | 約 7.30 MiB | 約 3.60 MiB |
+
+ファイル実体は変更前 `8df8d03` の追跡ファイルと、この変更後に追跡するファイルのサイズ合計。
+`.git`・ビルド成果物・依存キャッシュ・他の worktree は含めない（1 MiB = 1,048,576 B）。
+macOS のビルド成果物内でも ttf は同じ 3 本・6,223,296 B だった。
+これは非圧縮フォントのサイズで、アプリ全体や配布パッケージの削減量ではない。
+git 履歴にある旧 ttf は残るので、履歴サイズは減らない。
+
+残した 3 本の ttf は変更前と SHA-256 が一致する。カテゴリ名・メンバー名・メモは
+ユーザー入力なので、引き続きサブセット化せず、上流フォントの収録文字を維持する。
+Outfit も静的な SemiBold のままとし、可変フォントには置き換えない。
 
 ## 構成
 

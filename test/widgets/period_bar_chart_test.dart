@@ -297,6 +297,9 @@ void main() {
       expect(item, isNotNull);
       // 金額は概数ではなく実額。ここで formatYenAxis を使うと嘘の額が出る
       expect(item!.text, '2026年3月\n¥1,500');
+      // Canvas 描画でも本文書体を継ぐため、同梱の Bold を明示する。
+      expect(item.textStyle.fontFamily, 'ZenKakuGothicNew');
+      expect(item.textStyle.fontWeight, FontWeight.w700);
     });
 
     testWidgets('年別では年だけを出す', (tester) async {

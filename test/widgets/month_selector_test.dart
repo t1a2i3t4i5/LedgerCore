@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/month_selector.dart';
 
 /// 月選択 UI（[MonthSelector]）を DB も Provider も組み立てずに単体で見る。
@@ -122,6 +123,16 @@ void main() {
     await pump(tester, todayEnabled: true);
 
     expect(todayIsEnabled(tester), isTrue);
+  });
+
+  testWidgets('「今月」のラベルは見出し書体で太字にする', (tester) async {
+    await pump(tester);
+
+    // 本文の Zen Maru Gothic は Regular しか同梱しないので、fontWeight を
+    // 上げるだけの代替描画にせず、太字は同梱の見出し書体へ切り替えて出す
+    final style = tester.widget<Text>(find.text('今月')).style;
+    expect(style?.fontFamily, LedgerTokens.heading.fontFamily);
+    expect(style?.fontWeight, LedgerTokens.heading.fontWeight);
   });
 
   testWidgets('actions は右端に並び、押せる', (tester) async {
