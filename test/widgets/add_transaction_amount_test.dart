@@ -53,7 +53,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(chip);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(TextButton, '保存'));
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'キャンセル'));
     await tester.pumpAndSettle();
   }
 
@@ -72,7 +72,7 @@ void main() {
     await selectFirstCategory(tester);
 
     await tester.enterText(amountField(), '0');
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     expect(find.text('金額は 0 より大きい値を入力してください'), findsOneWidget);
@@ -154,9 +154,9 @@ void main() {
     await tester.ensureVisible(memoField);
     await tester.pumpAndSettle();
     await tester.enterText(memoField, '保存し直した');
-    await tester.ensureVisible(find.widgetWithText(TextButton, '保存'));
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'キャンセル'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     final saved = (await db.getAllTransactions()).single;
@@ -200,7 +200,7 @@ void main() {
     final field = tester.widget<TextField>(find.byType(TextField).first);
     expect(field.controller!.text, '9' * maxDigits);
 
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     // 保存されるのは有限の値だけ。Infinity は DB に届かない
@@ -220,7 +220,7 @@ void main() {
     setAmountDirectly(tester, (kMaxAmount + 1).toStringAsFixed(0));
     await tester.pump();
 
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     expect(find.text('金額が大きすぎます'), findsOneWidget);
@@ -239,7 +239,7 @@ void main() {
     setAmountDirectly(tester, 'NaN');
     await tester.pump();
 
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     expect(find.text('金額が大きすぎます'), findsOneWidget);
@@ -255,7 +255,7 @@ void main() {
     setAmountDirectly(tester, '1e400');
     await tester.pump();
 
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     expect(find.text('金額が大きすぎます'), findsOneWidget);
@@ -304,7 +304,7 @@ void main() {
     setAmountDirectly(tester, '1234.5');
     await tester.pump();
 
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     expect(find.text('金額は整数で入力してください'), findsOneWidget);
@@ -315,14 +315,14 @@ void main() {
     await pumpScreen(tester);
     await selectFirstCategory(tester);
 
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
     expect(find.text('金額を入力してください'), findsOneWidget);
 
     // 数字しか通らなくなったので、非数値はフォーマッタを経由しない
     // 直接代入で作る
     setAmountDirectly(tester, 'abc');
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
     expect(find.text('有効な数値を入力してください'), findsOneWidget);
   });
@@ -332,7 +332,7 @@ void main() {
     await selectFirstCategory(tester);
 
     await tester.enterText(amountField(), '1200');
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     final txns = await db.getAllTransactions();

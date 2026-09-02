@@ -102,7 +102,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(chip);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(TextButton, '保存'));
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'キャンセル'));
     await tester.pumpAndSettle();
   }
 
@@ -133,7 +133,7 @@ void main() {
     expect(find.byType(AppBar), findsNothing);
     expect(find.text('キャンセル'), findsOneWidget);
     expect(find.text('支出を追加'), findsOneWidget);
-    expect(find.text('保存'), findsOneWidget);
+    expect(find.text('保存'), findsNothing);
     expect(find.widgetWithText(FilledButton, '保存する'), findsOneWidget);
 
     final button = tester.widget<FilledButton>(find.byType(FilledButton));
@@ -175,15 +175,10 @@ void main() {
     expect(tester.takeException(), isNull);
     final cancelRect = tester.getRect(find.text('キャンセル'));
     final titleRect = tester.getRect(find.text('支出を追加'));
-    final saveRect = tester.getRect(find.text('保存'));
     final cancelButtonRect = tester.getRect(
       find.widgetWithText(TextButton, 'キャンセル'),
     );
-    final saveButtonRect = tester.getRect(
-      find.widgetWithText(TextButton, '保存'),
-    );
     expect(cancelRect.right, lessThanOrEqualTo(titleRect.left));
-    expect(titleRect.right, lessThanOrEqualTo(saveRect.left));
     expect(titleRect.center.dx, closeTo(160, 2));
     final header = find.ancestor(
       of: find.text('支出を追加'),
@@ -194,11 +189,9 @@ void main() {
     for (var i = 0; i < 3; i++) {
       expect(tester.getRect(slots.at(i)).width, closeTo((320 - 16) / 3, 1));
     }
-    for (final rect in [cancelButtonRect, saveButtonRect]) {
-      expect(rect.width, greaterThanOrEqualTo(48));
-      expect(rect.height, greaterThanOrEqualTo(48));
-      expect(rect.width, lessThanOrEqualTo((320 - 16) / 3));
-    }
+    expect(cancelButtonRect.width, greaterThanOrEqualTo(48));
+    expect(cancelButtonRect.height, greaterThanOrEqualTo(48));
+    expect(cancelButtonRect.width, lessThanOrEqualTo((320 - 16) / 3));
     final title = tester.widget<Text>(find.text('支出を追加'));
     expect(title.maxLines, isNull);
     expect(title.overflow, isNull);
@@ -289,16 +282,16 @@ void main() {
     expect(find.text('金額を入力してください'), findsOneWidget);
   });
 
-  testWidgets('上下の保存を同一フレームで操作しても1回だけ作成する', (tester) async {
+  testWidgets('下部の保存を同一フレームで二度操作しても1回だけ作成する', (tester) async {
     final provider = _BlockingTransactionProvider(db);
     await pumpScreen(tester, transactionProvider: provider);
     await selectFirstCategory(tester);
     await tester.enterText(find.byType(TextFormField).first, '1200');
 
-    tester
-        .widget<TextButton>(find.widgetWithText(TextButton, '保存'))
-        .onPressed!();
-    tester.widget<FilledButton>(find.byType(FilledButton)).onPressed!();
+    final onSave =
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed!;
+    onSave();
+    onSave();
     await tester.pump();
 
     try {
@@ -309,7 +302,7 @@ void main() {
     }
   });
 
-  testWidgets('下部の保存ボタンからも同じ保存処理を実行できる', (tester) async {
+  testWidgets('下部の保存ボタンから保存処理を実行できる', (tester) async {
     await pumpScreen(tester);
     await selectFirstCategory(tester);
     await tester.enterText(find.byType(TextFormField).first, '1200');
@@ -348,7 +341,7 @@ void main() {
     expect(saved.memo, '更新済み');
   });
 
-  testWidgets('保存中は上下の保存導線を無効化し下部ボタンに進捗を出す', (tester) async {
+  testWidgets('保存中はキャンセルと下部保存を無効化し進捗を出す', (tester) async {
     final provider = _BlockingTransactionProvider(db);
     await pumpScreen(tester, transactionProvider: provider);
     await selectFirstCategory(tester);
@@ -358,12 +351,6 @@ void main() {
     await tester.pump();
 
     expect(provider.createCalls, 1);
-    expect(
-      tester
-          .widget<TextButton>(find.widgetWithText(TextButton, '保存'))
-          .onPressed,
-      isNull,
-    );
     expect(
       tester
           .widget<TextButton>(find.widgetWithText(TextButton, 'キャンセル'))
@@ -396,7 +383,7 @@ void main() {
 
     await selectFirstCategory(tester);
     await tester.enterText(find.byType(TextFormField).first, '1200');
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     final saved = (await db.getAllTransactions()).single;
@@ -450,7 +437,7 @@ void main() {
 
     await selectFirstCategory(tester);
     await tester.enterText(find.byType(TextFormField).first, '1200');
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     expect((await db.getAllTransactions()).single.memberId, secondMember.id);
@@ -461,7 +448,7 @@ void main() {
 
     await selectFirstCategory(tester);
     await tester.enterText(find.byType(TextFormField).first, '1200');
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     expect(find.text('登録者を選択してください'), findsOneWidget);
