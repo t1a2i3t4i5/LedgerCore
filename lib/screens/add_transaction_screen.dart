@@ -87,8 +87,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Future<void> _save() async {
-    // 上下の保存導線は同じフレーム内なら、再描画で無効になる前に
-    // どちらも呼べる。最初の保存が終わるまでは後続を受け付けない。
+    // 再描画で無効になる前に保存が続けて呼ばれても、
+    // 最初の保存が終わるまでは後続を受け付けない。
     if (!mounted || _loading) return;
     final route = ModalRoute.of(context);
     if (route == null || !route.isCurrent) return;
@@ -239,7 +239,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     _TransactionHeader(
                       title: isEdit ? '支出を編集' : '支出を追加',
                       onCancel: _loading ? null : _cancel,
-                      onSave: _loading ? null : _save,
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -554,18 +553,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 /// 追加・編集の両方で使う 3 分割ヘッダ。
 ///
 /// 各領域を [Expanded] で等分し、文字倍率を上げたときは
-/// 各領域内で高さ方向に伸びる。中央の見出しを左右の文字幅で
+/// 各領域内で高さ方向に伸びる。右領域を空白にすることで、
+/// 中央の見出しを左のキャンセルの文字幅で
 /// ずらさず、横 overflow も起こさない。
 class _TransactionHeader extends StatelessWidget {
-  const _TransactionHeader({
-    required this.title,
-    required this.onCancel,
-    required this.onSave,
-  });
+  const _TransactionHeader({required this.title, required this.onCancel});
 
   final String title;
   final VoidCallback? onCancel;
-  final VoidCallback? onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -600,16 +595,7 @@ class _TransactionHeader extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: onSave,
-                style: actionStyle,
-                child: const Text('保存', textAlign: TextAlign.right),
-              ),
-            ),
-          ),
+          const Expanded(child: SizedBox.shrink()),
         ],
       ),
     );

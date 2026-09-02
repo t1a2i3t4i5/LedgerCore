@@ -75,7 +75,7 @@ void main() {
 
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(TextButton, '保存'));
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'キャンセル'));
     await tester.pumpAndSettle();
   }
 
@@ -85,7 +85,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(chip);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(TextButton, '保存'));
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'キャンセル'));
     await tester.pumpAndSettle();
   }
 
@@ -95,7 +95,7 @@ void main() {
     await tester.enterText(find.byType(TextFormField).first, amount);
     await selectCategory(tester, firstCategory);
 
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
   }
 
@@ -201,7 +201,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await pickDate(tester, DateTime(2026, 8, 7));
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
     expect(find.text('2026年8月に保存しました'), findsOneWidget);

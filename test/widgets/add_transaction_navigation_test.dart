@@ -92,8 +92,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(chip);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(TextButton, '保存'));
-    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, '1200');
     return ModalRoute.of<void>(
       tester.element(find.byType(AddTransactionScreen)),
