@@ -12,6 +12,7 @@ import 'package:ledger_app/providers/transaction_provider.dart';
 import 'package:ledger_app/screens/add_transaction_screen.dart';
 import 'package:ledger_app/theme/ledger_theme.dart';
 import 'package:ledger_app/theme/ledger_tokens.dart';
+import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:provider/provider.dart';
 
@@ -49,6 +50,9 @@ RenderEditable _findRenderEditable(RenderObject root) {
   visit(root);
   return result!;
 }
+
+Finder _choiceChip(String label) =>
+    find.ancestor(of: find.text(label), matching: find.byType(ChoiceChip));
 
 void main() {
   late AppDatabase db;
@@ -97,12 +101,12 @@ void main() {
 
   Future<void> selectFirstCategory(WidgetTester tester) async {
     final firstCategory = (await db.getCategories()).first.name;
-    final chip = find.widgetWithText(ChoiceChip, firstCategory);
+    final chip = _choiceChip(firstCategory);
     await tester.ensureVisible(chip);
     await tester.pumpAndSettle();
     await tester.tap(chip);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(TextButton, 'キャンセル'));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '保存する'));
     await tester.pumpAndSettle();
   }
 
@@ -118,6 +122,7 @@ void main() {
     expect(textField.textAlign, TextAlign.center);
     expect(textField.style, LedgerTokens.amountLarge);
     expect(textField.decoration?.border, InputBorder.none);
+    expect(textField.decoration?.prefixText, isNull);
     expect(textField.decoration?.prefixIcon, isNull);
     final fittedBoxFinder = find.ancestor(
       of: amountFieldFinder,
@@ -125,6 +130,25 @@ void main() {
     );
     expect(fittedBoxFinder, findsOneWidget);
     expect(tester.widget<FittedBox>(fittedBoxFinder).fit, BoxFit.scaleDown);
+
+    await tester.enterText(amountFieldFinder, '3240');
+    await tester.pump();
+    final editable = _findRenderEditable(
+      tester.renderObject<RenderObject>(amountFieldFinder),
+    );
+    final firstDigitX =
+        editable
+            .localToGlobal(
+              Offset(
+                editable
+                    .getLocalRectForCaret(const TextPosition(offset: 0))
+                    .left,
+                0,
+              ),
+            )
+            .dx;
+    final currencyRight = tester.getRect(find.text('¥')).right;
+    expect(firstDigitX - currencyRight, inInclusiveRange(0, 8));
   });
 
   testWidgets('3分割ヘッダと下部保存ボタン、内容と日付のカードを表示する', (tester) async {
@@ -135,6 +159,10 @@ void main() {
     expect(find.text('支出を追加'), findsOneWidget);
     expect(find.text('保存'), findsNothing);
     expect(find.widgetWithText(FilledButton, '保存する'), findsOneWidget);
+    expect(find.text('カテゴリ'), findsOneWidget);
+    expect(find.text('支払った人'), findsOneWidget);
+    expect(find.byIcon(Icons.label_outline), findsNothing);
+    expect(find.byIcon(Icons.person_outline), findsNothing);
 
     final button = tester.widget<FilledButton>(find.byType(FilledButton));
     expect(button.style?.shape, isNull, reason: 'ボタン形状は画面ではなくテーマで決める');
@@ -160,9 +188,10 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: card, matching: find.byIcon(Icons.calendar_today)),
+      find.descendant(of: card, matching: find.byIcon(Icons.chevron_right)),
       findsOneWidget,
     );
+    expect(find.byIcon(Icons.calendar_today), findsNothing);
   });
 
   testWidgets('320px幅かつ文字倍率2.0でも3分割ヘッダが溢れない', (tester) async {
@@ -241,7 +270,7 @@ void main() {
 
     final card = find.byType(LedgerCard);
     final dateInkWell = find.ancestor(
-      of: find.byIcon(Icons.calendar_today),
+      of: find.byIcon(Icons.chevron_right),
       matching: find.byType(InkWell),
     );
     expect(find.descendant(of: card, matching: dateInkWell), findsOneWidget);
@@ -329,6 +358,7 @@ void main() {
 
     expect(find.text('支出を編集'), findsOneWidget);
     expect(find.text('支出を追加'), findsNothing);
+    expect(find.text('2026年8月30日（日）'), findsOneWidget);
     final memoField = find.byType(TextFormField).last;
     await tester.ensureVisible(memoField);
     await tester.pumpAndSettle();
@@ -371,9 +401,17 @@ void main() {
     await pumpScreen(tester);
 
     final member = (await db.getMembers()).first;
-    final memberChip = find.widgetWithText(ChoiceChip, member.name);
+    final memberChip = _choiceChip(member.name);
     final chip = tester.widget<ChoiceChip>(memberChip);
     expect(chip.selected, isTrue);
+    final avatar = tester.widget<CircleAvatar>(
+      find.descendant(of: memberChip, matching: find.byType(CircleAvatar)),
+    );
+    expect(avatar.backgroundColor, memberColor(member.id));
+    expect(
+      find.descendant(of: memberChip, matching: find.text('自')),
+      findsOneWidget,
+    );
 
     await tester.ensureVisible(memberChip);
     await tester.pumpAndSettle();
@@ -388,7 +426,7 @@ void main() {
 
     final saved = (await db.getAllTransactions()).single;
     expect(saved.memberId, member.id);
-    expect(find.text('登録者を選択してください'), findsNothing);
+    expect(find.text('支払った人を選択してください'), findsNothing);
   });
 
   testWidgets('別の登録者チップを選ぶと選択表示と保存先が切り替わる', (tester) async {
@@ -400,38 +438,26 @@ void main() {
     await pumpScreen(tester);
 
     expect(
-      tester
-          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, firstMember.name))
-          .selected,
+      tester.widget<ChoiceChip>(_choiceChip(firstMember.name)).selected,
       isTrue,
     );
     expect(
-      tester
-          .widget<ChoiceChip>(
-            find.widgetWithText(ChoiceChip, secondMember.name),
-          )
-          .selected,
+      tester.widget<ChoiceChip>(_choiceChip(secondMember.name)).selected,
       isFalse,
     );
 
-    final secondMemberChip = find.widgetWithText(ChoiceChip, secondMember.name);
+    final secondMemberChip = _choiceChip(secondMember.name);
     await tester.ensureVisible(secondMemberChip);
     await tester.pumpAndSettle();
     await tester.tap(secondMemberChip);
     await tester.pump();
 
     expect(
-      tester
-          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, firstMember.name))
-          .selected,
+      tester.widget<ChoiceChip>(_choiceChip(firstMember.name)).selected,
       isFalse,
     );
     expect(
-      tester
-          .widget<ChoiceChip>(
-            find.widgetWithText(ChoiceChip, secondMember.name),
-          )
-          .selected,
+      tester.widget<ChoiceChip>(_choiceChip(secondMember.name)).selected,
       isTrue,
     );
 
@@ -451,7 +477,7 @@ void main() {
     await tester.tap(find.text('保存する'));
     await tester.pumpAndSettle();
 
-    expect(find.text('登録者を選択してください'), findsOneWidget);
+    expect(find.text('支払った人を選択してください'), findsOneWidget);
     expect(await db.getAllTransactions(), isEmpty);
   });
 
@@ -479,5 +505,13 @@ void main() {
       tester.renderObject<RenderObject>(amountField),
     );
     expect(editable.maxScrollExtent, 0, reason: '先頭の桁が横スクロール領域へ隠れている');
+    final amountArea = tester.getRect(
+      find.ancestor(of: amountField, matching: find.byType(FittedBox)),
+    );
+    expect(
+      tester.getRect(find.text('¥')).left,
+      greaterThanOrEqualTo(amountArea.left),
+      reason: '上限額の円記号が入力領域の左端で切れている',
+    );
   });
 }

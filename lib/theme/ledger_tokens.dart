@@ -47,6 +47,13 @@ abstract final class LedgerTokens {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.92,
   );
+  static const amountCurrency = TextStyle(
+    fontFamily: 'Outfit',
+    fontFamilyFallback: ['ZenKakuGothicNew'],
+    fontSize: 26,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.52,
+  );
   static const amountRow = TextStyle(
     fontFamily: 'Outfit',
     fontFamilyFallback: ['ZenKakuGothicNew'],
