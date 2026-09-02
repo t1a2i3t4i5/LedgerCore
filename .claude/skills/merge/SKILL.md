@@ -3,13 +3,14 @@ name: merge
 description: レビュー済みの PR を squash マージし、ブランチと worktree を片付ける。ユーザーが「マージしていいよ」「マージしてください。ワークツリーも消していいよ」と言ったときに使う。
 argument-hint: "[PR番号]"
 arguments: pr
+disable-model-invocation: true
 allowed-tools:
   - Bash(git worktree list:*)
   - Bash(git rev-parse:*)
   - Bash(git status:*)
   - Bash(git branch:*)
   - Bash(git fetch:*)
-  - Bash(git pull:*)
+  - Bash(git -C * pull --ff-only origin main)
   - Bash(git log:*)
   - Bash(gh pr view:*)
   - Bash(gh pr list:*)
@@ -36,7 +37,7 @@ worktree の削除は別です。ユーザーが「ワークツリーも消し�
 `$pr` の先頭の `#` を落として判定します。
 
 - **数値** → その PR
-- **空** → 現在のブランチの PR。`gh pr view --json number,title,state,mergeable,mergeStateStatus,headRefName,baseRefName`
+- **空** → 現在のブランチの PR。`gh pr view --json number,title,state,isDraft,mergeable,mergeStateStatus,headRefName,baseRefName`
 
 PR が見つからない、または `state` が `OPEN` でないときは、そのまま伝えて終了します。作り直しません。
 
@@ -46,9 +47,13 @@ PR が見つからない、または `state` が `OPEN` でないときは、そ
 
 | 見るもの | 止める条件 |
 | --- | --- |
+| `isDraft` | `true` — draft 解除後にやり直すよう伝えて終了 |
 | `mergeable` | `CONFLICTING` — main との衝突をユーザーに伝えて終了 |
+| `mergeStateStatus` | `CLEAN` 以外 — GitHub が示した状態を伝えて終了 |
 | `gh pr checks` | 失敗しているチェックがある — どれが落ちたかを伝えて終了 |
 | `gh pr checks` | まだ `pending` — 完了を待つかどうかユーザーに聞く |
+
+すべての条件を通るまで、手順 3 以降の外部状態を変更しません。
 
 **落ちた CI をこのスキルの中で直しません。** 直すのは実装側の仕事です。
 

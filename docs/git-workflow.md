@@ -151,12 +151,12 @@ git pull
 
 ## スキルで通す — `/implement` と `/merge`
 
-| コマンド | 通す範囲 | 入力 | 手順の正本 |
-| --- | --- | --- | --- |
-| `/implement <issue 番号>` | Step 2〜5（ブランチ作成から PR 作成まで） | issue 番号 1 つ | [`.claude/skills/implement/SKILL.md`](../.claude/skills/implement/SKILL.md) |
-| `/merge [PR 番号]` | Step 7〜8（squash merge から `main` 最新化・worktree 片付けまで） | PR 番号。省略時は現在のブランチの PR | [`.claude/skills/merge/SKILL.md`](../.claude/skills/merge/SKILL.md) |
+| コマンド | 通す範囲 | 入力 | 起動する人 | 手順の正本 |
+| --- | --- | --- | --- | --- |
+| `/implement <issue 番号>` | Step 2〜5（ブランチ作成から PR 作成まで） | issue 番号 1 つ | Claude が自発起動してよい | [`.claude/skills/implement/SKILL.md`](../.claude/skills/implement/SKILL.md) |
+| `/merge [PR 番号]` | Step 7〜8（squash merge から `main` 最新化・worktree 片付けまで） | PR 番号。省略時は現在のブランチの PR | ユーザーが明示的に実行 | [`.claude/skills/merge/SKILL.md`](../.claude/skills/merge/SKILL.md) |
 
-`/merge` は実装もレビューも修正もせず、落ちた CI も直さない。worktree の削除はユーザーが明示したときだけ行う。
+`/merge` はユーザーが明示的に依頼したときだけ起動する。実装もレビューも修正もせず、落ちた CI も直さない。worktree の削除はユーザーが明示したときだけ行う。
 
 ## トラブルシューティング
 
