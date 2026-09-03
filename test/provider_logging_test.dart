@@ -406,6 +406,22 @@ void main() {
       expect(detailOf('category.delete'), {'id': added.id});
     });
 
+    test('並べ替えは保存後の ID 順で残る', () async {
+      await provider.fetch();
+      final before = List.of(provider.categories);
+
+      await provider.reorder(0, 2);
+      await logger.flush();
+
+      expect(provider.categories.take(2).map((category) => category.id), [
+        before[1].id,
+        before[0].id,
+      ]);
+      expect(detailOf('category.reorder'), {
+        'ids': provider.categories.map((category) => category.id).toList(),
+      });
+    });
+
     test('追加の失敗は error で残り、例外も届く', () async {
       // Categories.name は withLength(max: 50) で drift のクライアント側検証が
       // 効く。categories_screen.dart の TextField に maxLength が無いので、

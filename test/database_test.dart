@@ -15,6 +15,8 @@ void main() {
     final cats = await db.getCategories();
     expect(cats.length, 10);
     expect(cats.map((c) => c.name), contains('食費'));
+    expect(cats.map((c) => c.sortOrder), List.generate(10, (index) => index));
+    expect(cats.every((c) => c.colorValue == null), isTrue);
 
     final members = await db.getMembers();
     expect(members.length, 1);
@@ -332,19 +334,76 @@ void main() {
   });
 
   test('カテゴリの追加・更新・削除', () async {
-    await db.insertCategory('臨時費');
+    const selectedColor = 0xFF3D7F78;
+    await db.insertCategory('臨時費', colorValue: selectedColor);
     var cats = await db.getCategories();
     expect(cats.map((c) => c.name), contains('臨時費'));
 
     final target = cats.firstWhere((c) => c.name == '臨時費');
-    await db.updateCategoryName(target.id, '特別費');
+    expect(target.colorValue, selectedColor);
+    expect(target.sortOrder, 10);
+    await db.updateCategory(target.id, '特別費', 0xFFB67049);
     cats = await db.getCategories();
     expect(cats.map((c) => c.name), contains('特別費'));
     expect(cats.map((c) => c.name), isNot(contains('臨時費')));
+    expect(cats.firstWhere((c) => c.id == target.id).colorValue, 0xFFB67049);
 
     await db.deleteCategory(target.id);
     cats = await db.getCategories();
     expect(cats.map((c) => c.name), isNot(contains('特別費')));
+  });
+
+  test('保存したカテゴリ順が一覧と月次・年次の内訳へ反映される', () async {
+    final cats = await db.getCategories();
+    final food = cats.firstWhere((c) => c.name == '食費');
+    final transport = cats.firstWhere((c) => c.name == '交通費');
+    const transportColor = 0xFF3D7F78;
+    await db.updateCategory(transport.id, transport.name, transportColor);
+
+    final reorderedIds = [
+      transport.id,
+      food.id,
+      ...cats
+          .where((c) => c.id != transport.id && c.id != food.id)
+          .map((c) => c.id),
+    ];
+    await db.reorderCategories(reorderedIds);
+
+    final reordered = await db.getCategories();
+    expect(reordered.take(2).map((c) => c.name), ['交通費', '食費']);
+    expect(reordered.map((c) => c.sortOrder), List.generate(10, (i) => i));
+
+    final member = (await db.getMembers()).first;
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: member.id,
+        categoryId: food.id,
+        amount: 5000,
+        spentAt: DateTime(2026, 7, 1),
+      ),
+    );
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: member.id,
+        categoryId: transport.id,
+        amount: 100,
+        spentAt: DateTime(2026, 7, 2),
+      ),
+    );
+
+    final transactions = await db.getTransactionsByMonth(2026, 7);
+    final transportTransaction = transactions.firstWhere(
+      (transaction) => transaction.categoryId == transport.id,
+    );
+    expect(transportTransaction.categoryColorValue, transportColor);
+    expect(transportTransaction.categorySortOrder, 0);
+
+    final monthly = await db.getMonthlySummary(2026, 7);
+    expect(monthly.byCategory.map((item) => item.categoryName), ['交通費', '食費']);
+    expect(monthly.byCategory.first.categoryColorValue, transportColor);
+
+    final yearly = await db.getYearlySummary(2026);
+    expect(yearly.byCategory.map((item) => item.categoryName), ['交通費', '食費']);
   });
 
   test('取引を削除するとカテゴリが削除できるようになる', () async {

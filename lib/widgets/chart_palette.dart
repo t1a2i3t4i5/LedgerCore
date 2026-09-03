@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// カテゴリを識別するための固定パレット。
 /// 既定カテゴリは 10 件なので、12 色あれば通常は色が重複しない。
-const List<Color> _palette = [
+const List<Color> categoryPalette = [
   Color(0xFF3D7F78), // 青緑
   Color(0xFFB67049), // デザイン案の橙を背景上で識別できる明度へ調整
   Color(0xFFA57758), // デザイン案の薄橙を背景上で識別できる明度へ調整
@@ -32,7 +32,24 @@ const List<Color> _memberPalette = [
 
 /// カテゴリ ID から色を決定的に選ぶ。
 /// 同じカテゴリは常に同じ色になるので、グラフ・凡例・リストの対応が崩れない。
-Color categoryColor(int categoryId) => _palette[categoryId % _palette.length];
+Color categoryColor(int categoryId, {int? colorValue}) =>
+    colorValue == null
+        ? categoryPalette[categoryId % categoryPalette.length]
+        : Color(colorValue);
+
+/// 使用数が最も少ないカテゴリ色を返す。同数ならパレットの先頭を優先する。
+///
+/// 新規カテゴリの初期色に使う。色数よりカテゴリ数が多い場合も重複を許し、
+/// 特定の色だけへ偏らないようにする。
+Color leastUsedCategoryColor(Iterable<Color> usedColors) {
+  final counts = {for (final color in categoryPalette) color: 0};
+  for (final color in usedColors) {
+    if (counts.containsKey(color)) counts[color] = counts[color]! + 1;
+  }
+  return categoryPalette.reduce(
+    (best, color) => counts[color]! < counts[best]! ? color : best,
+  );
+}
 
 /// メンバー ID から色を決定的に選ぶ。
 /// カテゴリ色とは交わらないため、同色による無意味な対応が生まれない。

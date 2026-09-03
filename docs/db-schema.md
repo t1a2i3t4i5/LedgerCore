@@ -5,8 +5,8 @@ LedgerCore のデータはすべて [drift](https://drift.simonbinder.eu/)（SQL
 3 テーブルがアプリの持つデータのすべて。
 
 - **Dart 側のテーブル定義** — [`lib/db/database.dart`](../lib/db/database.dart)。`database.g.dart` は `build_runner` の生成物
-- **生成後の実 DDL** — 現行 v4 は [`drift_schemas/drift_schema_v4.json`](../drift_schemas/drift_schema_v4.json)。バージョンごとの JSON を `drift_schemas/` に保存する
-- **`schemaVersion`** — 現在 `4`（`transactions.amount` の CHECK 制約を段階的に強め、未使用だった `members.mail` を削除した。[マイグレーション履歴](#マイグレーション履歴)を参照）
+- **生成後の実 DDL** — 現行 v5 は [`drift_schemas/drift_schema_v5.json`](../drift_schemas/drift_schema_v5.json)。バージョンごとの JSON を `drift_schemas/` に保存する
+- **`schemaVersion`** — 現在 `5`（カテゴリの識別色と並び順を追加した。[マイグレーション履歴](#マイグレーション履歴)を参照）
 - このドキュメントと実装が食い違った場合は `database.dart` が正。スキーマを変更したらこのファイルも更新する
 
 Dart 側の識別子は camelCase だが、drift が実際の SQL 名を **snake_case** に変換する
@@ -23,6 +23,8 @@ erDiagram
     categories {
         INTEGER id PK
         TEXT name
+        INTEGER color_value "NULL可"
+        INTEGER sort_order
     }
 
     members {
@@ -53,6 +55,8 @@ erDiagram
 | --- | --- | --- | --- | --- |
 | `id` | `id` | INTEGER | PK / AUTOINCREMENT | |
 | `name` | `name` | TEXT | NOT NULL | カテゴリ名。1〜50 文字（後述のとおり検証は Dart 側） |
+| `color_value` | `colorValue` | INTEGER | NULL 可 | 選択した ARGB 色。NULL は `categoryColor()` の ID 由来色へフォールバック |
+| `sort_order` | `sortOrder` | INTEGER | NOT NULL / DEFAULT 0 | 全画面で共有する並び順。小さいものから表示 |
 
 初回起動時（`MigrationStrategy.onCreate`）に既定カテゴリ 10 件（食費・日用品・交通費・光熱費・通信費・
 住居費・医療費・娯楽費・衣服・その他）が投入される。
@@ -146,7 +150,7 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 
 | 表示用モデル | 対応するテーブル | 備考 |
 | --- | --- | --- |
-| `CategoryView` | `categories` | `id` / `name` のみ |
+| `CategoryView` | `categories` | `id` / `name` / `colorValue` / `sortOrder` |
 | `HouseholdMember` | `members` | `id` / `name` のみ |
 | `TransactionView` | `transactions` + `members` + `categories` の JOIN | 下記のフィールド対応を参照 |
 | `TransactionInput` | 書き込み用の入力 | `memberId` が `member_id` に入る |
@@ -161,6 +165,8 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | `TransactionView.memberName` | `members.name` |
 | `TransactionView.categoryId` | `categories.id` |
 | `TransactionView.categoryName` | `categories.name` |
+| `TransactionView.categoryColorValue` | `categories.color_value` |
+| `TransactionView.categorySortOrder` | `categories.sort_order` |
 | `TransactionInput.memberId` | `transactions.member_id` に書き込まれる |
 
 `MemberSummaryItem` / `MemberBalance` の `memberId` / `memberName` も同じく `members` を指す。
@@ -189,6 +195,12 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | 2 | `transactions.amount` に `CHECK (amount > 0)` を追加 |
 | 3 | `transactions.amount` に上限（`<= 999999999999`）と整数条件を追加 |
 | 4 | 未使用だった `members.mail` を削除 |
+| 5 | `categories` に識別色 `color_value` と並び順 `sort_order` を追加 |
+
+v4 以前から v5 への移行では、`color_value` は NULL のままにする。表示側が従来と同じ
+`id % パレット長` の色へフォールバックするため、移行しただけで色は変わらない。
+`sort_order` は既存の表示順だった `id` を設定し、カテゴリ名・主キー・取引の外部キーを
+書き換えない。列追加と値の更新だけなので、カテゴリや取引の行を作り直さない。
 
 SQLite は既存カラムへの CHECK 追加をサポートしないため、`onUpgrade` は
 drift の `TableMigration` で `transactions` を作り直している。作り直しは新テーブルへの

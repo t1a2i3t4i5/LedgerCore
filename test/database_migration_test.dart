@@ -58,6 +58,13 @@ const _mailDropVersion = 4;
 final _versionsWithMail =
     _oldVersions.where((v) => v < _mailDropVersion).toList();
 
+/// カテゴリの色と並び順を追加したバージョン。
+const _categoryCustomizationVersion = 5;
+
+/// 色と並び順を持たない起点バージョン。
+final _versionsWithoutCategoryCustomization =
+    _oldVersions.where((v) => v < _categoryCustomizationVersion).toList();
+
 /// 検証を厳しめにする。既定では `validateDropped: false` で
 /// 「参照に無いのに実在するテーブル」を見ないため、移行が中間テーブルを
 /// 残しても素通りする。有効にしても現状のコードでは追加コストは無い。
@@ -164,6 +171,65 @@ void main() {
         _latestVersion,
         options: _validation,
       );
+    });
+  }
+
+  test('カテゴリの色と並び順を持たない起点バージョンが存在する', () {
+    expect(_versionsWithoutCategoryCustomization, isNotEmpty);
+    expect(
+      _versionsWithoutCategoryCustomization.every(
+        (version) => version < _categoryCustomizationVersion,
+      ),
+      isTrue,
+    );
+  });
+
+  for (final from in _versionsWithoutCategoryCustomization) {
+    test('v$from のカテゴリは名前・ID順・取引との関連を保って移行する', () async {
+      final schema = await verifier.schemaAt(from);
+      addTearDown(schema.close);
+
+      final raw = schema.rawDatabase;
+      raw.execute('INSERT INTO categories (name) VALUES (?)', ['先のカテゴリ']);
+      final firstCategoryId = raw.lastInsertRowId;
+      raw.execute('INSERT INTO categories (name) VALUES (?)', ['後のカテゴリ']);
+      final secondCategoryId = raw.lastInsertRowId;
+      raw.execute('INSERT INTO members (name) VALUES (?)', [_memberName]);
+      final memberId = raw.lastInsertRowId;
+      final at = DateTime(2026, 7, 10).millisecondsSinceEpoch ~/ 1000;
+      raw.execute(
+        'INSERT INTO transactions '
+        '(member_id, category_id, amount, spent_at, memo, created_at, updated_at) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [memberId, secondCategoryId, 1000, at, '移行確認', at, at],
+      );
+
+      final db = AppDatabase.forTesting(schema.newConnection());
+      addTearDown(db.close);
+      await verifier.migrateAndValidate(
+        db,
+        _latestVersion,
+        options: _validation,
+      );
+
+      final categories = await db.getCategories();
+      expect(
+        categories.map((category) => (category.id, category.name)).toList(),
+        [(firstCategoryId, '先のカテゴリ'), (secondCategoryId, '後のカテゴリ')],
+      );
+      expect(categories.map((category) => category.sortOrder), [
+        firstCategoryId,
+        secondCategoryId,
+      ]);
+      expect(
+        categories.every((category) => category.colorValue == null),
+        isTrue,
+      );
+
+      final transaction = (await db.getAllTransactions()).single;
+      expect(transaction.categoryId, secondCategoryId);
+      expect(transaction.categoryName, '後のカテゴリ');
+      expect(transaction.memo, '移行確認');
     });
   }
 

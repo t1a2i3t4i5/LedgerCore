@@ -28,6 +28,8 @@ class TransactionView {
   final String memberName;
   final int categoryId;
   final String categoryName;
+  final int? categoryColorValue;
+  final int? categorySortOrder;
   final double amount;
   final DateTime spentAt;
   final String? memo;
@@ -38,6 +40,8 @@ class TransactionView {
     required this.memberName,
     required this.categoryId,
     required this.categoryName,
+    this.categoryColorValue,
+    this.categorySortOrder,
     required this.amount,
     required this.spentAt,
     this.memo,

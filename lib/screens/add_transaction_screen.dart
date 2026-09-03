@@ -437,6 +437,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                                     decoration: BoxDecoration(
                                                       color: categoryColor(
                                                         c.id,
+                                                        colorValue:
+                                                            c.colorValue,
                                                       ),
                                                       shape: BoxShape.circle,
                                                     ),

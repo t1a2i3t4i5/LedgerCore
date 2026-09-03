@@ -39,13 +39,16 @@ class CategoryProvider extends ChangeNotifier {
   }
 
   /// カテゴリを追加する
-  Future<void> create(String name) async {
+  Future<void> create(String name, {int? colorValue}) async {
     // insertCategory は採番された id を返さないので、追加のログに id は無い。
     // カテゴリ名はユーザー自身が付けた短いラベルで画面にも常時出ているため、
     // 取引のメモと違ってそのまま載せる
-    final detail = {'name': name};
+    final detail = {
+      'name': name,
+      if (colorValue != null) 'colorValue': colorValue,
+    };
     try {
-      await _db.insertCategory(name);
+      await _db.insertCategory(name, colorValue: colorValue);
     } catch (e) {
       _logger.error('category.create', e, detail: detail);
       // **必ず rethrow する。** 例外は画面（categories_screen.dart）の catch へ
@@ -57,16 +60,57 @@ class CategoryProvider extends ChangeNotifier {
   }
 
   /// カテゴリを更新する
-  Future<void> update(int categoryId, String name) async {
-    final detail = {'id': categoryId, 'name': name};
+  Future<void> update(int categoryId, String name, {int? colorValue}) async {
+    final detail = {
+      'id': categoryId,
+      'name': name,
+      if (colorValue != null) 'colorValue': colorValue,
+    };
     try {
-      await _db.updateCategoryName(categoryId, name);
+      if (colorValue == null) {
+        await _db.updateCategoryName(categoryId, name);
+      } else {
+        await _db.updateCategory(categoryId, name, colorValue);
+      }
     } catch (e) {
       _logger.error('category.update', e, detail: detail);
       rethrow;
     }
     _logger.info('category.update', detail: detail);
     await fetch();
+  }
+
+  /// カテゴリの並び順を更新する。
+  Future<void> reorder(int oldIndex, int newIndex) async {
+    if (newIndex > oldIndex) newIndex -= 1;
+    if (oldIndex == newIndex) return;
+
+    final previous = List<CategoryView>.of(_categories);
+    final reordered = List<CategoryView>.of(_categories);
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, moved);
+    _categories = [
+      for (final (index, category) in reordered.indexed)
+        CategoryView(
+          id: category.id,
+          name: category.name,
+          colorValue: category.colorValue,
+          sortOrder: index,
+        ),
+    ];
+    notifyListeners();
+
+    final ids = _categories.map((category) => category.id).toList();
+    final detail = {'ids': ids};
+    try {
+      await _db.reorderCategories(ids);
+    } catch (e) {
+      _categories = previous;
+      _logger.error('category.reorder', e, detail: detail);
+      notifyListeners();
+      rethrow;
+    }
+    _logger.info('category.reorder', detail: detail);
   }
 
   /// カテゴリを削除する

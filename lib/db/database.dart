@@ -27,6 +27,8 @@ const _defaultCategories = [
 class Categories extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 50)();
+  IntColumn get colorValue => integer().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 }
 
 /// 支出を負担する世帯のメンバー。取引の支払者であり、割り勘の頭割りの分母。
@@ -83,7 +85,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -93,8 +95,11 @@ class AppDatabase extends _$AppDatabase {
       await batch((b) {
         b.insertAll(
           categories,
-          _defaultCategories.map(
-            (name) => CategoriesCompanion.insert(name: name),
+          _defaultCategories.indexed.map(
+            (entry) => CategoriesCompanion.insert(
+              name: entry.$2,
+              sortOrder: Value(entry.$1),
+            ),
           ),
         );
         b.insert(members, MembersCompanion.insert(name: '自分'));
@@ -104,7 +109,7 @@ class AppDatabase extends _$AppDatabase {
       // 未対応のバージョンを黙って素通りさせない。drift の既定 onUpgrade は
       // 「移行が書かれていません」と例外を投げる安全網だが、それを上書きして
       // しまうため、分岐から漏れたら気付けるようにここで落とす。
-      if (from < 1 || to > 4) {
+      if (from < 1 || to > 5) {
         throw StateError('未対応のマイグレーションです: v$from → v$to');
       }
       // drift は onUpgrade をトランザクションで包まない。包まないと
@@ -184,6 +189,14 @@ class AppDatabase extends _$AppDatabase {
           // ignore: experimental_member_use
           await m.alterTable(TableMigration(members));
         }
+        if (from < 5) {
+          // 既存カテゴリの色は未設定のままにし、表示側の ID 由来の色へ
+          // フォールバックさせる。これにより移行前後で色が変わらない。
+          await m.addColumn(categories, categories.colorValue);
+          await m.addColumn(categories, categories.sortOrder);
+          // 現行の一覧は ID 昇順なので、その順序を初期値として保存する。
+          await customStatement('UPDATE categories SET sort_order = id');
+        }
       });
     },
     beforeOpen: (details) async {
@@ -194,18 +207,61 @@ class AppDatabase extends _$AppDatabase {
   // ---- カテゴリ ----
   Future<List<CategoryView>> getCategories() async {
     final rows =
-        await (select(categories)
-          ..orderBy([(c) => OrderingTerm(expression: c.id)])).get();
-    return rows.map((c) => CategoryView(id: c.id, name: c.name)).toList();
+        await (select(categories)..orderBy([
+          (c) => OrderingTerm(expression: c.sortOrder),
+          (c) => OrderingTerm(expression: c.id),
+        ])).get();
+    return rows
+        .map(
+          (c) => CategoryView(
+            id: c.id,
+            name: c.name,
+            colorValue: c.colorValue,
+            sortOrder: c.sortOrder,
+          ),
+        )
+        .toList();
   }
 
-  Future<void> insertCategory(String name) =>
-      into(categories).insert(CategoriesCompanion.insert(name: name));
+  Future<void> insertCategory(String name, {int? colorValue}) async {
+    final current = await getCategories();
+    final nextOrder =
+        current.isEmpty
+            ? 0
+            : current
+                    .map((category) => category.sortOrder)
+                    .reduce((max, order) => order > max ? order : max) +
+                1;
+    await into(categories).insert(
+      CategoriesCompanion.insert(
+        name: name,
+        colorValue: Value(colorValue),
+        sortOrder: Value(nextOrder),
+      ),
+    );
+  }
 
   Future<void> updateCategoryName(int id, String name) => (update(categories)
     ..where(
       (c) => c.id.equals(id),
     )).write(CategoriesCompanion(name: Value(name)));
+
+  Future<void> updateCategory(int id, String name, int colorValue) =>
+      (update(categories)..where((c) => c.id.equals(id))).write(
+        CategoriesCompanion(name: Value(name), colorValue: Value(colorValue)),
+      );
+
+  Future<void> reorderCategories(List<int> categoryIds) => transaction(
+    () => batch((batch) {
+      for (final (index, id) in categoryIds.indexed) {
+        batch.update(
+          categories,
+          CategoriesCompanion(sortOrder: Value(index)),
+          where: (category) => category.id.equals(id),
+        );
+      }
+    }),
+  );
 
   Future<void> deleteCategory(int id) =>
       (delete(categories)..where((c) => c.id.equals(id))).go();
@@ -280,6 +336,8 @@ class AppDatabase extends _$AppDatabase {
         memberName: m.name,
         categoryId: c.id,
         categoryName: c.name,
+        categoryColorValue: c.colorValue,
+        categorySortOrder: c.sortOrder,
         amount: t.amount,
         spentAt: t.spentAt,
         memo: t.memo,

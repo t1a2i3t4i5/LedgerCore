@@ -225,7 +225,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       return ListTile(
                         leading: CircleAvatar(
                           radius: 5,
-                          backgroundColor: categoryColor(t.categoryId),
+                          backgroundColor: categoryColor(
+                            t.categoryId,
+                            colorValue: t.categoryColorValue,
+                          ),
                         ),
                         minLeadingWidth: 10,
                         horizontalTitleGap: 12,
