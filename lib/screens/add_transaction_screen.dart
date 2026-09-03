@@ -456,16 +456,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                                   backgroundColor:
                                                       scheme
                                                           .surfaceContainerLowest,
-                                                  selectedColor:
-                                                      scheme.secondaryContainer,
-                                                  side:
-                                                      selected
-                                                          ? BorderSide(
-                                                            color:
-                                                                scheme
-                                                                    .secondary,
-                                                          )
-                                                          : BorderSide.none,
                                                   onSelected: (value) {
                                                     if (!value) return;
                                                     setState(
@@ -587,18 +577,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                                             backgroundColor:
                                                                 scheme
                                                                     .surfaceContainerLowest,
-                                                            selectedColor:
-                                                                scheme
-                                                                    .secondaryContainer,
-                                                            side:
-                                                                selected
-                                                                    ? BorderSide(
-                                                                      color:
-                                                                          scheme
-                                                                              .secondary,
-                                                                    )
-                                                                    : BorderSide
-                                                                        .none,
                                                             shape: RoundedRectangleBorder(
                                                               borderRadius:
                                                                   BorderRadius.circular(

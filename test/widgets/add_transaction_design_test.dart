@@ -194,6 +194,24 @@ void main() {
     expect(find.byIcon(Icons.calendar_today), findsNothing);
   });
 
+  testWidgets('カテゴリと支払った人の選択表示を共通ChipThemeへ委譲する', (tester) async {
+    await pumpScreen(tester);
+
+    final category = (await db.getCategories()).first;
+    final member = (await db.getMembers()).first;
+    final categoryChip = tester.widget<ChoiceChip>(_choiceChip(category.name));
+    final memberChip = tester.widget<ChoiceChip>(_choiceChip(member.name));
+
+    for (final chip in [categoryChip, memberChip]) {
+      expect(chip.side, isNull);
+      expect(chip.selectedColor, isNull);
+      expect(
+        chip.backgroundColor,
+        ledgerTheme.colorScheme.surfaceContainerLowest,
+      );
+    }
+  });
+
   testWidgets('320px幅かつ文字倍率2.0でも3分割ヘッダが溢れない', (tester) async {
     await pumpScreen(
       tester,
