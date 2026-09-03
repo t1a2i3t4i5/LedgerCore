@@ -11,6 +11,7 @@ TransactionView _tx({
   String categoryName = '食費',
   int? categoryColorValue,
   int? categorySortOrder,
+  bool categoryIsFixed = false,
   required double amount,
   DateTime? spentAt,
 }) {
@@ -22,6 +23,7 @@ TransactionView _tx({
     categoryName: categoryName,
     categoryColorValue: categoryColorValue,
     categorySortOrder: categorySortOrder,
+    categoryIsFixed: categoryIsFixed,
     amount: amount,
     spentAt: spentAt ?? DateTime(2026, 7, 1),
   );
@@ -68,6 +70,36 @@ void main() {
       expect(s.byCategory.first.categoryColorValue, 0xFF3D7F78);
       expect(s.byCategory[1].categoryName, '食費');
       expect(s.byCategory[1].total, 800);
+    });
+
+    test('固定カテゴリは保存順より後、内訳の最後に来る', () {
+      final txns = [
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          categoryId: 9,
+          categoryName: 'その他',
+          // 受け皿は既定カテゴリの並びで先に作られるので順序値は小さい
+          categorySortOrder: 0,
+          categoryIsFixed: true,
+          amount: 100,
+        ),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          categoryId: 1,
+          categoryName: 'あとで足したカテゴリ',
+          categorySortOrder: 5,
+          amount: 200,
+        ),
+      ];
+
+      final s = buildMonthlySummary(2026, 7, txns);
+
+      expect(s.byCategory.map((item) => item.categoryName), [
+        'あとで足したカテゴリ',
+        'その他',
+      ]);
     });
 
     test('メンバー別に集計される', () {

@@ -21,14 +21,23 @@ const _defaultCategories = [
   '医療費',
   '娯楽費',
   '衣服',
-  'その他',
+  _fixedCategoryName,
 ];
+
+/// 削除できない受け皿カテゴリの名前。
+///
+/// 初回投入と v5 への移行の両方でこの名前を固定の印にする。移行後にユーザーが
+/// 改名しても固定は列の値として残るので、ここを参照するのはこの 2 か所だけ。
+const _fixedCategoryName = 'その他';
 
 class Categories extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 50)();
   IntColumn get colorValue => integer().nullable()();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  // 「その他」のように、分類しきれない取引の受け皿として常に残すカテゴリ。
+  // 削除と並べ替えだけを禁じ、名前と色は変えられる。
+  BoolColumn get isFixed => boolean().withDefault(const Constant(false))();
 }
 
 /// 支出を負担する世帯のメンバー。取引の支払者であり、割り勘の頭割りの分母。
@@ -99,6 +108,7 @@ class AppDatabase extends _$AppDatabase {
             (entry) => CategoriesCompanion.insert(
               name: entry.$2,
               sortOrder: Value(entry.$1),
+              isFixed: Value(entry.$2 == _fixedCategoryName),
             ),
           ),
         );
@@ -194,8 +204,14 @@ class AppDatabase extends _$AppDatabase {
           // フォールバックさせる。これにより移行前後で色が変わらない。
           await m.addColumn(categories, categories.colorValue);
           await m.addColumn(categories, categories.sortOrder);
+          await m.addColumn(categories, categories.isFixed);
           // 現行の一覧は ID 昇順なので、その順序を初期値として保存する。
           await customStatement('UPDATE categories SET sort_order = id');
+          // 初回投入の受け皿カテゴリを固定にする。改名・削除済みの端末では
+          // 一致する行が無く、固定カテゴリを持たないまま移行する（それでよい）。
+          await customStatement(
+            "UPDATE categories SET is_fixed = 1 WHERE name = '$_fixedCategoryName'",
+          );
         }
       });
     },
@@ -208,6 +224,8 @@ class AppDatabase extends _$AppDatabase {
   Future<List<CategoryView>> getCategories() async {
     final rows =
         await (select(categories)..orderBy([
+          // 固定カテゴリは受け皿なので、並べ替えても常に一覧の最後に置く。
+          (c) => OrderingTerm(expression: c.isFixed),
           (c) => OrderingTerm(expression: c.sortOrder),
           (c) => OrderingTerm(expression: c.id),
         ])).get();
@@ -218,17 +236,21 @@ class AppDatabase extends _$AppDatabase {
             name: c.name,
             colorValue: c.colorValue,
             sortOrder: c.sortOrder,
+            isFixed: c.isFixed,
           ),
         )
         .toList();
   }
 
   Future<void> insertCategory(String name, {int? colorValue}) async {
-    final current = await getCategories();
+    // 固定カテゴリは常に末尾に置くので、その sort_order は最大値に数えない。
+    // 数えると新規カテゴリが固定より下の順序値を持てず、並べ替えの起点がずれる。
+    final movable =
+        (await getCategories()).where((category) => !category.isFixed).toList();
     final nextOrder =
-        current.isEmpty
+        movable.isEmpty
             ? 0
-            : current
+            : movable
                     .map((category) => category.sortOrder)
                     .reduce((max, order) => order > max ? order : max) +
                 1;
@@ -263,8 +285,17 @@ class AppDatabase extends _$AppDatabase {
     }),
   );
 
-  Future<void> deleteCategory(int id) =>
-      (delete(categories)..where((c) => c.id.equals(id))).go();
+  Future<void> deleteCategory(int id) async {
+    // 画面でも削除ボタンを無効にしているが、受け皿を失うと分類しきれない取引の
+    // 行き先が無くなるので、DB 側でも落とす。
+    final target =
+        await (select(categories)
+          ..where((c) => c.id.equals(id))).getSingleOrNull();
+    if (target != null && target.isFixed) {
+      throw StateError('固定カテゴリは削除できません');
+    }
+    await (delete(categories)..where((c) => c.id.equals(id))).go();
+  }
 
   // ---- メンバー ----
   Future<List<HouseholdMember>> getMembers() async {
@@ -338,6 +369,7 @@ class AppDatabase extends _$AppDatabase {
         categoryName: c.name,
         categoryColorValue: c.colorValue,
         categorySortOrder: c.sortOrder,
+        categoryIsFixed: c.isFixed,
         amount: t.amount,
         spentAt: t.spentAt,
         memo: t.memo,

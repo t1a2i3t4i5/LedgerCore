@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/category.dart';
 import '../providers/category_provider.dart';
+import '../theme/ledger_tokens.dart';
 import '../widgets/chart_palette.dart';
 import '../widgets/ledger_card.dart';
 import '../widgets/page_header.dart';
@@ -118,14 +119,18 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       body: SafeArea(
         child: Consumer<CategoryProvider>(
           builder: (context, provider, _) {
+            final movable = provider.movableCategories;
+            final fixed = provider.fixedCategory;
+            final rowCount = movable.length + (fixed == null ? 0 : 1);
+
             final scrollView = CustomScrollView(
               slivers: [
                 PinnedBackPageHeader(
                   title: 'カテゴリ',
                   actions: [
-                    TextButton(
+                    _EditModeButton(
+                      editing: _editing,
                       onPressed: () => setState(() => _editing = !_editing),
-                      child: Text(_editing ? '完了' : '編集'),
                     ),
                   ],
                 ),
@@ -154,108 +159,294 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 else
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    sliver: SliverReorderableList(
-                      itemCount: provider.categories.length,
-                      onReorder: _reorder,
-                      itemBuilder: (context, index) {
-                        final cat = provider.categories[index];
-                        final color = categoryColor(
-                          cat.id,
-                          colorValue: cat.colorValue,
-                        );
-                        return Padding(
-                          key: ValueKey(cat.id),
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: LedgerCard(
-                            padding: EdgeInsets.zero,
-                            // ドラッグ中は Overlay へ持ち上がり、Scaffold の
-                            // Material 祖先から外れるため、行自身に持たせる。
-                            child: Material(
-                              type: MaterialType.transparency,
-                              child: ListTile(
-                                onTap:
-                                    _editing ? null : () => _showEditSheet(cat),
-                                leading:
-                                    _editing
-                                        ? IconButton(
-                                          tooltip: '${cat.name}を削除',
-                                          icon: Icon(
-                                            Icons.remove_circle_outline,
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.error,
-                                          ),
-                                          onPressed:
-                                              () => _delete(cat.id, cat.name),
-                                        )
-                                        : CircleAvatar(
-                                          radius: 5,
-                                          backgroundColor: color,
-                                        ),
-                                minLeadingWidth: _editing ? 48 : 10,
-                                horizontalTitleGap: 12,
-                                title:
-                                    _editing
-                                        ? Row(
-                                          children: [
-                                            CircleAvatar(
-                                              radius: 5,
-                                              backgroundColor: color,
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Text(
-                                                cat.name,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        )
-                                        : Text(
-                                          cat.name,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                trailing:
-                                    _editing
-                                        ? Semantics(
-                                          label: '${cat.name}を並べ替え',
-                                          child: ReorderableDragStartListener(
-                                            index: index,
-                                            child: const SizedBox.square(
-                                              dimension: 48,
-                                              child: Icon(Icons.drag_handle),
-                                            ),
-                                          ),
-                                        )
-                                        : const Icon(Icons.chevron_right),
+                    // 一覧は 1 枚のカードに収める。行ごとにカードを分けると
+                    // 区切り線ではなく影の帯が並び、案の見た目から離れる。
+                    sliver: DecoratedSliver(
+                      decoration: ledgerCardDecoration(context),
+                      sliver: SliverMainAxisGroup(
+                        slivers: [
+                          SliverReorderableList(
+                            itemCount: movable.length,
+                            onReorder: _reorder,
+                            proxyDecorator:
+                                (child, index, animation) => Material(
+                                  color:
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerLow,
+                                  borderRadius: BorderRadius.circular(
+                                    LedgerTokens.cardRadius,
+                                  ),
+                                  elevation: 6,
+                                  child: child,
+                                ),
+                            itemBuilder: (context, index) {
+                              final cat = movable[index];
+                              return _CategoryRow(
+                                key: ValueKey(cat.id),
+                                category: cat,
+                                editing: _editing,
+                                isFirst: index == 0,
+                                isLast: index == rowCount - 1,
+                                showDivider: index < rowCount - 1,
+                                onTap: () => _showEditSheet(cat),
+                                onDelete: () => _delete(cat.id, cat.name),
+                                dragIndex: index,
+                              );
+                            },
+                          ),
+                          if (fixed != null)
+                            SliverToBoxAdapter(
+                              child: _CategoryRow(
+                                key: ValueKey(fixed.id),
+                                category: fixed,
+                                editing: _editing,
+                                isFirst: movable.isEmpty,
+                                isLast: true,
+                                showDivider: false,
+                                onTap: () => _showEditSheet(fixed),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                        ],
+                      ),
                     ),
                   ),
               ],
             );
 
-            if (!provider.loading &&
-                provider.error == null &&
-                provider.categories.isNotEmpty) {
-              return RefreshIndicator(onRefresh: _fetch, child: scrollView);
-            }
-            return scrollView;
+            final list =
+                !provider.loading &&
+                        provider.error == null &&
+                        provider.categories.isNotEmpty
+                    ? RefreshIndicator(onRefresh: _fetch, child: scrollView)
+                    : scrollView;
+
+            return Column(
+              children: [
+                Expanded(child: list),
+                _AddCategoryButton(onPressed: _showEditSheet),
+              ],
+            );
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showEditSheet,
-        child: const Icon(Icons.add),
+    );
+  }
+}
+
+/// 右上の「編集」/「完了」。編集中だけ塗りつぶしにして、モードを一目で分ける。
+class _EditModeButton extends StatelessWidget {
+  const _EditModeButton({required this.editing, required this.onPressed});
+
+  final bool editing;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return FilledButton(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        backgroundColor: editing ? scheme.primary : scheme.primaryContainer,
+        foregroundColor: editing ? scheme.onPrimary : scheme.onPrimaryContainer,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        minimumSize: const Size(0, 40),
+        textStyle: Theme.of(context).textTheme.labelLarge,
+      ),
+      child: Text(editing ? '完了' : '編集'),
+    );
+  }
+}
+
+/// カテゴリ 1 行。カードの内側に置くので、角丸は先頭と末尾の行だけが持つ。
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow({
+    super.key,
+    required this.category,
+    required this.editing,
+    required this.isFirst,
+    required this.isLast,
+    required this.showDivider,
+    required this.onTap,
+    this.onDelete,
+    this.dragIndex,
+  });
+
+  final CategoryView category;
+  final bool editing;
+  final bool isFirst;
+  final bool isLast;
+  final bool showDivider;
+  final VoidCallback onTap;
+  final VoidCallback? onDelete;
+
+  /// 並べ替えハンドルに渡す添字。固定カテゴリでは null。
+  final int? dragIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = categoryColor(category.id, colorValue: category.colorValue);
+    // 編集中の固定カテゴリは操作できないので、色も文字も淡くして理由を示す。
+    final muted = editing && category.isFixed;
+    final radius = BorderRadius.vertical(
+      top: Radius.circular(isFirst ? LedgerTokens.cardRadius : 0),
+      bottom: Radius.circular(isLast ? LedgerTokens.cardRadius : 0),
+    );
+
+    final dot = CircleAvatar(
+      radius: 5,
+      backgroundColor: muted ? color.withValues(alpha: 0.35) : color,
+    );
+    final label = Text(
+      category.name,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: muted ? const TextStyle(color: LedgerTokens.subtext) : null,
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ドラッグ中は Overlay へ持ち上がり、Scaffold の Material 祖先から
+        // 外れるため、行自身に持たせる。
+        Material(
+          type: MaterialType.transparency,
+          child: ListTile(
+            shape: RoundedRectangleBorder(borderRadius: radius),
+            onTap: editing ? null : onTap,
+            leading:
+                editing
+                    ? IconButton(
+                      tooltip:
+                          category.isFixed
+                              ? '${category.name}は削除できません'
+                              : '${category.name}を削除',
+                      icon: Icon(
+                        Icons.remove_circle_outline,
+                        color: category.isFixed ? null : scheme.error,
+                      ),
+                      onPressed: category.isFixed ? null : onDelete,
+                    )
+                    : dot,
+            minLeadingWidth: editing ? 48 : 10,
+            horizontalTitleGap: 12,
+            title:
+                editing
+                    ? Row(
+                      children: [
+                        dot,
+                        const SizedBox(width: 12),
+                        Expanded(child: label),
+                      ],
+                    )
+                    : label,
+            trailing:
+                editing
+                    ? (dragIndex == null
+                        ? Text(
+                          '固定',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: LedgerTokens.subtext),
+                        )
+                        : Semantics(
+                          label: '${category.name}を並べ替え',
+                          child: ReorderableDragStartListener(
+                            index: dragIndex!,
+                            child: const SizedBox.square(
+                              dimension: 48,
+                              child: Icon(Icons.drag_handle),
+                            ),
+                          ),
+                        ))
+                    : const Icon(Icons.chevron_right),
+          ),
+        ),
+        if (showDivider) const Divider(height: 1, indent: 16, endIndent: 16),
+      ],
+    );
+  }
+}
+
+/// 一覧の下に据える「カテゴリを追加」。破線の枠で、一覧の行とは別の操作だと示す。
+class _AddCategoryButton extends StatelessWidget {
+  const _AddCategoryButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: SizedBox(
+        height: 64,
+        child: CustomPaint(
+          painter: const _DashedBorderPainter(
+            color: LedgerTokens.dashedOutline,
+            radius: LedgerTokens.cardRadius,
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              key: const Key('add-category-button'),
+              onTap: onPressed,
+              borderRadius: BorderRadius.circular(LedgerTokens.cardRadius),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add, size: 20, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 8),
+                    Text(
+                      'カテゴリを追加',
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
+}
+
+/// 角丸の破線枠。Flutter に破線の Border が無いので、輪郭を測って刻む。
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter({required this.color, required this.radius});
+
+  final Color color;
+  final double radius;
+
+  static const _dash = 6.0;
+  static const _gap = 5.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5;
+    final outline =
+        Path()..addRRect(
+          RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)),
+        );
+    for (final metric in outline.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final next = math.min(distance + _dash, metric.length);
+        canvas.drawPath(metric.extractPath(distance, next), paint);
+        distance = next + _gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
+      color != oldDelegate.color || radius != oldDelegate.radius;
 }
 
 class _CategoryEditSheet extends StatefulWidget {

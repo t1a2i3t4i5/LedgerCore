@@ -417,9 +417,12 @@ void main() {
         before[1].id,
         before[0].id,
       ]);
+      // 固定カテゴリは並べ替えないので、保存する ID にも含めない
       expect(detailOf('category.reorder'), {
-        'ids': provider.categories.map((category) => category.id).toList(),
+        'ids':
+            provider.movableCategories.map((category) => category.id).toList(),
       });
+      expect(provider.categories.last.name, 'その他');
     });
 
     test('追加の失敗は error で残り、例外も届く', () async {

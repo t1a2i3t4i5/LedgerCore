@@ -233,6 +233,35 @@ void main() {
     });
   }
 
+  for (final from in _versionsWithoutCategoryCustomization) {
+    test('v$from では「その他」だけが固定カテゴリになる', () async {
+      final schema = await verifier.schemaAt(from);
+      addTearDown(schema.close);
+
+      final raw = schema.rawDatabase;
+      // 名前が完全一致する行だけを固定にする（部分一致で巻き込まない）
+      for (final name in [_categoryName, 'その他', 'その他の出費']) {
+        raw.execute('INSERT INTO categories (name) VALUES (?)', [name]);
+      }
+
+      final db = AppDatabase.forTesting(schema.newConnection());
+      addTearDown(db.close);
+      await verifier.migrateAndValidate(
+        db,
+        _latestVersion,
+        options: _validation,
+      );
+
+      // 固定カテゴリは一覧の末尾へ回る
+      expect(
+        (await db.getCategories())
+            .map((category) => (category.name, category.isFixed))
+            .toList(),
+        [(_categoryName, false), ('その他の出費', false), ('その他', true)],
+      );
+    });
+  }
+
   test('v1 に 0 以下の取引が残っていても移行できる', () async {
     // v1 は amount に CHECK 制約が無く、0 以下の金額を保存できた
     final (db, ids) = await migrateFrom(1, [1500, -2000, 0, -0.5, 800]);

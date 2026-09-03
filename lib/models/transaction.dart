@@ -30,6 +30,10 @@ class TransactionView {
   final String categoryName;
   final int? categoryColorValue;
   final int? categorySortOrder;
+
+  /// カテゴリが削除できない受け皿かどうか。内訳を管理画面と同じ順に並べるため、
+  /// 順序値と一緒に持ち回る。
+  final bool categoryIsFixed;
   final double amount;
   final DateTime spentAt;
   final String? memo;
@@ -42,6 +46,7 @@ class TransactionView {
     required this.categoryName,
     this.categoryColorValue,
     this.categorySortOrder,
+    this.categoryIsFixed = false,
     required this.amount,
     required this.spentAt,
     this.memo,

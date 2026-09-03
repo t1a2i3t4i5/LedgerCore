@@ -80,13 +80,37 @@ class CategoryProvider extends ChangeNotifier {
     await fetch();
   }
 
+  /// 並べ替えできるカテゴリ。固定カテゴリは常に末尾なので、この並びの添字は
+  /// [categories] の添字とそのまま一致する。
+  List<CategoryView> get movableCategories =>
+      _categories.where((category) => !category.isFixed).toList();
+
+  /// 固定カテゴリ。無ければ null。
+  CategoryView? get fixedCategory {
+    for (final category in _categories) {
+      if (category.isFixed) return category;
+    }
+    return null;
+  }
+
   /// カテゴリの並び順を更新する。
+  ///
+  /// 添字は [movableCategories] のもの。固定カテゴリは受け皿として末尾に
+  /// 据え置くので、範囲外が来たら何もしない。
   Future<void> reorder(int oldIndex, int newIndex) async {
     if (newIndex > oldIndex) newIndex -= 1;
     if (oldIndex == newIndex) return;
 
+    final movable = movableCategories;
+    if (oldIndex < 0 ||
+        oldIndex >= movable.length ||
+        newIndex < 0 ||
+        newIndex >= movable.length) {
+      return;
+    }
+
     final previous = List<CategoryView>.of(_categories);
-    final reordered = List<CategoryView>.of(_categories);
+    final reordered = List<CategoryView>.of(movable);
     final moved = reordered.removeAt(oldIndex);
     reordered.insert(newIndex, moved);
     _categories = [
@@ -96,11 +120,14 @@ class CategoryProvider extends ChangeNotifier {
           name: category.name,
           colorValue: category.colorValue,
           sortOrder: index,
+          isFixed: category.isFixed,
         ),
+      ...previous.where((category) => category.isFixed),
     ];
     notifyListeners();
 
-    final ids = _categories.map((category) => category.id).toList();
+    // 固定カテゴリの sort_order は書き換えない。
+    final ids = reordered.map((category) => category.id).toList();
     final detail = {'ids': ids};
     try {
       await _db.reorderCategories(ids);

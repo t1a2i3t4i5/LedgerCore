@@ -43,8 +43,23 @@ class Categories extends Table with TableInfo {
     $customConstraints: 'NOT NULL DEFAULT 0',
     defaultValue: const CustomExpression('0'),
   );
+  late final GeneratedColumn<int> isFixed = GeneratedColumn<int>(
+    'is_fixed',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0 CHECK (is_fixed IN (0, 1))',
+    defaultValue: const CustomExpression('0'),
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, name, colorValue, sortOrder];
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    colorValue,
+    sortOrder,
+    isFixed,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override

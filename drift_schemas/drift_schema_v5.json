@@ -67,6 +67,20 @@
             "default_dart": "const CustomExpression('0')",
             "default_client_dart": null,
             "dsl_features": []
+          },
+          {
+            "name": "is_fixed",
+            "getter_name": "isFixed",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"is_fixed\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"is_fixed\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
           }
         ],
         "is_virtual": false,
@@ -307,7 +321,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"categories\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"name\" TEXT NOT NULL, \"color_value\" INTEGER NULL, \"sort_order\" INTEGER NOT NULL DEFAULT 0);"
+          "sql": "CREATE TABLE IF NOT EXISTS \"categories\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"name\" TEXT NOT NULL, \"color_value\" INTEGER NULL, \"sort_order\" INTEGER NOT NULL DEFAULT 0, \"is_fixed\" INTEGER NOT NULL DEFAULT 0 CHECK (\"is_fixed\" IN (0, 1)));"
         }
       ]
     },

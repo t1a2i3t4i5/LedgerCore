@@ -93,12 +93,14 @@ List<CategorySummaryItem> _buildCategoryItems(List<TransactionView> txns) {
   final catNames = <int, String>{};
   final catColors = <int, int?>{};
   final catOrders = <int, int>{};
+  final catFixed = <int, bool>{};
 
   for (final t in txns) {
     catTotals[t.categoryId] = (catTotals[t.categoryId] ?? 0) + t.amount;
     catNames[t.categoryId] = t.categoryName;
     catColors[t.categoryId] = t.categoryColorValue;
     catOrders[t.categoryId] = t.categorySortOrder ?? t.categoryId;
+    catFixed[t.categoryId] = t.categoryIsFixed;
   }
 
   return catTotals.entries
@@ -112,6 +114,12 @@ List<CategorySummaryItem> _buildCategoryItems(List<TransactionView> txns) {
       )
       .toList()
     ..sort((a, b) {
+      // 固定カテゴリはカテゴリ管理と同じく常に最後に置く。sort_order だけで
+      // 比べると、後から追加したカテゴリが受け皿より下に来て順序がずれる。
+      final byFixed = (catFixed[a.categoryId] ?? false ? 1 : 0).compareTo(
+        catFixed[b.categoryId] ?? false ? 1 : 0,
+      );
+      if (byFixed != 0) return byFixed;
       final byOrder = catOrders[a.categoryId]!.compareTo(
         catOrders[b.categoryId]!,
       );

@@ -194,9 +194,9 @@ void main() {
     testWidgets('360px幅・文字倍率$scaleで50文字のカテゴリ30件を省略表示し、末尾まで選択できる', (
       tester,
     ) async {
-      for (final category in await db.getCategories()) {
-        await db.deleteCategory(category.id);
-      }
+      // 固定カテゴリは deleteCategory が拒むので、テストの下ごしらえは
+      // drift の一括削除で行う
+      await db.delete(db.categories).go();
       for (var index = 1; index <= 30; index++) {
         await db.insertCategory(
           '${index.toString().padLeft(2, '0')}${'長' * 48}',
