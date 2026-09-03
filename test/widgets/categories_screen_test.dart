@@ -204,10 +204,16 @@ void main() {
       find.descendant(of: row, matching: find.byIcon(Icons.drag_handle)),
       findsNothing,
     );
-    final deleteButton = tester.widget<IconButton>(
-      find.descendant(of: row, matching: find.byType(IconButton)),
+    final deleteButton = find.descendant(
+      of: row,
+      matching: find.byType(IconButton),
     );
-    expect(deleteButton.onPressed, isNull);
+    expect(tester.widget<IconButton>(deleteButton).onPressed, isNull);
+    // 押しても確認ダイアログが開かず、カテゴリも残る
+    await tester.tap(deleteButton, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(find.text('カテゴリを削除'), findsNothing);
+    expect((await db.getCategories()).map((c) => c.id), contains(fixed.id));
   });
 
   testWidgets('カテゴリが無くても追加ボタンから追加できる', (tester) async {

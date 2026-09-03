@@ -205,6 +205,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                 isLast: true,
                                 showDivider: false,
                                 onTap: () => _showEditSheet(fixed),
+                                // 押せるかどうかの判断は _CategoryRow に一本化する。
+                                // ここで渡さないと、行側のガードを外しても
+                                // onDelete が null のままで退行に気付けない
+                                onDelete: () => _delete(fixed.id, fixed.name),
                               ),
                             ),
                         ],
