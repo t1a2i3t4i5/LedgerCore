@@ -87,10 +87,15 @@ void main() {
     await tester.tap(find.text('入力画面を開く'));
     await tester.pumpAndSettle();
     final category = (await db.getCategories()).first;
-    final chip = find.widgetWithText(ChoiceChip, category.name);
+    final chip = find.ancestor(
+      of: find.text(category.name),
+      matching: find.byType(ChoiceChip),
+    );
     await tester.ensureVisible(chip);
     await tester.pumpAndSettle();
     await tester.tap(chip);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '保存する'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, '1200');
     return ModalRoute.of<void>(

@@ -7,6 +7,10 @@ import 'package:ledger_app/main.dart';
 import 'package:provider/provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
 
+const _weekdays = ['月', '火', '水', '木', '金', '土', '日'];
+
+String _weekday(DateTime date) => _weekdays[date.weekday - 1];
+
 /// 取引を保存したときのフィードバックを、UI を実際に操作して確かめる。
 ///
 /// 保存の成否は DB を見れば分かるが、この画面の問題は「保存は成功しているのに
@@ -48,7 +52,7 @@ void main() {
   /// テキスト入力モードに切り替えて日付を直接打ち込む
   Future<void> pickDate(WidgetTester tester, DateTime date) async {
     final dateRow = find.ancestor(
-      of: find.byIcon(Icons.calendar_today),
+      of: find.byIcon(Icons.chevron_right),
       matching: find.byType(InkWell),
     );
     await tester.ensureVisible(dateRow);
@@ -75,17 +79,20 @@ void main() {
 
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(TextButton, 'キャンセル'));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '保存する'));
     await tester.pumpAndSettle();
   }
 
   Future<void> selectCategory(WidgetTester tester, String name) async {
-    final chip = find.widgetWithText(ChoiceChip, name);
+    final chip = find.ancestor(
+      of: find.text(name),
+      matching: find.byType(ChoiceChip),
+    );
     await tester.ensureVisible(chip);
     await tester.pumpAndSettle();
     await tester.tap(chip);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(TextButton, 'キャンセル'));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '保存する'));
     await tester.pumpAndSettle();
   }
 
@@ -95,7 +102,7 @@ void main() {
     await tester.enterText(find.byType(TextFormField).first, amount);
     await selectCategory(tester, firstCategory);
 
-    await tester.tap(find.text('保存する'));
+    await tester.tap(find.widgetWithText(FilledButton, '保存する'));
     await tester.pumpAndSettle();
   }
 
@@ -106,6 +113,8 @@ void main() {
     final firstCategory = (await db.getCategories()).first.name;
     await selectCategory(tester, firstCategory);
 
+    await tester.ensureVisible(find.text('キャンセル'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('キャンセル'));
     await tester.pumpAndSettle();
 
@@ -201,7 +210,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await pickDate(tester, DateTime(2026, 8, 7));
-    await tester.tap(find.text('保存する'));
+    await tester.tap(find.widgetWithText(FilledButton, '保存する'));
     await tester.pumpAndSettle();
 
     expect(find.text('2026年8月に保存しました'), findsOneWidget);
@@ -353,12 +362,14 @@ void main() {
     // 今日の出費が徴候なくその月へ沈む（CLAUDE.md の約束）。
     // 寄せられてもこのファイルの他のテストは pickDate で日付を打ち直すため
     // 全部緑のまま通ってしまうので、既定値そのものをここで固定する
-    final fmt = DateFormat('yyyy年MM月dd日');
+    final fmt = DateFormat('yyyy年M月d日');
     // now を 2 回読む間に日付が変わりうるので、前後どちらかに出ていれば良しとする
-    final before = fmt.format(DateTime.now());
+    final beforeDate = DateTime.now();
+    final before = '${fmt.format(beforeDate)}（${_weekday(beforeDate)}）';
     await pumpApp(tester);
     await openAddScreen(tester);
-    final after = fmt.format(DateTime.now());
+    final afterDate = DateTime.now();
+    final after = '${fmt.format(afterDate)}（${_weekday(afterDate)}）';
 
     expect(
       {before, after}.any((t) => find.text(t).evaluate().isNotEmpty),

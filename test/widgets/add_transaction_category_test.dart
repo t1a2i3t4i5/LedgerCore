@@ -11,28 +11,25 @@ import 'package:ledger_app/screens/add_transaction_screen.dart';
 import 'package:ledger_app/theme/ledger_theme.dart';
 import 'package:provider/provider.dart';
 
-Finder _categoryDecorator() => find.byWidgetPredicate(
-  (widget) => widget is InputDecorator && widget.decoration.labelText == 'カテゴリ',
-);
-
-Finder _categoryField() => find.ancestor(
-  of: _categoryDecorator(),
-  matching: find.byType(FormField<int>),
-);
+Finder _categoryField() =>
+    find.ancestor(of: find.text('カテゴリ'), matching: find.byType(FormField<int>));
 
 Finder _categoryChips() =>
     find.descendant(of: _categoryField(), matching: find.byType(ChoiceChip));
 
 Finder _categoryChip(String name) => find.descendant(
   of: _categoryField(),
-  matching: find.widgetWithText(ChoiceChip, name),
+  matching: find.ancestor(
+    of: find.text(name),
+    matching: find.byType(ChoiceChip),
+  ),
 );
 
 void _expectSelectedCategory(WidgetTester tester, String? name) {
   final selected = tester
       .widgetList<ChoiceChip>(_categoryChips())
       .where((chip) => chip.selected)
-      .map((chip) => (chip.label as Text).data);
+      .map((chip) => chip.tooltip);
   expect(selected, name == null ? isEmpty : [name]);
 }
 
@@ -99,9 +96,9 @@ void main() {
       error,
     );
     expect(
-      find.descendant(of: _categoryDecorator(), matching: find.text(error)),
+      find.descendant(of: _categoryField(), matching: find.text(error)),
       findsOneWidget,
-      reason: 'SnackBar だけでなくカテゴリ欄にエラーを表示する',
+      reason: 'SnackBar だけでなくカテゴリセクションにエラーを表示する',
     );
     expect(await db.getAllTransactions(), isEmpty);
 

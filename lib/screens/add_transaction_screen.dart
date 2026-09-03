@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/transaction.dart';
@@ -102,7 +101,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (_selectedMemberId == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('登録者を選択してください')));
+      ).showSnackBar(const SnackBar(content: Text('支払った人を選択してください')));
       return;
     }
 
@@ -206,16 +205,82 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   double _amountFieldWidth(BuildContext context) {
     final painter = TextPainter(
       text: TextSpan(
-        text: kMaxAmount.toStringAsFixed(0),
-        style: LedgerTokens.amountLarge,
+        children: [
+          const TextSpan(text: '¥', style: LedgerTokens.amountCurrency),
+          TextSpan(
+            text: kMaxAmount.toStringAsFixed(0),
+            style: LedgerTokens.amountLarge,
+          ),
+        ],
       ),
       textDirection: Directionality.of(context),
       textScaler: MediaQuery.textScalerOf(context),
       maxLines: 1,
     )..layout();
-    final width = painter.width + 8;
+    final currencyPainter = TextPainter(
+      text: const TextSpan(text: '¥', style: LedgerTokens.amountCurrency),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    // 数字自体を欄の中央へ置いたまま、その左へ円記号を重ねるため、
+    // 円記号 2 個分の幅を含めて左右対称の描画領域を確保する。
+    final width = painter.width + currencyPainter.width + 8;
     painter.dispose();
+    currencyPainter.dispose();
     return width;
+  }
+
+  /// 中央揃えの入力値の直前へ円記号を置くための移動量。
+  ///
+  /// `InputDecoration.prefixText` は入力欄の左端に領域を取り、数字だけを
+  /// 残り幅の中央へ寄せるため、短い金額では両者が離れる。実際の書体と
+  /// 文字倍率で入力値・円記号の幅とベースラインを測り、数字の直前へ重ねる。
+  Offset _currencyOffset(BuildContext context, String amountText) {
+    final direction = Directionality.of(context);
+    final scaler = MediaQuery.textScalerOf(context);
+    final amountPainter = TextPainter(
+      text: TextSpan(
+        text: amountText.isEmpty ? '0' : amountText,
+        style: LedgerTokens.amountLarge,
+      ),
+      textDirection: direction,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    final currencyPainter = TextPainter(
+      text: const TextSpan(text: '¥', style: LedgerTokens.amountCurrency),
+      textDirection: direction,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    final amountBaseline = amountPainter.computeDistanceToActualBaseline(
+      TextBaseline.alphabetic,
+    );
+    final currencyBaseline = currencyPainter.computeDistanceToActualBaseline(
+      TextBaseline.alphabetic,
+    );
+    final centeredCurrencyTop =
+        (amountPainter.height - currencyPainter.height) / 2;
+    final offset = Offset(
+      -amountPainter.width / 2 - currencyPainter.width / 2 - 4,
+      amountBaseline - centeredCurrencyTop - currencyBaseline,
+    );
+    amountPainter.dispose();
+    currencyPainter.dispose();
+    return offset;
+  }
+
+  double _amountLineHeight(BuildContext context) {
+    final painter = TextPainter(
+      text: const TextSpan(text: '0', style: LedgerTokens.amountLarge),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final height = painter.height + 24;
+    painter.dispose();
+    return height;
   }
 
   @override
@@ -241,7 +306,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       onCancel: _loading ? null : _cancel,
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(32, 8, 32, 24),
                       child: Form(
                         key: _formKey,
                         child: Column(
@@ -260,42 +325,80 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                 fit: BoxFit.scaleDown,
                                 child: SizedBox(
                                   width: _amountFieldWidth(context),
-                                  child: TextFormField(
-                                    controller: _amountCtrl,
-                                    // 小数を受け付けないので小数点キーの要らない number に戻す
-                                    keyboardType: TextInputType.number,
-                                    inputFormatters: const [
-                                      AmountInputFormatter(),
-                                    ],
-                                    textAlign: TextAlign.center,
-                                    style: LedgerTokens.amountLarge,
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                    ),
-                                    validator: (v) {
-                                      if (v == null || v.isEmpty) {
-                                        return '金額を入力してください';
-                                      }
-                                      final amount = double.tryParse(v);
-                                      if (amount == null) {
-                                        return '有効な数値を入力してください';
-                                      }
-                                      // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
-                                      if (amount <= 0) {
-                                        return '金額は 0 より大きい値を入力してください';
-                                      }
-                                      // Infinity は `> 0` を満たすため上限の比較で止める。
-                                      // 弾かないと合計が `¥∞`、構成比が `NaN%` になって復旧できない
-                                      if (!amount.isFinite ||
-                                          amount > kMaxAmount) {
-                                        return '金額が大きすぎます';
-                                      }
-                                      // フォーマッタが小数点を通さないので実質到達しないが、
-                                      // コントローラへの直接代入も含めて DB の CHECK と揃える
-                                      if (amount != amount.roundToDouble()) {
-                                        return '金額は整数で入力してください';
-                                      }
-                                      return null;
+                                  child: ValueListenableBuilder<
+                                    TextEditingValue
+                                  >(
+                                    valueListenable: _amountCtrl,
+                                    builder: (context, amountValue, _) {
+                                      return Stack(
+                                        children: [
+                                          TextFormField(
+                                            controller: _amountCtrl,
+                                            // 小数を受け付けないので小数点キーの要らない number に戻す
+                                            keyboardType: TextInputType.number,
+                                            inputFormatters: const [
+                                              AmountInputFormatter(),
+                                            ],
+                                            textAlign: TextAlign.center,
+                                            style: LedgerTokens.amountLarge,
+                                            decoration: const InputDecoration(
+                                              border: InputBorder.none,
+                                            ),
+                                            validator: (v) {
+                                              if (v == null || v.isEmpty) {
+                                                return '金額を入力してください';
+                                              }
+                                              final amount = double.tryParse(v);
+                                              if (amount == null) {
+                                                return '有効な数値を入力してください';
+                                              }
+                                              // 支出額なので 0 と負の値は弾く（DB 側の CHECK 制約と同じ条件）
+                                              if (amount <= 0) {
+                                                return '金額は 0 より大きい値を入力してください';
+                                              }
+                                              // Infinity は `> 0` を満たすため上限の比較で止める。
+                                              // 弾かないと合計が `¥∞`、構成比が `NaN%` になって復旧できない
+                                              if (!amount.isFinite ||
+                                                  amount > kMaxAmount) {
+                                                return '金額が大きすぎます';
+                                              }
+                                              // フォーマッタが小数点を通さないので実質到達しないが、
+                                              // コントローラへの直接代入も含めて DB の CHECK と揃える
+                                              if (amount !=
+                                                  amount.roundToDouble()) {
+                                                return '金額は整数で入力してください';
+                                              }
+                                              return null;
+                                            },
+                                          ),
+                                          Positioned(
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            height: _amountLineHeight(context),
+                                            child: IgnorePointer(
+                                              child: Center(
+                                                child: Transform.translate(
+                                                  offset: _currencyOffset(
+                                                    context,
+                                                    amountValue.text,
+                                                  ),
+                                                  child: Text(
+                                                    '¥',
+                                                    style: LedgerTokens
+                                                        .amountCurrency
+                                                        .copyWith(
+                                                          color:
+                                                              LedgerTokens
+                                                                  .subtext,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
                                     },
                                   ),
                                 ),
@@ -312,56 +415,62 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                   validator:
                                       (v) => v == null ? 'カテゴリを選択してください' : null,
                                   builder: (state) {
-                                    return InputDecorator(
-                                      decoration: InputDecoration(
-                                        labelText: 'カテゴリ',
-                                        prefixIcon: const Icon(
-                                          Icons.label_outline,
+                                    final scheme =
+                                        Theme.of(context).colorScheme;
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const _SectionLabel('カテゴリ'),
+                                        const SizedBox(height: 8),
+                                        // 件数に応じて縦に伸ばし、画面全体の
+                                        // スクロールで末尾のカテゴリまで選べるようにする。
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children:
+                                              cats.map((c) {
+                                                final selected =
+                                                    state.value == c.id;
+                                                return ChoiceChip(
+                                                  avatar: DecoratedBox(
+                                                    decoration: BoxDecoration(
+                                                      color: categoryColor(
+                                                        c.id,
+                                                      ),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child:
+                                                        const SizedBox.square(
+                                                          dimension: 10,
+                                                        ),
+                                                  ),
+                                                  label: Text(
+                                                    c.name,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                  tooltip: c.name,
+                                                  selected: selected,
+                                                  backgroundColor:
+                                                      scheme
+                                                          .surfaceContainerLowest,
+                                                  onSelected: (value) {
+                                                    if (!value) return;
+                                                    setState(
+                                                      () =>
+                                                          _selectedCategoryId =
+                                                              c.id,
+                                                    );
+                                                    state.didChange(c.id);
+                                                  },
+                                                );
+                                              }).toList(),
                                         ),
-                                        border: const OutlineInputBorder(),
-                                        errorText: state.errorText,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 4,
-                                            ),
-                                      ),
-                                      // 件数に応じて縦に伸ばし、画面全体の
-                                      // スクロールで末尾のカテゴリまで選べるようにする。
-                                      child: Wrap(
-                                        spacing: 8,
-                                        children:
-                                            cats.map((c) {
-                                              return ChoiceChip(
-                                                avatar: DecoratedBox(
-                                                  decoration: BoxDecoration(
-                                                    color: categoryColor(c.id),
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: const SizedBox.square(
-                                                    dimension: 10,
-                                                  ),
-                                                ),
-                                                label: Text(
-                                                  c.name,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                                tooltip: c.name,
-                                                selected: state.value == c.id,
-                                                onSelected: (selected) {
-                                                  if (!selected) return;
-                                                  setState(
-                                                    () =>
-                                                        _selectedCategoryId =
-                                                            c.id,
-                                                  );
-                                                  state.didChange(c.id);
-                                                },
-                                              );
-                                            }).toList(),
-                                      ),
+                                        if (state.hasError)
+                                          _FieldError(state.errorText!),
+                                      ],
                                     );
                                   },
                                 );
@@ -378,64 +487,128 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                   validator:
                                       (_) =>
                                           _selectedMemberId == null
-                                              ? '登録者を選択してください'
+                                              ? '支払った人を選択してください'
                                               : null,
                                   builder: (state) {
-                                    return InputDecorator(
-                                      decoration: InputDecoration(
-                                        labelText: '登録者',
-                                        prefixIcon: const Icon(
-                                          Icons.person_outline,
-                                        ),
-                                        border: const OutlineInputBorder(),
-                                        errorText: state.errorText,
-                                        // チップを並べるため内側の余白を調整
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 4,
+                                    final scheme =
+                                        Theme.of(context).colorScheme;
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const _SectionLabel('支払った人'),
+                                        const SizedBox(height: 8),
+                                        if (members.isEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 12,
                                             ),
-                                      ),
-                                      child:
-                                          members.isEmpty
-                                              ? Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: 12,
-                                                    ),
-                                                child: Text(
-                                                  'メンバー情報を読み込み中...',
-                                                  style: TextStyle(
-                                                    color:
-                                                        Theme.of(context)
-                                                            .colorScheme
-                                                            .onSurfaceVariant,
-                                                  ),
-                                                ),
-                                              )
-                                              : Wrap(
+                                            child: Text(
+                                              'メンバー情報を読み込み中...',
+                                              style: TextStyle(
+                                                color: scheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          )
+                                        else
+                                          LayoutBuilder(
+                                            builder: (context, constraints) {
+                                              final chipWidth =
+                                                  (constraints.maxWidth - 8) /
+                                                  2;
+                                              return Wrap(
                                                 spacing: 8,
-                                                runSpacing: 0,
+                                                runSpacing: 8,
                                                 children:
                                                     members.map((m) {
                                                       final selected =
                                                           _selectedMemberId ==
                                                           m.id;
-                                                      return ChoiceChip(
-                                                        label: Text(m.name),
-                                                        selected: selected,
-                                                        onSelected: (value) {
-                                                          if (!value) return;
-                                                          setState(
-                                                            () =>
-                                                                _selectedMemberId =
-                                                                    m.id,
-                                                          );
-                                                          state.didChange(m.id);
-                                                        },
+                                                      final avatarColor =
+                                                          memberColor(m.id);
+                                                      return SizedBox(
+                                                        width: chipWidth,
+                                                        child: ConstrainedBox(
+                                                          constraints:
+                                                              const BoxConstraints(
+                                                                minHeight: 56,
+                                                              ),
+                                                          child: ChoiceChip(
+                                                            label: Row(
+                                                              children: [
+                                                                ExcludeSemantics(
+                                                                  child: CircleAvatar(
+                                                                    radius: 13,
+                                                                    backgroundColor:
+                                                                        avatarColor,
+                                                                    child: Text(
+                                                                      m.name.isEmpty
+                                                                          ? '?'
+                                                                          : m
+                                                                              .name
+                                                                              .characters
+                                                                              .first,
+                                                                      style: Theme.of(
+                                                                        context,
+                                                                      ).textTheme.labelMedium?.copyWith(
+                                                                        color: labelColorOn(
+                                                                          avatarColor,
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  width: 8,
+                                                                ),
+                                                                Expanded(
+                                                                  child: Text(
+                                                                    m.name,
+                                                                    maxLines: 1,
+                                                                    overflow:
+                                                                        TextOverflow
+                                                                            .ellipsis,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            tooltip: m.name,
+                                                            selected: selected,
+                                                            backgroundColor:
+                                                                scheme
+                                                                    .surfaceContainerLowest,
+                                                            shape: RoundedRectangleBorder(
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    LedgerTokens
+                                                                        .cardRadius,
+                                                                  ),
+                                                            ),
+                                                            onSelected: (
+                                                              value,
+                                                            ) {
+                                                              if (!value) {
+                                                                return;
+                                                              }
+                                                              setState(
+                                                                () =>
+                                                                    _selectedMemberId =
+                                                                        m.id,
+                                                              );
+                                                              state.didChange(
+                                                                m.id,
+                                                              );
+                                                            },
+                                                          ),
+                                                        ),
                                                       );
                                                     }).toList(),
-                                              ),
+                                              );
+                                            },
+                                          ),
+                                        if (state.hasError)
+                                          _FieldError(state.errorText!),
+                                      ],
                                     );
                                   },
                                 );
@@ -458,8 +631,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                       label: '内容',
                                       child: TextFormField(
                                         controller: _memoCtrl,
+                                        minLines: 1,
                                         maxLines: 3,
-                                        textAlign: TextAlign.end,
+                                        textAlign: TextAlign.start,
                                         decoration: const InputDecoration(
                                           hintText: 'メモ（任意）',
                                           border: InputBorder.none,
@@ -477,32 +651,37 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                       ),
                                       child: _DetailRow(
                                         label: '日付',
-                                        child: InputDecorator(
-                                          decoration: InputDecoration(
-                                            border: InputBorder.none,
-                                            contentPadding: EdgeInsets.zero,
-                                            helperText:
-                                                savingToOtherMonth
-                                                    ? '表示中の${formatPeriod(shown.year, shown.month)}とは別の月です'
-                                                    : null,
-                                            helperMaxLines: 3,
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.end,
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  DateFormat(
-                                                    'yyyy年MM月dd日',
-                                                  ).format(_spentAt),
-                                                  textAlign: TextAlign.end,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    _formatDate(_spentAt),
+                                                    textAlign: TextAlign.start,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                const Icon(Icons.chevron_right),
+                                              ],
+                                            ),
+                                            if (savingToOtherMonth) ...[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                '表示中の${formatPeriod(shown.year, shown.month)}とは別の月です',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.bodySmall?.copyWith(
+                                                  color:
+                                                      Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurfaceVariant,
                                                 ),
                                               ),
-                                              const SizedBox(width: 8),
-                                              const Icon(Icons.calendar_today),
                                             ],
-                                          ),
+                                          ],
                                         ),
                                       ),
                                     ),
@@ -530,7 +709,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         ),
         child: SafeArea(
           top: false,
-          minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          minimum: const EdgeInsets.fromLTRB(32, 8, 32, 16),
           child: FilledButton(
             onPressed: _loading ? null : _save,
             style: FilledButton.styleFrom(
@@ -553,9 +732,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 /// 追加・編集の両方で使う 3 分割ヘッダ。
 ///
 /// 各領域を [Expanded] で等分し、文字倍率を上げたときは
-/// 各領域内で高さ方向に伸びる。右領域を空白にすることで、
-/// 中央の見出しを左のキャンセルの文字幅で
-/// ずらさず、横 overflow も起こさない。
+/// 各領域内で高さ方向に伸びる。右領域を空白にして、中央の見出しを
+/// 左のキャンセルの文字幅でずらさず、横 overflow も起こさない。
 class _TransactionHeader extends StatelessWidget {
   const _TransactionHeader({required this.title, required this.onCancel});
 
@@ -601,6 +779,46 @@ class _TransactionHeader extends StatelessWidget {
     );
   }
 }
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: Theme.of(
+        context,
+      ).textTheme.bodySmall?.copyWith(color: LedgerTokens.subtext),
+    );
+  }
+}
+
+class _FieldError extends StatelessWidget {
+  const _FieldError(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, left: 12),
+      child: Text(
+        message,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.error,
+        ),
+      ),
+    );
+  }
+}
+
+const _weekdays = ['月', '火', '水', '木', '金', '土', '日'];
+
+String _formatDate(DateTime date) =>
+    '${date.year}年${date.month}月${date.day}日（${_weekdays[date.weekday - 1]}）';
 
 /// 入力カード内の「左ラベル / 右に入力値」の 1 行。
 class _DetailRow extends StatelessWidget {
