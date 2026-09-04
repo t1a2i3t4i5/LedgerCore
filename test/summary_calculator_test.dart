@@ -9,6 +9,9 @@ TransactionView _tx({
   required String memberName,
   int categoryId = 1,
   String categoryName = '食費',
+  int? categoryColorValue,
+  int? categorySortOrder,
+  bool categoryIsFixed = false,
   required double amount,
   DateTime? spentAt,
 }) {
@@ -18,6 +21,9 @@ TransactionView _tx({
     memberName: memberName,
     categoryId: categoryId,
     categoryName: categoryName,
+    categoryColorValue: categoryColorValue,
+    categorySortOrder: categorySortOrder,
+    categoryIsFixed: categoryIsFixed,
     amount: amount,
     spentAt: spentAt ?? DateTime(2026, 7, 1),
   );
@@ -25,13 +31,14 @@ TransactionView _tx({
 
 void main() {
   group('buildMonthlySummary', () {
-    test('カテゴリ別は合計の降順、totalは総和', () {
+    test('カテゴリ別は保存順で、色を引き継ぎ、totalは総和', () {
       final txns = [
         _tx(
           memberId: 1,
           memberName: 'A',
           categoryId: 1,
           categoryName: '食費',
+          categorySortOrder: 1,
           amount: 500,
         ),
         _tx(
@@ -39,6 +46,8 @@ void main() {
           memberName: 'A',
           categoryId: 2,
           categoryName: '交通費',
+          categoryColorValue: 0xFF3D7F78,
+          categorySortOrder: 0,
           amount: 1500,
         ),
         _tx(
@@ -46,6 +55,7 @@ void main() {
           memberName: 'B',
           categoryId: 1,
           categoryName: '食費',
+          categorySortOrder: 1,
           amount: 300,
         ),
       ];
@@ -54,11 +64,42 @@ void main() {
 
       expect(s.total, 2300);
       expect(s.transactionCount, 3);
-      // 降順: 交通費(1500) > 食費(800)
+      // 金額ではなく保存順: 交通費(0) → 食費(1)
       expect(s.byCategory.first.categoryName, '交通費');
       expect(s.byCategory.first.total, 1500);
+      expect(s.byCategory.first.categoryColorValue, 0xFF3D7F78);
       expect(s.byCategory[1].categoryName, '食費');
       expect(s.byCategory[1].total, 800);
+    });
+
+    test('固定カテゴリは保存順より後、内訳の最後に来る', () {
+      final txns = [
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          categoryId: 9,
+          categoryName: 'その他',
+          // 受け皿は既定カテゴリの並びで先に作られるので順序値は小さい
+          categorySortOrder: 0,
+          categoryIsFixed: true,
+          amount: 100,
+        ),
+        _tx(
+          memberId: 1,
+          memberName: 'A',
+          categoryId: 1,
+          categoryName: 'あとで足したカテゴリ',
+          categorySortOrder: 5,
+          amount: 200,
+        ),
+      ];
+
+      final s = buildMonthlySummary(2026, 7, txns);
+
+      expect(s.byCategory.map((item) => item.categoryName), [
+        'あとで足したカテゴリ',
+        'その他',
+      ]);
     });
 
     test('メンバー別に集計される', () {
@@ -175,13 +216,14 @@ void main() {
       expect(s.byMonth.skip(1).every((p) => p.total == 0), isTrue);
     });
 
-    test('カテゴリ別は年合計の降順', () {
+    test('カテゴリ別は年合計に関係なく保存順', () {
       final txns = [
         _tx(
           memberId: 1,
           memberName: 'A',
           categoryId: 1,
           categoryName: '食費',
+          categorySortOrder: 1,
           amount: 400,
           spentAt: DateTime(2026, 2, 1),
         ),
@@ -190,6 +232,7 @@ void main() {
           memberName: 'A',
           categoryId: 1,
           categoryName: '食費',
+          categorySortOrder: 1,
           amount: 400,
           spentAt: DateTime(2026, 9, 1),
         ),
@@ -198,6 +241,7 @@ void main() {
           memberName: 'A',
           categoryId: 2,
           categoryName: '交通費',
+          categorySortOrder: 0,
           amount: 500,
           spentAt: DateTime(2026, 5, 1),
         ),
@@ -205,9 +249,10 @@ void main() {
 
       final s = buildYearlySummary(2026, txns);
 
-      expect(s.byCategory.first.categoryName, '食費');
-      expect(s.byCategory.first.total, 800);
-      expect(s.byCategory[1].categoryName, '交通費');
+      expect(s.byCategory.first.categoryName, '交通費');
+      expect(s.byCategory.first.total, 500);
+      expect(s.byCategory[1].categoryName, '食費');
+      expect(s.byCategory[1].total, 800);
     });
 
     test('取引が無くても12件返り total は 0', () {

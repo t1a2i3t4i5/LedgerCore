@@ -35,8 +35,52 @@ class $CategoriesTable extends Categories
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _colorValueMeta = const VerificationMeta(
+    'colorValue',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, name];
+  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
+    'color_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _isFixedMeta = const VerificationMeta(
+    'isFixed',
+  );
+  @override
+  late final GeneratedColumn<bool> isFixed = GeneratedColumn<bool>(
+    'is_fixed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_fixed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    colorValue,
+    sortOrder,
+    isFixed,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -60,6 +104,24 @@ class $CategoriesTable extends Categories
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
+    if (data.containsKey('color_value')) {
+      context.handle(
+        _colorValueMeta,
+        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('is_fixed')) {
+      context.handle(
+        _isFixedMeta,
+        isFixed.isAcceptableOrUnknown(data['is_fixed']!, _isFixedMeta),
+      );
+    }
     return context;
   }
 
@@ -79,6 +141,20 @@ class $CategoriesTable extends Categories
             DriftSqlType.string,
             data['${effectivePrefix}name'],
           )!,
+      colorValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color_value'],
+      ),
+      sortOrder:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}sort_order'],
+          )!,
+      isFixed:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}is_fixed'],
+          )!,
     );
   }
 
@@ -91,17 +167,40 @@ class $CategoriesTable extends Categories
 class Category extends DataClass implements Insertable<Category> {
   final int id;
   final String name;
-  const Category({required this.id, required this.name});
+  final int? colorValue;
+  final int sortOrder;
+  final bool isFixed;
+  const Category({
+    required this.id,
+    required this.name,
+    this.colorValue,
+    required this.sortOrder,
+    required this.isFixed,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
+    if (!nullToAbsent || colorValue != null) {
+      map['color_value'] = Variable<int>(colorValue);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['is_fixed'] = Variable<bool>(isFixed);
     return map;
   }
 
   CategoriesCompanion toCompanion(bool nullToAbsent) {
-    return CategoriesCompanion(id: Value(id), name: Value(name));
+    return CategoriesCompanion(
+      id: Value(id),
+      name: Value(name),
+      colorValue:
+          colorValue == null && nullToAbsent
+              ? const Value.absent()
+              : Value(colorValue),
+      sortOrder: Value(sortOrder),
+      isFixed: Value(isFixed),
+    );
   }
 
   factory Category.fromJson(
@@ -112,6 +211,9 @@ class Category extends DataClass implements Insertable<Category> {
     return Category(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
+      colorValue: serializer.fromJson<int?>(json['colorValue']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      isFixed: serializer.fromJson<bool>(json['isFixed']),
     );
   }
   @override
@@ -120,15 +222,33 @@ class Category extends DataClass implements Insertable<Category> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
+      'colorValue': serializer.toJson<int?>(colorValue),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'isFixed': serializer.toJson<bool>(isFixed),
     };
   }
 
-  Category copyWith({int? id, String? name}) =>
-      Category(id: id ?? this.id, name: name ?? this.name);
+  Category copyWith({
+    int? id,
+    String? name,
+    Value<int?> colorValue = const Value.absent(),
+    int? sortOrder,
+    bool? isFixed,
+  }) => Category(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    colorValue: colorValue.present ? colorValue.value : this.colorValue,
+    sortOrder: sortOrder ?? this.sortOrder,
+    isFixed: isFixed ?? this.isFixed,
+  );
   Category copyWithCompanion(CategoriesCompanion data) {
     return Category(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      colorValue:
+          data.colorValue.present ? data.colorValue.value : this.colorValue,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      isFixed: data.isFixed.present ? data.isFixed.value : this.isFixed,
     );
   }
 
@@ -136,42 +256,77 @@ class Category extends DataClass implements Insertable<Category> {
   String toString() {
     return (StringBuffer('Category(')
           ..write('id: $id, ')
-          ..write('name: $name')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('isFixed: $isFixed')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name);
+  int get hashCode => Object.hash(id, name, colorValue, sortOrder, isFixed);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Category && other.id == this.id && other.name == this.name);
+      (other is Category &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.colorValue == this.colorValue &&
+          other.sortOrder == this.sortOrder &&
+          other.isFixed == this.isFixed);
 }
 
 class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<int> id;
   final Value<String> name;
+  final Value<int?> colorValue;
+  final Value<int> sortOrder;
+  final Value<bool> isFixed;
   const CategoriesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.colorValue = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.isFixed = const Value.absent(),
   });
   CategoriesCompanion.insert({
     this.id = const Value.absent(),
     required String name,
+    this.colorValue = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.isFixed = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Category> custom({
     Expression<int>? id,
     Expression<String>? name,
+    Expression<int>? colorValue,
+    Expression<int>? sortOrder,
+    Expression<bool>? isFixed,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (colorValue != null) 'color_value': colorValue,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (isFixed != null) 'is_fixed': isFixed,
     });
   }
 
-  CategoriesCompanion copyWith({Value<int>? id, Value<String>? name}) {
-    return CategoriesCompanion(id: id ?? this.id, name: name ?? this.name);
+  CategoriesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<int?>? colorValue,
+    Value<int>? sortOrder,
+    Value<bool>? isFixed,
+  }) {
+    return CategoriesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      colorValue: colorValue ?? this.colorValue,
+      sortOrder: sortOrder ?? this.sortOrder,
+      isFixed: isFixed ?? this.isFixed,
+    );
   }
 
   @override
@@ -183,6 +338,15 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
+    if (colorValue.present) {
+      map['color_value'] = Variable<int>(colorValue.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (isFixed.present) {
+      map['is_fixed'] = Variable<bool>(isFixed.value);
+    }
     return map;
   }
 
@@ -190,7 +354,10 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   String toString() {
     return (StringBuffer('CategoriesCompanion(')
           ..write('id: $id, ')
-          ..write('name: $name')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('isFixed: $isFixed')
           ..write(')'))
         .toString();
   }
@@ -918,9 +1085,21 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 }
 
 typedef $$CategoriesTableCreateCompanionBuilder =
-    CategoriesCompanion Function({Value<int> id, required String name});
+    CategoriesCompanion Function({
+      Value<int> id,
+      required String name,
+      Value<int?> colorValue,
+      Value<int> sortOrder,
+      Value<bool> isFixed,
+    });
 typedef $$CategoriesTableUpdateCompanionBuilder =
-    CategoriesCompanion Function({Value<int> id, Value<String> name});
+    CategoriesCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<int?> colorValue,
+      Value<int> sortOrder,
+      Value<bool> isFixed,
+    });
 
 final class $$CategoriesTableReferences
     extends BaseReferences<_$AppDatabase, $CategoriesTable, Category> {
@@ -964,6 +1143,21 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isFixed => $composableBuilder(
+    column: $table.isFixed,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1011,6 +1205,21 @@ class $$CategoriesTableOrderingComposer
     column: $table.name,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isFixed => $composableBuilder(
+    column: $table.isFixed,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CategoriesTableAnnotationComposer
@@ -1027,6 +1236,17 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<bool> get isFixed =>
+      $composableBuilder(column: $table.isFixed, builder: (column) => column);
 
   Expression<T> transactionsRefs<T extends Object>(
     Expression<T> Function($$TransactionsTableAnnotationComposer a) f,
@@ -1084,10 +1304,30 @@ class $$CategoriesTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
-              }) => CategoriesCompanion(id: id, name: name),
+                Value<int?> colorValue = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> isFixed = const Value.absent(),
+              }) => CategoriesCompanion(
+                id: id,
+                name: name,
+                colorValue: colorValue,
+                sortOrder: sortOrder,
+                isFixed: isFixed,
+              ),
           createCompanionCallback:
-              ({Value<int> id = const Value.absent(), required String name}) =>
-                  CategoriesCompanion.insert(id: id, name: name),
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                Value<int?> colorValue = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> isFixed = const Value.absent(),
+              }) => CategoriesCompanion.insert(
+                id: id,
+                name: name,
+                colorValue: colorValue,
+                sortOrder: sortOrder,
+                isFixed: isFixed,
+              ),
           withReferenceMapper:
               (p0) =>
                   p0

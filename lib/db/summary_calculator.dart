@@ -4,7 +4,7 @@ import '../models/summary.dart';
 import '../models/split.dart';
 
 /// 取引リストから月次サマリー（カテゴリ別・メンバー別）を組み立てる。
-/// カテゴリ別は合計金額の降順（サーバの SUM(amount) DESC を踏襲）。
+/// カテゴリ別はカテゴリ管理で保存した順序。
 MonthlySummary buildMonthlySummary(
   int year,
   int month,
@@ -87,14 +87,20 @@ List<PeriodTotal> buildYearlyTotals(List<TransactionView> txns) {
   return years.map((y) => PeriodTotal(year: y, total: yearTotals[y]!)).toList();
 }
 
-/// カテゴリ別の合計を金額の降順で組み立てる（サーバの SUM(amount) DESC を踏襲）。
+/// カテゴリ別の合計をカテゴリ管理で保存した順序に組み立てる。
 List<CategorySummaryItem> _buildCategoryItems(List<TransactionView> txns) {
   final catTotals = <int, double>{};
   final catNames = <int, String>{};
+  final catColors = <int, int?>{};
+  final catOrders = <int, int>{};
+  final catFixed = <int, bool>{};
 
   for (final t in txns) {
     catTotals[t.categoryId] = (catTotals[t.categoryId] ?? 0) + t.amount;
     catNames[t.categoryId] = t.categoryName;
+    catColors[t.categoryId] = t.categoryColorValue;
+    catOrders[t.categoryId] = t.categorySortOrder ?? t.categoryId;
+    catFixed[t.categoryId] = t.categoryIsFixed;
   }
 
   return catTotals.entries
@@ -102,11 +108,23 @@ List<CategorySummaryItem> _buildCategoryItems(List<TransactionView> txns) {
         (e) => CategorySummaryItem(
           categoryId: e.key,
           categoryName: catNames[e.key]!,
+          categoryColorValue: catColors[e.key],
           total: e.value,
         ),
       )
       .toList()
-    ..sort((a, b) => b.total.compareTo(a.total));
+    ..sort((a, b) {
+      // 固定カテゴリはカテゴリ管理と同じく常に最後に置く。sort_order だけで
+      // 比べると、後から追加したカテゴリが受け皿より下に来て順序がずれる。
+      final byFixed = (catFixed[a.categoryId] ?? false ? 1 : 0).compareTo(
+        catFixed[b.categoryId] ?? false ? 1 : 0,
+      );
+      if (byFixed != 0) return byFixed;
+      final byOrder = catOrders[a.categoryId]!.compareTo(
+        catOrders[b.categoryId]!,
+      );
+      return byOrder != 0 ? byOrder : a.categoryId.compareTo(b.categoryId);
+    });
 }
 
 /// 割り勘を計算する。全メンバーで均等割りし、各自の過不足と精算文を求める。

@@ -9,6 +9,7 @@ import 'package:ledger_app/providers/member_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
 import 'package:ledger_app/screens/add_transaction_screen.dart';
 import 'package:ledger_app/theme/ledger_theme.dart';
+import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:provider/provider.dart';
 
 Finder _categoryField() =>
@@ -134,6 +135,31 @@ void main() {
     expect(saved.amount, 2300);
   });
 
+  testWidgets('カテゴリチップは保存順と選択色を使う', (tester) async {
+    var categories = await db.getCategories();
+    final first = categories.first;
+    final second = categories[1];
+    final selectedColor = categoryPalette.last;
+    await db.updateCategory(second.id, second.name, selectedColor.toARGB32());
+    await db.reorderCategories([
+      second.id,
+      first.id,
+      ...categories.skip(2).map((category) => category.id),
+    ]);
+
+    await pumpScreen(tester);
+    categories = await db.getCategories();
+
+    final chips = tester.widgetList<ChoiceChip>(_categoryChips()).toList();
+    expect(chips.take(2).map((chip) => chip.tooltip), [
+      second.name,
+      first.name,
+    ]);
+    final avatar = chips.first.avatar! as DecoratedBox;
+    expect((avatar.decoration as BoxDecoration).color, selectedColor);
+    expect(categories.first.colorValue, selectedColor.toARGB32());
+  });
+
   testWidgets('編集では保存済みカテゴリを初期選択し、変更したカテゴリで同じ取引を更新する', (tester) async {
     final categories = await db.getCategories();
     final original = categories[1];
@@ -168,9 +194,9 @@ void main() {
     testWidgets('360px幅・文字倍率$scaleで50文字のカテゴリ30件を省略表示し、末尾まで選択できる', (
       tester,
     ) async {
-      for (final category in await db.getCategories()) {
-        await db.deleteCategory(category.id);
-      }
+      // 固定カテゴリは deleteCategory が拒むので、テストの下ごしらえは
+      // drift の一括削除で行う
+      await db.delete(db.categories).go();
       for (var index = 1; index <= 30; index++) {
         await db.insertCategory(
           '${index.toString().padLeft(2, '0')}${'長' * 48}',

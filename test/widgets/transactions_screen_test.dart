@@ -225,7 +225,16 @@ void main() {
       categoryIndex: 1,
       memo: 'ドラッグストア',
     );
-    final categories = await db.getCategories();
+    var categories = await db.getCategories();
+    final firstCategory = categories.singleWhere(
+      (category) => category.name == firstCategoryName,
+    );
+    await db.updateCategory(
+      firstCategory.id,
+      firstCategory.name,
+      categoryPalette.last.toARGB32(),
+    );
+    categories = await db.getCategories();
     final memberName = (await db.getMembers()).first.name;
     await pumpScreen(tester);
 
@@ -240,7 +249,10 @@ void main() {
       final dot = tester.widget<CircleAvatar>(
         find.descendant(of: tile, matching: find.byType(CircleAvatar)),
       );
-      expect(dot.backgroundColor, categoryColor(category.id));
+      expect(
+        dot.backgroundColor,
+        categoryColor(category.id, colorValue: category.colorValue),
+      );
       expect(dot.child, isNull);
       expect(
         find.descendant(of: tile, matching: find.text(subtitle)),

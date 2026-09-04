@@ -397,6 +397,10 @@ void main() {
       final added = provider.categories.firstWhere((c) => c.name == 'サブスク代');
 
       await provider.update(added.id, '定期購読費');
+      expect(
+        (await db.getCategories()).firstWhere((c) => c.id == added.id).name,
+        '定期購読費',
+      );
       await provider.delete(added.id);
       await logger.flush();
 
@@ -404,6 +408,45 @@ void main() {
       expect(detailOf('category.create'), {'name': 'サブスク代'});
       expect(detailOf('category.update'), {'id': added.id, 'name': '定期購読費'});
       expect(detailOf('category.delete'), {'id': added.id});
+    });
+
+    test('並べ替えは保存後の ID 順で残る', () async {
+      await provider.fetch();
+      final before = List.of(provider.categories);
+
+      await provider.reorder(0, 2);
+      await logger.flush();
+
+      expect(provider.categories.take(2).map((category) => category.id), [
+        before[1].id,
+        before[0].id,
+      ]);
+      // 固定カテゴリは並べ替えないので、保存する ID にも含めない
+      expect(detailOf('category.reorder'), {
+        'ids':
+            provider.movableCategories.map((category) => category.id).toList(),
+      });
+      expect(provider.categories.last.name, 'その他');
+    });
+
+    test('並べ替えの失敗は順番を戻し、error を残して例外も届く', () async {
+      await provider.fetch();
+      final before = List.of(provider.categories);
+      await db.customStatement('DROP TABLE categories');
+
+      await expectLater(provider.reorder(0, 2), throwsA(isA<Exception>()));
+      await logger.flush();
+
+      expect(
+        provider.categories.map((category) => category.id),
+        before.map((category) => category.id),
+      );
+      final entriesForReorder =
+          entries()
+              .where((entry) => entry['op'] == 'category.reorder')
+              .toList();
+      expect(entriesForReorder, hasLength(1));
+      expect(entriesForReorder.single['lv'], 'error');
     });
 
     test('追加の失敗は error で残り、例外も届く', () async {

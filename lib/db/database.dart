@@ -21,12 +21,23 @@ const _defaultCategories = [
   '医療費',
   '娯楽費',
   '衣服',
-  'その他',
+  _fixedCategoryName,
 ];
+
+/// 削除できない受け皿カテゴリの名前。
+///
+/// 初回投入と v5 への移行の両方でこの名前を固定の印にする。移行後にユーザーが
+/// 改名しても固定は列の値として残るので、ここを参照するのはこの 2 か所だけ。
+const _fixedCategoryName = 'その他';
 
 class Categories extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 50)();
+  IntColumn get colorValue => integer().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  // 「その他」のように、分類しきれない取引の受け皿として常に残すカテゴリ。
+  // 削除と並べ替えだけを禁じ、名前と色は変えられる。
+  BoolColumn get isFixed => boolean().withDefault(const Constant(false))();
 }
 
 /// 支出を負担する世帯のメンバー。取引の支払者であり、割り勘の頭割りの分母。
@@ -83,7 +94,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -93,8 +104,12 @@ class AppDatabase extends _$AppDatabase {
       await batch((b) {
         b.insertAll(
           categories,
-          _defaultCategories.map(
-            (name) => CategoriesCompanion.insert(name: name),
+          _defaultCategories.indexed.map(
+            (entry) => CategoriesCompanion.insert(
+              name: entry.$2,
+              sortOrder: Value(entry.$1),
+              isFixed: Value(entry.$2 == _fixedCategoryName),
+            ),
           ),
         );
         b.insert(members, MembersCompanion.insert(name: '自分'));
@@ -104,7 +119,7 @@ class AppDatabase extends _$AppDatabase {
       // 未対応のバージョンを黙って素通りさせない。drift の既定 onUpgrade は
       // 「移行が書かれていません」と例外を投げる安全網だが、それを上書きして
       // しまうため、分岐から漏れたら気付けるようにここで落とす。
-      if (from < 1 || to > 4) {
+      if (from < 1 || to > 5) {
         throw StateError('未対応のマイグレーションです: v$from → v$to');
       }
       // drift は onUpgrade をトランザクションで包まない。包まないと
@@ -184,6 +199,25 @@ class AppDatabase extends _$AppDatabase {
           // ignore: experimental_member_use
           await m.alterTable(TableMigration(members));
         }
+        if (from < 5) {
+          // 既存カテゴリの色は未設定のままにし、表示側の ID 由来の色へ
+          // フォールバックさせる。これにより移行前後で色が変わらない。
+          await m.addColumn(categories, categories.colorValue);
+          await m.addColumn(categories, categories.sortOrder);
+          await m.addColumn(categories, categories.isFixed);
+          // 現行の一覧は ID 昇順なので、その順序を初期値として保存する。
+          await customStatement('UPDATE categories SET sort_order = id');
+          // 初回投入の受け皿カテゴリを固定にする。v4 以前は同名カテゴリを
+          // 追加できたので、複数ある場合は最も古い 1 件だけを受け皿にする。
+          // 改名・削除済みの端末では一致する行が無く、固定カテゴリを持たない
+          // まま移行する（それでよい）。
+          await customStatement(
+            "UPDATE categories SET is_fixed = 1 "
+            "WHERE name = '$_fixedCategoryName' AND id = ("
+            "SELECT MIN(id) FROM categories WHERE name = '$_fixedCategoryName'"
+            ")",
+          );
+        }
       });
     },
     beforeOpen: (details) async {
@@ -194,21 +228,79 @@ class AppDatabase extends _$AppDatabase {
   // ---- カテゴリ ----
   Future<List<CategoryView>> getCategories() async {
     final rows =
-        await (select(categories)
-          ..orderBy([(c) => OrderingTerm(expression: c.id)])).get();
-    return rows.map((c) => CategoryView(id: c.id, name: c.name)).toList();
+        await (select(categories)..orderBy([
+          // 固定カテゴリは受け皿なので、並べ替えても常に一覧の最後に置く。
+          (c) => OrderingTerm(expression: c.isFixed),
+          (c) => OrderingTerm(expression: c.sortOrder),
+          (c) => OrderingTerm(expression: c.id),
+        ])).get();
+    return rows
+        .map(
+          (c) => CategoryView(
+            id: c.id,
+            name: c.name,
+            colorValue: c.colorValue,
+            sortOrder: c.sortOrder,
+            isFixed: c.isFixed,
+          ),
+        )
+        .toList();
   }
 
-  Future<void> insertCategory(String name) =>
-      into(categories).insert(CategoriesCompanion.insert(name: name));
+  Future<void> insertCategory(String name, {int? colorValue}) async {
+    // 固定カテゴリは常に末尾に置くので、その sort_order は最大値に数えない。
+    // 数えると新規カテゴリが固定より下の順序値を持てず、並べ替えの起点がずれる。
+    final movable =
+        (await getCategories()).where((category) => !category.isFixed).toList();
+    final nextOrder =
+        movable.isEmpty
+            ? 0
+            : movable
+                    .map((category) => category.sortOrder)
+                    .reduce((max, order) => order > max ? order : max) +
+                1;
+    await into(categories).insert(
+      CategoriesCompanion.insert(
+        name: name,
+        colorValue: Value(colorValue),
+        sortOrder: Value(nextOrder),
+      ),
+    );
+  }
 
   Future<void> updateCategoryName(int id, String name) => (update(categories)
     ..where(
       (c) => c.id.equals(id),
     )).write(CategoriesCompanion(name: Value(name)));
 
-  Future<void> deleteCategory(int id) =>
-      (delete(categories)..where((c) => c.id.equals(id))).go();
+  Future<void> updateCategory(int id, String name, int colorValue) =>
+      (update(categories)..where((c) => c.id.equals(id))).write(
+        CategoriesCompanion(name: Value(name), colorValue: Value(colorValue)),
+      );
+
+  Future<void> reorderCategories(List<int> categoryIds) => transaction(
+    () => batch((batch) {
+      for (final (index, id) in categoryIds.indexed) {
+        batch.update(
+          categories,
+          CategoriesCompanion(sortOrder: Value(index)),
+          where: (category) => category.id.equals(id),
+        );
+      }
+    }),
+  );
+
+  Future<void> deleteCategory(int id) async {
+    // 画面でも削除ボタンを無効にしているが、受け皿を失うと分類しきれない取引の
+    // 行き先が無くなるので、DB 側でも落とす。
+    final target =
+        await (select(categories)
+          ..where((c) => c.id.equals(id))).getSingleOrNull();
+    if (target != null && target.isFixed) {
+      throw StateError('固定カテゴリは削除できません');
+    }
+    await (delete(categories)..where((c) => c.id.equals(id))).go();
+  }
 
   // ---- メンバー ----
   Future<List<HouseholdMember>> getMembers() async {
@@ -280,6 +372,9 @@ class AppDatabase extends _$AppDatabase {
         memberName: m.name,
         categoryId: c.id,
         categoryName: c.name,
+        categoryColorValue: c.colorValue,
+        categorySortOrder: c.sortOrder,
+        categoryIsFixed: c.isFixed,
         amount: t.amount,
         spentAt: t.spentAt,
         memo: t.memo,

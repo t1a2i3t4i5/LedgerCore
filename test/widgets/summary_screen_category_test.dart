@@ -52,12 +52,13 @@ void expectCategoryVisuals(
   WidgetTester tester,
   String categoryName,
   int categoryId,
+  int? colorValue,
 ) {
   final row = find.ancestor(
     of: find.text(categoryName),
     matching: find.byType(CategoryBreakdownRow),
   );
-  final expectedColor = categoryColor(categoryId);
+  final expectedColor = categoryColor(categoryId, colorValue: colorValue);
 
   final dot = tester.widget<CircleAvatar>(
     find.descendant(of: row, matching: find.byType(CircleAvatar)),
@@ -136,9 +137,9 @@ void main() {
     expect(find.text('データがありません'), findsNothing);
   });
 
-  // 金額の降順（summary_calculator の _buildCategoryItems）。この並びが崩れると
-  // 「支出の大きい順に見る」という画面の前提が静かに壊れる
-  testWidgets('カテゴリ別は金額の降順で並ぶ', (tester) async {
+  // 管理画面で保存した順序。この並びが崩れると、取引入力と集計で同じ
+  // カテゴリが別の位置に出る。
+  testWidgets('カテゴリ別は金額に関係なく保存順で並ぶ', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
 
@@ -156,14 +157,20 @@ void main() {
     await pumpSummary(tester);
 
     double dy(String name) => tester.getCenter(find.text(name)).dy;
-    expect(dy(cats[2].name), lessThan(dy(cats[1].name)));
-    expect(dy(cats[1].name), lessThan(dy(cats[0].name)));
+    expect(dy(cats[0].name), lessThan(dy(cats[1].name)));
+    expect(dy(cats[1].name), lessThan(dy(cats[2].name)));
   });
 
   // categoryColor は色ドットと帯に届く入口。画面側で直書きの色へ
   // 置き換えても落ちるテストが無い状態を避ける
   testWidgets('カテゴリ行は categoryColor でドットと帯を描く', (tester) async {
-    final cats = await db.getCategories();
+    var cats = await db.getCategories();
+    await db.updateCategory(
+      cats.first.id,
+      cats.first.name,
+      categoryPalette.last.toARGB32(),
+    );
+    cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
 
     for (final (i, cat) in cats.take(2).indexed) {
@@ -179,8 +186,8 @@ void main() {
 
     await pumpSummary(tester);
 
-    expectCategoryVisuals(tester, cats[0].name, cats[0].id);
-    expectCategoryVisuals(tester, cats[1].name, cats[1].id);
+    expectCategoryVisuals(tester, cats[0].name, cats[0].id, cats[0].colorValue);
+    expectCategoryVisuals(tester, cats[1].name, cats[1].id, cats[1].colorValue);
   });
 
   // 取引ゼロの月でも summary は非 null で返る（byCategory が空、total が 0）ため、

@@ -282,7 +282,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
             amount: item.total,
             total: total,
             // カテゴリごとに決まる色を画面側で解決して渡す。
-            color: categoryColor(item.categoryId),
+            color: categoryColor(
+              item.categoryId,
+              colorValue: item.categoryColorValue,
+            ),
           ),
         ),
     ];

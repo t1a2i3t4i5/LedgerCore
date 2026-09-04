@@ -85,6 +85,25 @@ double _contrastRatio(Color first, Color second) {
 
 void main() {
   group('categoryColor', () {
+    test('保存済みの色が ID 由来のフォールバックより優先される', () {
+      final stored = categoryPalette.last;
+      expect(categoryColor(1, colorValue: stored.toARGB32()), stored);
+      expect(categoryColor(1), isNot(stored));
+    });
+
+    test('新規カテゴリの初期色は使用数が最少の色をパレット順で選ぶ', () {
+      expect(leastUsedCategoryColor(const []), categoryPalette.first);
+      expect(
+        leastUsedCategoryColor([
+          categoryPalette.first,
+          categoryPalette.first,
+          categoryPalette[1],
+        ]),
+        categoryPalette[2],
+      );
+      expect(leastUsedCategoryColor(categoryPalette), categoryPalette.first);
+    });
+
     test('同じカテゴリ ID なら常に同じ色を返す', () {
       for (final id in [0, 1, 7, 42, 999]) {
         expect(categoryColor(id), categoryColor(id));
@@ -139,8 +158,12 @@ void main() {
       }
     });
 
-    test('白いカードと帯のトラックに対して 3:1 以上になる', () {
-      const backgrounds = [Color(0xFFFFFFFF), Color(0xFFEFE4D8)];
+    test('画面背景・白いカード・帯のトラックに対して 3:1 以上になる', () {
+      final backgrounds = [
+        ledgerTheme.colorScheme.surface,
+        ledgerTheme.colorScheme.surfaceContainerLowest,
+        const Color(0xFFEFE4D8),
+      ];
       for (final color in _allPaletteColors()) {
         for (final background in backgrounds) {
           final ratio = _contrastRatio(color, background);
@@ -180,6 +203,22 @@ void main() {
         _allMemberPaletteColors().intersection(_allPaletteColors()),
         isEmpty,
       );
+    });
+
+    test('カテゴリ色とメンバー色の CIE76 ΔE が 12 以上になる', () {
+      for (final category in _allPaletteColors()) {
+        for (final member in _allMemberPaletteColors()) {
+          final delta = _deltaE(category, member);
+          expect(
+            delta,
+            greaterThanOrEqualTo(12),
+            reason:
+                '${category.toARGB32().toRadixString(16)} と '
+                '${member.toARGB32().toRadixString(16)} の ΔE が '
+                '$delta しかない',
+          );
+        }
+      }
     });
   });
 

@@ -19,6 +19,10 @@ abstract final class LedgerTokens {
   static const balanceNegative = Color(0xFFC4633A);
   static const balanceEven = Color(0xFFA39288);
 
+  // 「カテゴリを追加」の破線枠。ColorScheme の outlineVariant（#F3EDE6）は
+  // カード同士の区切り線用の淡さで、背景 #FBF6F0 の上に置く枠には弱すぎる。
+  static const dashedOutline = Color(0xFFD9CCBE);
+
   static const cardRadius = 24.0;
   static const cardRadiusLarge = 28.0;
   static const pillRadius = 999.0;

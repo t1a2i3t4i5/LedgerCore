@@ -50,9 +50,14 @@ class PageHeader extends StatelessWidget {
 /// タイトルの1行分と標準の戻るボタンが文字倍率に応じて収まる高さを取り、
 /// 不透明な背景ごと固定する。一覧はこの Sliver の下をスクロールする。
 class PinnedBackPageHeader extends StatelessWidget {
-  const PinnedBackPageHeader({super.key, required this.title});
+  const PinnedBackPageHeader({
+    super.key,
+    required this.title,
+    this.actions = const [],
+  });
 
   final String title;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +75,7 @@ class PinnedBackPageHeader extends StatelessWidget {
       pinned: true,
       delegate: _PinnedBackPageHeaderDelegate(
         title: title,
+        actions: actions,
         extent: extent,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       ),
@@ -80,11 +86,13 @@ class PinnedBackPageHeader extends StatelessWidget {
 class _PinnedBackPageHeaderDelegate extends SliverPersistentHeaderDelegate {
   const _PinnedBackPageHeaderDelegate({
     required this.title,
+    required this.actions,
     required this.extent,
     required this.backgroundColor,
   });
 
   final String title;
+  final List<Widget> actions;
   final double extent;
   final Color backgroundColor;
 
@@ -103,13 +111,18 @@ class _PinnedBackPageHeaderDelegate extends SliverPersistentHeaderDelegate {
     color: backgroundColor,
     child: Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      child: PageHeader(title: title, leading: const BackButton()),
+      child: PageHeader(
+        title: title,
+        leading: const BackButton(),
+        actions: actions,
+      ),
     ),
   );
 
   @override
   bool shouldRebuild(_PinnedBackPageHeaderDelegate oldDelegate) =>
       title != oldDelegate.title ||
+      actions != oldDelegate.actions ||
       extent != oldDelegate.extent ||
       backgroundColor != oldDelegate.backgroundColor;
 }

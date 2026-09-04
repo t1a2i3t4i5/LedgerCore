@@ -1,11 +1,13 @@
 class CategorySummaryItem {
   final int categoryId;
   final String categoryName;
+  final int? categoryColorValue;
   final double total;
 
   const CategorySummaryItem({
     required this.categoryId,
     required this.categoryName,
+    this.categoryColorValue,
     required this.total,
   });
 }
@@ -71,7 +73,7 @@ class YearlySummary {
   /// 1〜12月の12件固定。取引の無い月は total が 0
   final List<PeriodTotal> byMonth;
 
-  /// 合計金額の降順
+  /// カテゴリ管理で保存した並び順
   final List<CategorySummaryItem> byCategory;
 
   const YearlySummary({
