@@ -93,8 +93,14 @@ void main() {
     }
   }
 
-  bool isEllipsized(WidgetTester tester, String text) =>
-      tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
+  /// 名前が 1 行に収まらず「…」付きで省略されるか。
+  /// didExceedMaxLines は maxLines を超えたかだけを返すので、これだけだと
+  /// overflow の指定漏れ（既定の clip でぶつ切りになる）を見逃す。
+  bool isEllipsized(WidgetTester tester, String text) {
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(text));
+    return paragraph.didExceedMaxLines &&
+        paragraph.overflow == TextOverflow.ellipsis;
+  }
 
   testWidgets('カテゴリ見出しの戻るボタンで設定画面へ戻れる', (tester) async {
     await pumpCategoriesScreen(tester);
