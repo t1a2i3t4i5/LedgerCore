@@ -69,12 +69,20 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     try {
       await context.read<CategoryProvider>().reorder(oldIndex, newIndex);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('並び順を保存できませんでした')));
-      }
+      _showFailureSnackBar('並び順を保存できませんでした');
     }
+  }
+
+  void _showFailureSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        // 画面下に固定した追加ボタンを覆わない高さまで浮かせる。
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+      ),
+    );
   }
 
   Future<void> _delete(int categoryId, String name) async {
@@ -104,11 +112,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       try {
         await context.read<CategoryProvider>().delete(categoryId);
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('削除できませんでした（取引が残っている可能性があります）')),
-          );
-        }
+        _showFailureSnackBar('削除できませんでした（取引が残っている可能性があります）');
       }
     }
   }
@@ -310,7 +314,9 @@ class _CategoryRow extends StatelessWidget {
       category.name,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: muted ? const TextStyle(color: LedgerTokens.subtext) : null,
+      // カテゴリ名は行を識別する主要情報なので、操作不能時も AA を満たす
+      // onSurfaceVariant を使う。subtext は補助情報にだけ使う。
+      style: muted ? TextStyle(color: scheme.onSurfaceVariant) : null,
     );
 
     return Column(

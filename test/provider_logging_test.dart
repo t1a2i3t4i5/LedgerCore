@@ -397,6 +397,10 @@ void main() {
       final added = provider.categories.firstWhere((c) => c.name == 'サブスク代');
 
       await provider.update(added.id, '定期購読費');
+      expect(
+        (await db.getCategories()).firstWhere((c) => c.id == added.id).name,
+        '定期購読費',
+      );
       await provider.delete(added.id);
       await logger.flush();
 

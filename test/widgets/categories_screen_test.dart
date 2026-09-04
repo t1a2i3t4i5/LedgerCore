@@ -102,6 +102,32 @@ void main() {
         paragraph.overflow == TextOverflow.ellipsis;
   }
 
+  double contrastRatio(Color first, Color second) {
+    final l1 = first.computeLuminance();
+    final l2 = second.computeLuminance();
+    final lighter = l1 > l2 ? l1 : l2;
+    final darker = l1 > l2 ? l2 : l1;
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  void expectSnackBarAboveAddButton(WidgetTester tester) {
+    final snackSurface = find.descendant(
+      of: find.byType(SnackBar),
+      matching: find.byType(Material),
+    );
+    expect(snackSurface, findsOneWidget);
+    final snackRect = tester.getRect(snackSurface);
+    final addRect = tester.getRect(
+      find.byKey(const Key('add-category-button')),
+    );
+    expect(
+      snackRect.overlaps(addRect),
+      isFalse,
+      reason: '失敗通知 $snackRect が追加ボタン $addRect を覆っている',
+    );
+    expect(snackRect.bottom, lessThanOrEqualTo(addRect.top));
+  }
+
   testWidgets('カテゴリ見出しの戻るボタンで設定画面へ戻れる', (tester) async {
     await pumpCategoriesScreen(tester);
 
@@ -180,6 +206,14 @@ void main() {
       find.descendant(of: card, matching: find.byType(Divider)),
       findsNWidgets(names.length - 1),
     );
+    final lastTile = tester.widget<ListTile>(
+      find.ancestor(of: find.text(names.last), matching: find.byType(ListTile)),
+    );
+    final lastRadius =
+        (lastTile.shape! as RoundedRectangleBorder).borderRadius
+            as BorderRadius;
+    expect(lastRadius.bottomLeft.x, LedgerTokens.cardRadius);
+    expect(lastRadius.bottomRight.x, LedgerTokens.cardRadius);
   });
 
   testWidgets('固定カテゴリが複数あっても全行を描き、カードの区切りと角丸を保つ', (tester) async {
@@ -259,6 +293,13 @@ void main() {
       matching: find.byType(IconButton),
     );
     expect(tester.widget<IconButton>(deleteButton).onPressed, isNull);
+    final nameText = tester.widget<Text>(find.text(fixed.name));
+    final scheme = Theme.of(tester.element(find.text(fixed.name))).colorScheme;
+    expect(nameText.style?.color, scheme.onSurfaceVariant);
+    expect(
+      contrastRatio(nameText.style!.color!, scheme.surfaceContainerLow),
+      greaterThanOrEqualTo(4.5),
+    );
     // 押しても確認ダイアログが開かず、カテゴリも残る
     await tester.tap(deleteButton, warnIfMissed: false);
     await tester.pumpAndSettle();
@@ -393,6 +434,51 @@ void main() {
     expect(created.colorValue, categoryPalette[2].toARGB32());
   });
 
+  testWidgets('新規追加は保存色がないカテゴリのフォールバック色も使用数に含める', (tester) async {
+    await deleteAllCategories();
+    // categoryColor(id) がパレット先頭になる ID を明示し、color_value は NULL の
+    // ままにする。これを数えなければ先頭色が誤って再選択される。
+    await db.customStatement(
+      'INSERT INTO categories (id, name, sort_order, is_fixed) '
+      'VALUES (?, ?, 0, 0)',
+      [categoryPalette.length, 'フォールバック色'],
+    );
+
+    await pumpCategoriesScreen(tester);
+    await tester.tap(find.byKey(const Key('add-category-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '新しいカテゴリ');
+    await tester.tap(find.widgetWithText(FilledButton, '保存する'));
+    await tester.pumpAndSettle();
+
+    final created = (await db.getCategories()).last;
+    expect(created.name, '新しいカテゴリ');
+    expect(created.colorValue, categoryPalette[1].toARGB32());
+  });
+
+  testWidgets('編集シートはパレット全12色を描き、末尾の色を選んで保存できる', (tester) async {
+    await deleteAllCategories();
+    await pumpCategoriesScreen(tester);
+    await tester.tap(find.byKey(const Key('add-category-button')));
+    await tester.pumpAndSettle();
+
+    for (final color in categoryPalette) {
+      expect(
+        find.byKey(ValueKey('category-color-${color.toARGB32()}')),
+        findsOneWidget,
+      );
+    }
+    await tester.tap(
+      find.byKey(ValueKey('category-color-${categoryPalette.last.toARGB32()}')),
+    );
+    await tester.enterText(find.byType(TextField), '末尾色カテゴリ');
+    await tester.tap(find.widgetWithText(FilledButton, '保存する'));
+    await tester.pumpAndSettle();
+
+    final created = (await db.getCategories()).single;
+    expect(created.colorValue, categoryPalette.last.toARGB32());
+  });
+
   testWidgets('空・51文字・重複名は理由を示して編集シートを閉じない', (tester) async {
     final existingName = (await db.getCategories()).first.name;
     await pumpCategoriesScreen(tester);
@@ -520,6 +606,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('並び順を保存できませんでした'), findsOneWidget);
+    expectSnackBarAboveAddButton(tester);
     expect(
       tester.getTopLeft(find.text(before.first.name)).dy,
       lessThan(tester.getTopLeft(find.text(before[1].name)).dy),
@@ -612,6 +699,7 @@ void main() {
 
     // 握りつぶし退行を殺すのはこの 1 行。DB が弾いても画面が黙っていたら通らない
     expect(find.text(failureMessage), findsOneWidget);
+    expectSnackBarAboveAddButton(tester);
 
     // 一覧にも残り続ける
     expect(find.text(cats.first.name), findsOneWidget);
