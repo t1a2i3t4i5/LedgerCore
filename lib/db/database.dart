@@ -207,10 +207,15 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(categories, categories.isFixed);
           // 現行の一覧は ID 昇順なので、その順序を初期値として保存する。
           await customStatement('UPDATE categories SET sort_order = id');
-          // 初回投入の受け皿カテゴリを固定にする。改名・削除済みの端末では
-          // 一致する行が無く、固定カテゴリを持たないまま移行する（それでよい）。
+          // 初回投入の受け皿カテゴリを固定にする。v4 以前は同名カテゴリを
+          // 追加できたので、複数ある場合は最も古い 1 件だけを受け皿にする。
+          // 改名・削除済みの端末では一致する行が無く、固定カテゴリを持たない
+          // まま移行する（それでよい）。
           await customStatement(
-            "UPDATE categories SET is_fixed = 1 WHERE name = '$_fixedCategoryName'",
+            "UPDATE categories SET is_fixed = 1 "
+            "WHERE name = '$_fixedCategoryName' AND id = ("
+            "SELECT MIN(id) FROM categories WHERE name = '$_fixedCategoryName'"
+            ")",
           );
         }
       });

@@ -176,6 +176,50 @@ void main() {
     );
   });
 
+  testWidgets('固定カテゴリが複数あっても全行を描き、カードの区切りと角丸を保つ', (tester) async {
+    await deleteAllCategories();
+    for (final name in const ['食費', '固定A', '固定B']) {
+      await db.insertCategory(name);
+    }
+    final categories = await db.getCategories();
+    final fixedIds = categories.skip(1).map((category) => category.id).toList();
+    await db.customStatement(
+      'UPDATE categories SET is_fixed = 1 WHERE id IN (?, ?)',
+      fixedIds,
+    );
+
+    await pumpCategoriesScreen(tester);
+
+    final card = find.byType(DecoratedSliver);
+    for (final name in const ['食費', '固定A', '固定B']) {
+      expect(
+        find.ancestor(of: find.text(name), matching: card),
+        findsOneWidget,
+      );
+    }
+    expect(
+      find.descendant(of: card, matching: find.byType(Divider)),
+      findsNWidgets(2),
+    );
+
+    BorderRadius radiusOf(String name) {
+      final tile = tester.widget<ListTile>(
+        find.ancestor(of: find.text(name), matching: find.byType(ListTile)),
+      );
+      return (tile.shape! as RoundedRectangleBorder).borderRadius
+          as BorderRadius;
+    }
+
+    final firstRadius = radiusOf('食費');
+    expect(firstRadius.topLeft.x, LedgerTokens.cardRadius);
+    expect(firstRadius.bottomLeft, Radius.zero);
+    final middleRadius = radiusOf('固定A');
+    expect(middleRadius, BorderRadius.zero);
+    final lastRadius = radiusOf('固定B');
+    expect(lastRadius.topLeft, Radius.zero);
+    expect(lastRadius.bottomLeft.x, LedgerTokens.cardRadius);
+  });
+
   testWidgets('編集中の固定カテゴリは削除も並べ替えもできない', (tester) async {
     await keepOnlyFixedCategory();
     await db.insertCategory('食費');
@@ -296,6 +340,29 @@ void main() {
     expect(dot.backgroundColor, selectedColor);
   });
 
+  testWidgets('編集シートで名前を変えずに色だけ保存できる', (tester) async {
+    const name = '食費（外食）';
+    await deleteAllCategories();
+    await db.insertCategory(name);
+    final original = (await db.getCategories()).single;
+    final selectedColor = categoryPalette.firstWhere(
+      (color) => color != categoryColor(original.id),
+    );
+
+    await pumpCategoriesScreen(tester);
+    await tester.tap(find.text(name));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(ValueKey('category-color-${selectedColor.toARGB32()}')),
+    );
+    await tester.tap(find.widgetWithText(FilledButton, '保存する'));
+    await tester.pumpAndSettle();
+
+    final updated = (await db.getCategories()).single;
+    expect(updated.name, name);
+    expect(updated.colorValue, selectedColor.toARGB32());
+  });
+
   testWidgets('新規追加は使用数が最少の先頭色を初期値にして保存する', (tester) async {
     await deleteAllCategories();
     await db.insertCategory(
@@ -359,6 +426,40 @@ void main() {
     expect(tester.getRect(save).bottom, lessThanOrEqualTo(690 - 300));
   });
 
+  testWidgets('編集モードでも名前・色・操作が重ならず、長い名前だけを省略する', (tester) async {
+    const readableName = '食費（外食）';
+    final longName = 'あ' * 50;
+    await deleteAllCategories();
+    await db.insertCategory(readableName);
+    await db.insertCategory(longName);
+
+    await pumpCategoriesScreen(tester);
+    await tester.tap(find.widgetWithText(FilledButton, '編集'));
+    await tester.pumpAndSettle();
+
+    final row = find.ancestor(
+      of: find.text(readableName),
+      matching: find.byType(ListTile),
+    );
+    final delete = find.descendant(of: row, matching: find.byType(IconButton));
+    final dot = find.descendant(of: row, matching: find.byType(CircleAvatar));
+    final handle = find.descendant(
+      of: row,
+      matching: find.byIcon(Icons.drag_handle),
+    );
+    final deleteRect = tester.getRect(delete);
+    final dotRect = tester.getRect(dot);
+    final nameRect = tester.getRect(find.text(readableName));
+    final handleRect = tester.getRect(handle);
+    expect(deleteRect.right, lessThanOrEqualTo(dotRect.left));
+    expect(dotRect.right, lessThanOrEqualTo(nameRect.left));
+    expect(nameRect.right, lessThanOrEqualTo(handleRect.left));
+    expect(tester.getSize(row).height, 56);
+    expect(isEllipsized(tester, readableName), isFalse);
+    expect(isEllipsized(tester, longName), isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('並べ替えハンドルのドラッグで順番を保存する', (tester) async {
     final before = await db.getCategories();
     await pumpCategoriesScreen(tester);
@@ -390,7 +491,68 @@ void main() {
     expect(after.last.id, before.last.id);
   });
 
-  testWidgets('DB 上限の50文字名でも描画例外が起きない', (tester) async {
+  testWidgets('並べ替えの保存失敗を通知し、画面の順番を元に戻す', (tester) async {
+    final before = await db.getCategories();
+    await pumpCategoriesScreen(tester);
+    await tester.tap(find.widgetWithText(FilledButton, '編集'));
+    await tester.pumpAndSettle();
+
+    final firstRow = find.ancestor(
+      of: find.text(before.first.name),
+      matching: find.byType(ListTile),
+    );
+    final handle = find.descendant(
+      of: firstRow,
+      matching: find.byIcon(Icons.drag_handle),
+    );
+    await db.customStatement('DROP TABLE categories');
+    await tester.timedDrag(
+      handle,
+      const Offset(0, 60),
+      const Duration(milliseconds: 600),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('並び順を保存できませんでした'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text(before.first.name)).dy,
+      lessThan(tester.getTopLeft(find.text(before[1].name)).dy),
+    );
+  });
+
+  testWidgets('編集シートの保存失敗後は操作を再開して閉じられる', (tester) async {
+    final category = (await db.getCategories()).first;
+    await pumpCategoriesScreen(tester);
+    await tester.tap(find.text(category.name));
+    await tester.pumpAndSettle();
+
+    await db.customStatement('DROP TABLE categories');
+    await tester.tap(find.widgetWithText(FilledButton, '保存する'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('保存できませんでした。入力内容を確認してください'), findsOneWidget);
+    final save = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '保存する'),
+    );
+    expect(save.onPressed, isNotNull);
+    final cancel = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'キャンセル'),
+    );
+    expect(cancel.onPressed, isNotNull);
+    expect(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(CircularProgressIndicator),
+      ),
+      findsNothing,
+    );
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsNothing);
+  });
+
+  testWidgets('DB 上限の50文字名でも描画例外が起きず省略される', (tester) async {
     final name = 'あ' * 50;
     await deleteAllCategories();
     await db.insertCategory(name);
@@ -398,6 +560,7 @@ void main() {
     await pumpCategoriesScreen(tester);
 
     expect(find.text(name), findsOneWidget);
+    expect(isEllipsized(tester, name), isTrue);
     expect(tester.takeException(), isNull);
   });
 

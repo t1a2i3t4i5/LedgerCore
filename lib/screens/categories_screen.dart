@@ -120,8 +120,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         child: Consumer<CategoryProvider>(
           builder: (context, provider, _) {
             final movable = provider.movableCategories;
-            final fixed = provider.fixedCategory;
-            final rowCount = movable.length + (fixed == null ? 0 : 1);
+            final fixed = provider.fixedCategories;
+            final rowCount = movable.length + fixed.length;
 
             final scrollView = CustomScrollView(
               slivers: [
@@ -195,21 +195,25 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                               );
                             },
                           ),
-                          if (fixed != null)
-                            SliverToBoxAdapter(
-                              child: _CategoryRow(
-                                key: ValueKey(fixed.id),
-                                category: fixed,
-                                editing: _editing,
-                                isFirst: movable.isEmpty,
-                                isLast: true,
-                                showDivider: false,
-                                onTap: () => _showEditSheet(fixed),
-                                // 押せるかどうかの判断は _CategoryRow に一本化する。
-                                // ここで渡さないと、行側のガードを外しても
-                                // onDelete が null のままで退行に気付けない
-                                onDelete: () => _delete(fixed.id, fixed.name),
-                              ),
+                          if (fixed.isNotEmpty)
+                            SliverList.builder(
+                              itemCount: fixed.length,
+                              itemBuilder: (context, index) {
+                                final cat = fixed[index];
+                                return _CategoryRow(
+                                  key: ValueKey(cat.id),
+                                  category: cat,
+                                  editing: _editing,
+                                  isFirst: movable.isEmpty && index == 0,
+                                  isLast: index == fixed.length - 1,
+                                  showDivider: index < fixed.length - 1,
+                                  onTap: () => _showEditSheet(cat),
+                                  // 押せるかどうかの判断は _CategoryRow に一本化する。
+                                  // ここで渡さないと、行側のガードを外しても
+                                  // onDelete が null のままで退行に気付けない
+                                  onDelete: () => _delete(cat.id, cat.name),
+                                );
+                              },
                             ),
                         ],
                       ),

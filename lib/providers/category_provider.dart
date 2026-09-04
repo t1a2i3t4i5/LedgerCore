@@ -85,13 +85,10 @@ class CategoryProvider extends ChangeNotifier {
   List<CategoryView> get movableCategories =>
       _categories.where((category) => !category.isFixed).toList();
 
-  /// 固定カテゴリ。無ければ null。
-  CategoryView? get fixedCategory {
-    for (final category in _categories) {
-      if (category.isFixed) return category;
-    }
-    return null;
-  }
+  /// 固定カテゴリ。通常は 0〜1 件だが、壊れた旧データが来ても画面から
+  /// 行を隠さないよう、一覧として返す。
+  List<CategoryView> get fixedCategories =>
+      _categories.where((category) => category.isFixed).toList();
 
   /// カテゴリの並び順を更新する。
   ///

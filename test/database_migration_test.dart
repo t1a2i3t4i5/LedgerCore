@@ -234,15 +234,23 @@ void main() {
   }
 
   for (final from in _versionsWithoutCategoryCustomization) {
-    test('v$from では「その他」だけが固定カテゴリになる', () async {
+    test('v$from では最も古い「その他」だけが固定カテゴリになる', () async {
       final schema = await verifier.schemaAt(from);
       addTearDown(schema.close);
 
       final raw = schema.rawDatabase;
-      // 名前が完全一致する行だけを固定にする（部分一致で巻き込まない）
-      for (final name in [_categoryName, 'その他', 'その他の出費']) {
+      // 名前が完全一致する行のうち最も古い 1 件だけを固定にする。
+      // v4 以前は同名カテゴリを追加できたので重複も seed する。
+      for (final name in [_categoryName, 'その他', 'その他', 'その他の出費']) {
         raw.execute('INSERT INTO categories (name) VALUES (?)', [name]);
       }
+      final firstOtherId =
+          raw
+                  .select(
+                    "SELECT MIN(id) AS id FROM categories WHERE name = 'その他'",
+                  )
+                  .single['id']
+              as int;
 
       final db = AppDatabase.forTesting(schema.newConnection());
       addTearDown(db.close);
@@ -252,12 +260,17 @@ void main() {
         options: _validation,
       );
 
-      // 固定カテゴリは一覧の末尾へ回る
+      final categories = await db.getCategories();
+      final fixed = categories.where((category) => category.isFixed).toList();
+      expect(fixed, hasLength(1));
+      expect(fixed.single.id, firstOtherId);
+      // 固定カテゴリは一覧の末尾へ回り、同名の 2 件目と部分一致は通常行に残る
+      expect(categories.last.id, firstOtherId);
       expect(
-        (await db.getCategories())
-            .map((category) => (category.name, category.isFixed))
-            .toList(),
-        [(_categoryName, false), ('その他の出費', false), ('その他', true)],
+        categories
+            .where((category) => !category.isFixed)
+            .map((category) => category.name),
+        [_categoryName, 'その他', 'その他の出費'],
       );
     });
   }

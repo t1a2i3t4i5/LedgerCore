@@ -425,6 +425,26 @@ void main() {
       expect(provider.categories.last.name, 'その他');
     });
 
+    test('並べ替えの失敗は順番を戻し、error を残して例外も届く', () async {
+      await provider.fetch();
+      final before = List.of(provider.categories);
+      await db.customStatement('DROP TABLE categories');
+
+      await expectLater(provider.reorder(0, 2), throwsA(isA<Exception>()));
+      await logger.flush();
+
+      expect(
+        provider.categories.map((category) => category.id),
+        before.map((category) => category.id),
+      );
+      final entriesForReorder =
+          entries()
+              .where((entry) => entry['op'] == 'category.reorder')
+              .toList();
+      expect(entriesForReorder, hasLength(1));
+      expect(entriesForReorder.single['lv'], 'error');
+    });
+
     test('追加の失敗は error で残り、例外も届く', () async {
       // Categories.name は withLength(max: 50) で drift のクライアント側検証が
       // 効く。categories_screen.dart の TextField に maxLength が無いので、
