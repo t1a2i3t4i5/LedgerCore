@@ -320,7 +320,7 @@ push 先で、`PinnedBackPageHeader` の戻るボタンが唯一の戻る導線�
 `CategoryProvider.reorder()` は `movableCategories` の添字で動き、固定カテゴリの
 `sort_order` を書き換えない。
 
-`memberColor(memberId)` はカテゴリ用と交わらない別パレットから同じ性質を提供する。#93 で追加したが、メンバー別行を `ListTile` のまま維持する #94 時点では production の利用箇所はまだ無い。割り勘画面などでメンバーの識別色を使うときはこの関数を入口にする。
+`memberColor(memberId)` はカテゴリ用と交わらない別パレットから同じ性質を提供する（#93 で追加）。メンバーの識別色を使うときはこの関数を入口にする。
 
 ### メンバー別の構成比は割り勘画面だけに出す
 
