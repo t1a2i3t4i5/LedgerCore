@@ -142,7 +142,7 @@ void main() {
     expect(find.byType(SplitScreen), findsOneWidget);
   });
 
-  testWidgets('割り切れない差額も formatYen と同じ整数円表示にする', (tester) async {
+  testWidgets('奇数円は立替額の少ない側が1円多く負担する', (tester) async {
     await db.insertMember('みく');
     await pay((await db.getMembers()).first.id, 2469);
     await pumpApp(tester);
@@ -186,7 +186,7 @@ void main() {
       2,
     );
     expect(find.text('2026年6月'), findsOneWidget);
-    expect(find.text('自分 → みく に 2000 円支払う'), findsOneWidget);
+    expect(find.text('自分 → みく に ¥2,000 支払う'), findsOneWidget);
     expect(find.text('前のタブの案内'), findsNothing);
     final changes =
         sink.lines
@@ -214,11 +214,10 @@ void main() {
   });
 
   for (final (count, hasPayments, message) in [
-    (0, false, 'メンバーを登録すると精算できます'),
-    (1, true, '精算には2人以上のメンバーが必要です'),
+    (0, false, '精算にはメンバーが2人必要です（設定 → メンバー管理で登録できます）'),
+    (1, true, '精算にはメンバーが2人必要です（設定 → メンバー管理で登録できます）'),
     (2, false, '精算不要'),
     (2, true, '精算不要'),
-    (3, true, '精算不要'),
   ]) {
     testWidgets('$count 人・支払い $hasPayments の案内を表示する', (tester) async {
       final initial = (await db.getMembers()).single;
@@ -239,62 +238,6 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
-
-  testWidgets('端数だけの差額は精算不要にし、¥0 の支払い行を出さない', (tester) async {
-    // 3人で 1000 円を等分すると各自の差額は ±0.33 で、0 ではないが ¥0 に丸まる。
-    await db.insertMember('みく');
-    await db.insertMember('たいち');
-    final members = await db.getMembers();
-    await pay(members[0].id, 334);
-    await pay(members[1].id, 333);
-    await pay(members[2].id, 333);
-    await pumpApp(tester);
-
-    expect(inCard('精算不要'), findsOneWidget);
-    expect(inCard('精算に必要な支払い'), findsNothing);
-    expect(inCard('みく は\n¥0'), findsNothing);
-    expect(inCard('たいち は\n¥0'), findsNothing);
-    expect(inCard('精算する'), findsNothing);
-    expect(inCard('割り勘を見る'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('受け取り側が端数でも、¥1 以上を払う人がいれば精算を出す', (tester) async {
-    // 3人で 2000 円を等分すると +0.33 / +0.33 / -0.67。受け取り側は ¥0 に
-    // 丸まるが、払う側は ¥1 になる。ここを精算不要にすると割り勘タブと食い違う。
-    await db.insertMember('みく');
-    await db.insertMember('たいち');
-    final members = await db.getMembers();
-    await pay(members[0].id, 667);
-    await pay(members[1].id, 667);
-    await pay(members[2].id, 666);
-    await pumpApp(tester);
-
-    expect(inCard('精算不要'), findsNothing);
-    expect(inCard('精算に必要な支払い'), findsOneWidget);
-    expect(inCard('たいち は\n¥1'), findsOneWidget);
-    expect(inCard('精算する'), findsOneWidget);
-
-    await tester.tap(find.descendant(of: card, matching: find.text('精算する')));
-    await tester.pumpAndSettle();
-    expect(find.text('たいち は 1 円の支払いが必要'), findsOneWidget);
-  });
-
-  testWidgets('3人以上は支払う人と各不足額を対応させて全行表示する', (tester) async {
-    await db.insertMember('みく');
-    await db.insertMember('たいち');
-    final members = await db.getMembers();
-    await pay(members[0].id, 900);
-    await pay(members[1].id, 300);
-    await pumpApp(tester);
-
-    expect(inCard('精算に必要な支払い'), findsOneWidget);
-    expect(inCard('みく は\n¥100'), findsOneWidget);
-    expect(inCard('たいち は\n¥400'), findsOneWidget);
-    expect(inCard('自分 は\n¥500'), findsNothing);
-    expect(inCard('精算する'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
 
   testWidgets('360px・文字倍率2.0でも長い名前と上限金額を省略せず描く', (tester) async {
     setPhoneSize(tester);

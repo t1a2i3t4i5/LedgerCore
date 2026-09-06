@@ -28,7 +28,7 @@ void main() {
       expect(formatYen(1234.5), '¥1,235');
       expect(formatYen(1234.4), '¥1,234');
       expect(formatYen(0.4), '¥0');
-      // 割り勘の fairShare（合計 ÷ 人数）は割り切れない値になりうる
+      // 想定外の除算結果を受け取っても小数部は出さない
       expect(formatYen(10000 / 3), '¥3,333');
 
       for (final v in [0.4, 1234.5, 10000 / 3, kMaxAmount / 7]) {

@@ -30,8 +30,8 @@ String formatAmountForInput(double amount) => amount.toStringAsFixed(0);
 /// CHECK 制約と移行の丸め方まで一緒に見直す。
 ///
 /// 丸めは half away from zero で、移行で使う SQLite の `ROUND` と同じ
-/// （`1234.5` はどちらも `1,235`）。割り勘の `fairShare` は「合計 ÷ 人数」の
-/// 導出値で小数が残るが、表示上はこの整形で丸める。
+/// （`1234.5` はどちらも `1,235`）。現行DBの金額と2人の割り勘結果は整数だが、
+/// 想定外の小数を受け取っても小数部を画面へ出さない契約は維持する。
 final _displayFormat = NumberFormat('#,###', 'ja_JP');
 
 /// 金額を `¥1,234` の形にする。

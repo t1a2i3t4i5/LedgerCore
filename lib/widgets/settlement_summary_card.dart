@@ -14,24 +14,15 @@ class SettlementSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 差額は整数円に丸めて出す。丸めて ¥0 になる人を支払う側に数えると
-    // 「¥0 を支払う」行が並ぶ（3人で 1000 円を等分すると各自 -0.33 になる）。
-    // 丸めの規則を書き写さず、表示に使う formatYen() 自身に判定させる。
-    //
-    // 篩を掛けるのは支払う側だけ。受け取り側にも掛けると、3人で 2000 円を
-    // 等分した +0.33 / +0.33 / -0.67 で受け取り手がいなくなり、¥1 払う人が
-    // いるのに「精算不要」になって割り勘タブの精算文と食い違う。
-    final creditors = split.members.where((member) => member.balance > 0);
-    final debtors = split.members.where(
-      (member) =>
-          member.balance < 0 && formatYen(member.balance.abs()) != formatYen(0),
-    );
-    final needsSettlement = creditors.isNotEmpty && debtors.isNotEmpty;
-    final pair = split.members.length == 2 && needsSettlement;
+    final pair = split.pair;
+    final settlement = pair?.settlement;
+    final needsSettlement = settlement != null;
     final avatarMembers =
-        pair
-            ? [debtors.single, creditors.single]
-            : split.members.take(3).toList();
+        pair == null
+            ? const <MemberBalance>[]
+            : settlement == null
+            ? split.members
+            : [settlement.from, settlement.to];
     final action =
         onTap == null
             ? null
@@ -50,27 +41,16 @@ class SettlementSummaryCard extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (split.members.length < 2)
-          Text(
-            split.members.isEmpty ? 'メンバーを登録すると精算できます' : '精算には2人以上のメンバーが必要です',
-          )
+        if (pair == null)
+          const Text('精算にはメンバーが2人必要です（設定 → メンバー管理で登録できます）')
         else if (!needsSettlement)
           const Text('精算不要')
-        else if (pair)
+        else
           _payment(
             context,
-            '${debtors.single.memberName} → ${creditors.single.memberName} に',
-            debtors.single.balance.abs(),
-          )
-        else ...[
-          const Text('精算に必要な支払い'),
-          // 3人以上の送金先は既存の計算結果に無い。新たに割り当てず、
-          // 各メンバーの不足額を省略せずに並べる。
-          for (final debtor in debtors) ...[
-            const SizedBox(height: 8),
-            _payment(context, '${debtor.memberName} は', debtor.balance.abs()),
-          ],
-        ],
+            '${settlement.from.memberName} → ${settlement.to.memberName} に',
+            settlement.amount,
+          ),
       ],
     );
 
@@ -88,10 +68,10 @@ class SettlementSummaryCard extends StatelessWidget {
             // 収まるときだけ横並びにする。長い名前や上限額は縦へ逃がす。
             final textTheme = Theme.of(context).textTheme;
             final inline =
-                pair &&
+                settlement != null &&
                 60 +
                         12 +
-                        _pairWidth(context, debtors.single, creditors.single) +
+                        _pairWidth(context, settlement) +
                         (action == null
                             ? 0
                             : 12 +
@@ -153,20 +133,16 @@ class SettlementSummaryCard extends StatelessWidget {
     );
   }
 
-  double _pairWidth(
-    BuildContext context,
-    MemberBalance from,
-    MemberBalance to,
-  ) {
+  double _pairWidth(BuildContext context, SplitSettlement settlement) {
     final style = Theme.of(context).textTheme.bodyMedium!;
     final labelWidth = _textWidth(
       context,
-      '${from.memberName} → ${to.memberName} に',
+      '${settlement.from.memberName} → ${settlement.to.memberName} に',
       style,
     );
     final amountWidth = _textWidth(
       context,
-      formatYen(from.balance.abs()),
+      formatYen(settlement.amount),
       style.merge(LedgerTokens.amountRow),
     );
     return labelWidth > amountWidth ? labelWidth : amountWidth;

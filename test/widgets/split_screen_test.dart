@@ -22,7 +22,7 @@ void main() {
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
-  Future<void> pumpSplit(WidgetTester tester) async {
+  Future<void> pumpSplit(WidgetTester tester, {double textScale = 1}) async {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -32,6 +32,13 @@ void main() {
         create: (_) => SummaryProvider(db, clock: () => fixedNow),
         child: MaterialApp(
           theme: ledgerTheme,
+          builder:
+              (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(textScale)),
+                child: child!,
+              ),
           home: const Scaffold(body: SplitScreen()),
         ),
       ),
@@ -58,7 +65,7 @@ void main() {
       .widget<Text>(find.byKey(ValueKey('member-balance-amount-$memberId')));
 
   testWidgets('濃色の精算カードとテーマの金額書体を使う', (tester) async {
-    await insertPayment((await db.getMembers()).first.id, 300);
+    await db.insertMember('パートナー');
     await pumpSplit(tester);
 
     final settlement = tester.widget<DecoratedBox>(
@@ -85,13 +92,11 @@ void main() {
     }
   });
 
-  testWidgets('メンバー行は残高の3色と支払済みの構成比を描く', (tester) async {
+  testWidgets('メンバー行は残高の2色と支払済みの構成比を描く', (tester) async {
     await db.insertMember('みく');
-    await db.insertMember('たいち');
     final members = await db.getMembers();
 
-    // 合計 300 円・一人当たり 100 円で、受け取り・均等・支払いを
-    // 1 画面にすべて作る。
+    // 合計 300 円・一人当たり 150 円で、受け取りと支払いを作る。
     await insertPayment(members[0].id, 200);
     await insertPayment(members[1].id, 100);
     await pumpSplit(tester);
@@ -100,9 +105,8 @@ void main() {
     expect(find.byType(LedgerCard), findsNWidgets(2));
 
     final expected = [
-      ('+¥100', '受け取り', LedgerTokens.balancePositive),
-      ('¥0', '均等', LedgerTokens.balanceEven),
-      ('¥-100', '支払い', LedgerTokens.balanceNegative),
+      ('+¥50', '受け取り', LedgerTokens.balancePositive),
+      ('¥-50', '支払い', LedgerTokens.balanceNegative),
     ];
 
     for (var i = 0; i < members.length; i++) {
@@ -134,14 +138,7 @@ void main() {
       final ratioBar = tester.widget<RatioBar>(
         find.descendant(of: row, matching: find.byType(RatioBar)),
       );
-      expect(
-        ratioBar.amount,
-        i == 0
-            ? 200
-            : i == 1
-            ? 100
-            : 0,
-      );
+      expect(ratioBar.amount, i == 0 ? 200 : 100);
       expect(ratioBar.total, 300);
       expect(ratioBar.color, color);
       expect(
@@ -156,30 +153,32 @@ void main() {
     }
   });
 
-  testWidgets('kMaxAmount の精算額を 360px 幅で描いても overflow しない', (tester) async {
+  testWidgets('奇数の上限額と2つの負担額を文字倍率2.0でも省略しない', (tester) async {
     await db.insertMember('パートナー');
     final members = await db.getMembers();
     await insertPayment(members.first.id, kMaxAmount);
+    final shares =
+        '${formatYen((kMaxAmount / 2).floorToDouble())}・'
+        '${formatYen((kMaxAmount / 2).ceilToDouble())}';
 
     await pumpSplit(tester);
-    expect(find.text(formatYen(kMaxAmount)), findsWidgets);
+    final amount = find.byKey(const ValueKey('summary-amount-一人当たり'));
+    final normalHeight = tester.getSize(amount).height;
+
+    await pumpSplit(tester, textScale: 2);
+
+    expect(find.text(formatYen(kMaxAmount)), findsOneWidget);
+    expect(find.text(shares), findsOneWidget);
+    expect(find.byType(FittedBox), findsNothing);
     expect(tester.takeException(), isNull);
-
-    for (final label in ['合計', '一人当たり']) {
-      final amount = find.byKey(ValueKey('summary-amount-$label'));
-      final fitted = find.byKey(ValueKey('summary-amount-fitted-$label'));
-      final paragraph = tester.renderObject<RenderParagraph>(amount);
-      final intrinsicWidth = paragraph.getMaxIntrinsicWidth(double.infinity);
-      final availableWidth = tester.getSize(fitted).width;
-      final paintedWidth = tester.getRect(amount).width;
-
-      // 上限金額は二分割した欄へ素の幅では収まらない。この前提と、
-      // FittedBox の変換後は実際の描画幅が欄内へ収まることを対で見る。
-      expect(intrinsicWidth, greaterThan(availableWidth));
-      expect(paintedWidth, lessThanOrEqualTo(availableWidth));
-    }
+    final paragraph = tester.renderObject<RenderParagraph>(amount);
+    expect(paragraph.didExceedMaxLines, isFalse);
+    expect(tester.getSize(amount).height, greaterThan(normalHeight));
 
     await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pumpAndSettle();
+    expect(find.text('パートナー → 自分 に ¥500,000,000,000 支払う'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -800));
     await tester.pumpAndSettle();
     expect(memberRow(members.last.id), findsOneWidget);
     expect(tester.takeException(), isNull);

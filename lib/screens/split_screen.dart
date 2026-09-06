@@ -33,6 +33,7 @@ class _SplitScreenState extends State<SplitScreen> {
   Widget build(BuildContext context) {
     return Consumer<SummaryProvider>(
       builder: (context, provider, _) {
+        final split = provider.split;
         return RefreshIndicator(
           onRefresh: _fetch,
           child: ListView(
@@ -68,10 +69,20 @@ class _SplitScreenState extends State<SplitScreen> {
                     ),
                   ),
                 )
-              else if (provider.split == null)
+              else if (split == null)
                 const Center(child: Text('データがありません'))
+              else if (split.pair == null)
+                const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(
+                    child: Text(
+                      '精算にはメンバーが2人必要です\n設定 → メンバー管理で登録できます',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
               else ...[
-                // 合計・均等割
+                // 合計・2人の負担額
                 LedgerCard(
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -79,7 +90,7 @@ class _SplitScreenState extends State<SplitScreen> {
                       Expanded(
                         child: _AmountSummary(
                           label: '合計',
-                          amount: provider.split!.total,
+                          text: formatYen(split.total),
                         ),
                       ),
                       SizedBox(
@@ -91,7 +102,7 @@ class _SplitScreenState extends State<SplitScreen> {
                       Expanded(
                         child: _AmountSummary(
                           label: '一人当たり',
-                          amount: provider.split!.fairShare,
+                          text: _shareText(split.pair!),
                         ),
                       ),
                     ],
@@ -132,7 +143,7 @@ class _SplitScreenState extends State<SplitScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          provider.split!.settlement,
+                          _settlementText(split.pair!.settlement),
                           style: Theme.of(
                             context,
                           ).textTheme.bodyLarge?.copyWith(
@@ -155,8 +166,7 @@ class _SplitScreenState extends State<SplitScreen> {
                 LedgerCard(
                   child: Column(
                     children: [
-                      for (final (index, member)
-                          in provider.split!.members.indexed) ...[
+                      for (final (index, member) in split.members.indexed) ...[
                         if (index > 0)
                           Divider(
                             height: 32,
@@ -165,7 +175,7 @@ class _SplitScreenState extends State<SplitScreen> {
                         _MemberBalanceRow(
                           key: ValueKey('member-balance-${member.memberId}'),
                           member: member,
-                          total: provider.split!.total,
+                          total: split.total,
                         ),
                       ],
                     ],
@@ -181,10 +191,10 @@ class _SplitScreenState extends State<SplitScreen> {
 }
 
 class _AmountSummary extends StatelessWidget {
-  const _AmountSummary({required this.label, required this.amount});
+  const _AmountSummary({required this.label, required this.text});
 
   final String label;
-  final double amount;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
@@ -192,15 +202,11 @@ class _AmountSummary extends StatelessWidget {
       children: [
         Text(label, style: const TextStyle(fontSize: 12)),
         const SizedBox(height: 2),
-        FittedBox(
-          key: ValueKey('summary-amount-fitted-$label'),
-          fit: BoxFit.scaleDown,
-          child: Text(
-            formatYen(amount),
-            key: ValueKey('summary-amount-$label'),
-            maxLines: 1,
-            style: LedgerTokens.amountRow,
-          ),
+        Text(
+          text,
+          key: ValueKey('summary-amount-$label'),
+          textAlign: TextAlign.center,
+          style: LedgerTokens.amountRow,
         ),
       ],
     );
@@ -220,7 +226,8 @@ class _MemberBalanceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = memberColor(member.memberId);
-    final (status, balanceColor) = switch (member.balance) {
+    final balanceAmount = member.balance!;
+    final (status, balanceColor) = switch (balanceAmount) {
       > 0 => ('受け取り', LedgerTokens.balancePositive),
       < 0 => ('支払い', LedgerTokens.balanceNegative),
       _ => ('均等', LedgerTokens.balanceEven),
@@ -228,9 +235,9 @@ class _MemberBalanceRow extends StatelessWidget {
     // 黒字だけ + を前置する。負値は formatYen が
     // ¥-1,000 の形で符号を出す。
     final balance =
-        member.balance > 0
-            ? '+${formatYen(member.balance)}'
-            : formatYen(member.balance);
+        balanceAmount > 0
+            ? '+${formatYen(balanceAmount)}'
+            : formatYen(balanceAmount);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,4 +289,17 @@ class _MemberBalanceRow extends StatelessWidget {
       ],
     );
   }
+}
+
+String _shareText(SplitPair pair) {
+  if (pair.lowerShare == pair.higherShare) {
+    return formatYen(pair.lowerShare);
+  }
+  return '${formatYen(pair.lowerShare)}・${formatYen(pair.higherShare)}';
+}
+
+String _settlementText(SplitSettlement? settlement) {
+  if (settlement == null) return '精算不要';
+  return '${settlement.from.memberName} → ${settlement.to.memberName} に '
+      '${formatYen(settlement.amount)} 支払う';
 }

@@ -84,20 +84,19 @@ void main() {
     expect(find.text('メンバー管理'), findsOneWidget);
   });
 
-  testWidgets('一覧を下までスクロールしても戻るボタンを操作できる', (tester) async {
-    for (var index = 1; index <= 10; index++) {
-      await db.insertMember('メンバー$index');
-    }
+  testWidgets('2人目を追加すると追加ボタンが消えて上限の理由を表示する', (tester) async {
     await pumpMembersScreen(tester);
 
-    await tester.fling(
-      find.byType(CustomScrollView),
-      const Offset(0, -600),
-      1200,
-    );
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'パートナー');
+    await tester.tap(find.widgetWithText(TextButton, '保存'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(BackButton).hitTestable(), findsOneWidget);
+    expect(find.text('パートナー'), findsOneWidget);
+    expect(find.text('メンバーは2人までです'), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(await db.getMembers(), hasLength(2));
   });
 
   testWidgets('メンバー行は識別色アバター付きカードで、6文字名が1行の高さに収まる', (tester) async {

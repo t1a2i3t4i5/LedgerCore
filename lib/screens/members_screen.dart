@@ -63,6 +63,12 @@ class _MembersScreenState extends State<MembersScreen> {
       } else {
         await provider.addMember(name);
       }
+    } on StateError {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('メンバーは2人までです')));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -116,82 +122,89 @@ class _MembersScreenState extends State<MembersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<MemberProvider>();
+    final members = provider.members;
     return Scaffold(
       body: SafeArea(
-        child: Consumer<MemberProvider>(
-          builder: (context, provider, _) {
-            final members = provider.members;
-            return CustomScrollView(
-              slivers: [
-                const PinnedBackPageHeader(title: 'メンバー'),
-                if (provider.membersLoading && members.isEmpty)
-                  const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else if (members.isEmpty)
-                  const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _EmptyMembers(),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    sliver: SliverList.separated(
-                      itemCount: members.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final m = members[index];
-                        final avatarColor = memberColor(m.id);
-                        return LedgerCard(
-                          padding: EdgeInsets.zero,
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: avatarColor,
-                              foregroundColor: labelColorOn(avatarColor),
-                              child: Text(m.name.substring(0, 1)),
-                            ),
-                            title: Text(
-                              m.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined),
-                                  onPressed:
-                                      () => _showEditDialog(
-                                        id: m.id,
-                                        currentName: m.name,
-                                      ),
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.delete_outline,
-                                    color: Theme.of(context).colorScheme.error,
+        child: CustomScrollView(
+          slivers: [
+            const PinnedBackPageHeader(title: 'メンバー'),
+            if (provider.membersLoading && members.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (members.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: _EmptyMembers(),
+              )
+            else ...[
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                sliver: SliverList.separated(
+                  itemCount: members.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final m = members[index];
+                    final avatarColor = memberColor(m.id);
+                    return LedgerCard(
+                      padding: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: avatarColor,
+                          foregroundColor: labelColorOn(avatarColor),
+                          child: Text(m.name.substring(0, 1)),
+                        ),
+                        title: Text(
+                          m.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined),
+                              onPressed:
+                                  () => _showEditDialog(
+                                    id: m.id,
+                                    currentName: m.name,
                                   ),
-                                  onPressed:
-                                      () =>
-                                          _delete(m.id, m.name, members.length),
-                                ),
-                              ],
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.delete_outline,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                              onPressed:
+                                  () => _delete(m.id, m.name, members.length),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              if (members.length >= 2)
+                const SliverPadding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  sliver: SliverToBoxAdapter(
+                    child: Center(child: Text('メンバーは2人までです')),
                   ),
-              ],
-            );
-          },
+                ),
+            ],
+          ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showEditDialog(),
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton:
+          members.length >= 2
+              ? null
+              : FloatingActionButton(
+                onPressed: () => _showEditDialog(),
+                child: const Icon(Icons.add),
+              ),
     );
   }
 }

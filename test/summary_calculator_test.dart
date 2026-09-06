@@ -306,17 +306,22 @@ void main() {
       const HouseholdMember(id: 2, name: 'B'),
     ];
 
-    test('2人: 片方が全額払ったら「支払う」文言', () {
+    test('2人: 片方が全額払ったら送金元・送金先・金額を返す', () {
       final txns = [_tx(memberId: 1, memberName: 'A', amount: 1000)];
       final split = buildSplit(2026, 7, txns, members2);
 
       expect(split.total, 1000);
-      expect(split.fairShare, 500);
+      expect(split.pair?.lowerShare, 500);
+      expect(split.pair?.higherShare, 500);
       final a = split.members.firstWhere((m) => m.memberId == 1);
       final b = split.members.firstWhere((m) => m.memberId == 2);
+      expect(a.share, 500);
+      expect(b.share, 500);
       expect(a.balance, 500);
       expect(b.balance, -500);
-      expect(split.settlement, 'B → A に 500 円支払う');
+      expect(split.pair?.settlement?.from.memberId, 2);
+      expect(split.pair?.settlement?.to.memberId, 1);
+      expect(split.pair?.settlement?.amount, 500);
     });
 
     test('均等に払っていれば精算不要', () {
@@ -325,46 +330,57 @@ void main() {
         _tx(memberId: 2, memberName: 'B', amount: 500),
       ];
       final split = buildSplit(2026, 7, txns, members2);
-      expect(split.settlement, '精算不要');
-    });
-
-    test('3人以上は一覧形式で支払い必要額を列挙', () {
-      final members3 = [
-        const HouseholdMember(id: 1, name: 'A'),
-        const HouseholdMember(id: 2, name: 'B'),
-        const HouseholdMember(id: 3, name: 'C'),
-      ];
-      final txns = [_tx(memberId: 1, memberName: 'A', amount: 3000)];
-      final split = buildSplit(2026, 7, txns, members3);
-
-      expect(split.total, 3000);
-      expect(split.fairShare, 1000);
-      final lines = split.settlement.split('\n');
-      expect(lines.length, 2);
-      expect(lines, contains('B は 1000 円の支払いが必要'));
-      expect(lines, contains('C は 1000 円の支払いが必要'));
+      expect(split.pair?.settlement, isNull);
     });
 
     test('支出0のメンバーも均等割の対象になる', () {
       final txns = [_tx(memberId: 1, memberName: 'A', amount: 900)];
       final split = buildSplit(2026, 7, txns, members2);
-      // 900 / 2 = 450
-      expect(split.fairShare, 450);
+      expect(split.pair?.lowerShare, 450);
+      expect(split.pair?.higherShare, 450);
       final b = split.members.firstWhere((m) => m.memberId == 2);
       expect(b.paid, 0);
       expect(b.balance, -450);
     });
 
-    test('fairShare は小数第2位で四捨五入（HALF_UP）', () {
-      final members3 = [
-        const HouseholdMember(id: 1, name: 'A'),
-        const HouseholdMember(id: 2, name: 'B'),
-        const HouseholdMember(id: 3, name: 'C'),
-      ];
+    test('奇数円は立替額の少ない側が1円多く負担する', () {
+      for (final payments in [
+        (1001.0, 0.0, 501.0),
+        (501.0, 500.0, 1.0),
+        (0.0, 1001.0, 501.0),
+      ]) {
+        final txns = [
+          if (payments.$1 > 0)
+            _tx(memberId: 1, memberName: 'A', amount: payments.$1),
+          if (payments.$2 > 0)
+            _tx(memberId: 2, memberName: 'B', amount: payments.$2),
+        ];
+        final split = buildSplit(2026, 7, txns, members2);
+
+        expect(split.pair?.lowerShare, 500);
+        expect(split.pair?.higherShare, 501);
+        final lowerPaid = split.members.reduce(
+          (a, b) => a.paid < b.paid ? a : b,
+        );
+        final higherPaid = split.members.reduce(
+          (a, b) => a.paid > b.paid ? a : b,
+        );
+        expect(lowerPaid.share, 501);
+        expect(higherPaid.share, 500);
+        expect(split.pair?.settlement?.from.memberId, lowerPaid.memberId);
+        expect(split.pair?.settlement?.to.memberId, higherPaid.memberId);
+        expect(split.pair?.settlement?.amount, payments.$3);
+      }
+    });
+
+    test('2人でない場合は負担額と精算を算出しない', () {
+      final members = [const HouseholdMember(id: 1, name: 'A')];
       final txns = [_tx(memberId: 1, memberName: 'A', amount: 100)];
-      final split = buildSplit(2026, 7, txns, members3);
-      // 100 / 3 = 33.333... -> 33.33
-      expect(split.fairShare, 33.33);
+      final split = buildSplit(2026, 7, txns, members);
+
+      expect(split.pair, isNull);
+      expect(split.members.single.share, isNull);
+      expect(split.members.single.balance, isNull);
     });
   });
 }
