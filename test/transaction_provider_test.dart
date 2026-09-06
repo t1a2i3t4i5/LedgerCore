@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
+import 'seed.dart';
 
 /// TransactionProvider の削除まわりを確認する。
 ///
@@ -13,12 +14,13 @@ void main() {
   late AppDatabase db;
   late TransactionProvider provider;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     provider = TransactionProvider(db);
     // fetch() は _year/_month の月を読む。既定は今月なので、
     // テストデータの月に合わせて固定しておく
     provider.setYearMonth(2026, 7);
+    await seedMembers(db);
   });
   tearDown(() async => db.close());
 

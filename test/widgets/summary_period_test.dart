@@ -12,6 +12,7 @@ import 'package:ledger_app/widgets/month_selector.dart';
 import 'package:ledger_app/widgets/page_header.dart';
 import 'package:ledger_app/widgets/period_format.dart';
 import 'package:provider/provider.dart';
+import '../seed.dart';
 
 /// 集計画面の月／年／全期間の切り替えを、実際に画面を押して見る。
 ///
@@ -25,7 +26,11 @@ void main() {
   // 表示期間を実時刻から切り離す。「今年」にテストデータを置かない
   final fixedNow = DateTime(2026, 7, 15);
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   Future<void> seed(

@@ -13,6 +13,7 @@ import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/amount_format.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:provider/provider.dart';
+import '../seed.dart';
 
 /// テキストが横幅に収まらず ellipsis で畳まれたかどうか。
 bool _isEllipsized(WidgetTester tester, String text) =>
@@ -31,7 +32,11 @@ void main() {
   // 月が変わっても（月末 23:59 台の CI など）結果は変わらない
   final fixedNow = DateTime(2026, 7, 15);
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   /// 表示対象月（fixedNow の月）の [day] 日に [amount] の取引を入れる

@@ -45,7 +45,7 @@ bash tool/sync_codex_agents.sh  # Codex のスキルリンクとエージェン�
 ```
 
 - 既存の生成物と衝突する場合は `dart run build_runner build --delete-conflicting-outputs`
-- 初回起動で既定カテゴリと既定メンバー「自分」が投入され、すぐに入力を始められる
+- 初回起動で既定カテゴリが投入される。メンバーは初期設定画面で2人ぶんの名前を登録してからホームへ進む
 - Claude Code で作業する場合、`.claude/settings.json` の `PostToolUse` フックが `.dart` ファイルの編集直後に `dart format` を自動実行する（`jq` が必要）
 - 整形スタイルと SDK 下限を変える際の注意点は [docs/design-notes.md](docs/design-notes.md) の「コード整形は language version で決まる」を参照
 

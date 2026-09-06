@@ -11,6 +11,7 @@ import 'package:ledger_app/providers/transaction_provider.dart';
 import 'package:ledger_app/screens/add_transaction_screen.dart';
 import 'package:ledger_app/theme/ledger_theme.dart';
 import 'package:provider/provider.dart';
+import '../seed.dart';
 
 class _DelayedTransactionProvider extends TransactionProvider {
   _DelayedTransactionProvider(super.db)
@@ -31,8 +32,9 @@ void main() {
   late AppDatabase db;
   late _DelayedTransactionProvider provider;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    await seedMembers(db);
   });
   tearDown(() async => db.close());
 

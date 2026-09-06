@@ -12,6 +12,7 @@ import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:ledger_app/widgets/ratio_bar.dart';
 import 'package:provider/provider.dart';
+import '../seed.dart';
 
 /// テキストが横幅に収まらず ellipsis で畳まれたかどうか。
 ///
@@ -88,7 +89,11 @@ void main() {
   // 画面が表示する月を実時刻から切り離す（seed と表示で月がずれないように）
   final fixedNow = DateTime(2026, 7, 15);
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   Future<void> pumpSummary(

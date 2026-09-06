@@ -10,6 +10,7 @@ import 'package:ledger_app/logging/log_share.dart';
 import 'package:ledger_app/logging/log_sink.dart';
 import 'package:ledger_app/logging/operation_logger.dart';
 import 'package:ledger_app/main.dart';
+import '../seed.dart';
 
 class _RecordingLogShare implements LogShare {
   final origins = <Rect>[];
@@ -28,10 +29,11 @@ void main() {
   late _RecordingLogShare share;
   const warning = 'ログにはカテゴリ名・メンバー名・金額が含まれます。共有先にご注意ください。';
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     sink = MemoryLogSink();
     share = _RecordingLogShare();
+    await seedMembers(db);
   });
   tearDown(() async => db.close());
 

@@ -13,6 +13,7 @@ import 'package:ledger_app/providers/summary_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
 
 import 'matchers.dart';
+import 'seed.dart';
 
 /// Provider の操作がログにどう出るかを確かめる。
 ///
@@ -24,10 +25,11 @@ void main() {
   late MemoryLogSink sink;
   late OperationLogger logger;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     sink = MemoryLogSink();
     logger = OperationLogger(sink, clock: () => DateTime(2026, 8, 17, 12));
+    await seedMembers(db);
   });
   tearDown(() async => db.close());
 
@@ -514,6 +516,37 @@ void main() {
 
       expect(ops(), contains('member.create'));
       expect(detailOf('member.create'), {'name': '同居人'});
+    });
+
+    test('初期設定の2人登録は member.setup で残る', () async {
+      // 外側の setUp が seed 済みなので、0 人の DB を開き直す
+      await db.close();
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      final setup = MemberProvider(db, logger: logger);
+
+      await setup.createInitialMembers('たろう', 'はなこ');
+      await logger.flush();
+
+      expect(entryOf('member.setup')['lv'], 'info');
+      expect(detailOf('member.setup'), {
+        'names': ['たろう', 'はなこ'],
+      });
+      expect(setup.members.map((m) => m.name), ['たろう', 'はなこ']);
+    });
+
+    test('初期設定の保存失敗は error で残り、例外も届く', () async {
+      await db.close();
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      final setup = MemberProvider(db, logger: logger);
+
+      await expectLater(
+        setup.createInitialMembers('たろう', 'あ' * 51),
+        throwsA(isA<InvalidDataException>()),
+      );
+      await logger.flush();
+
+      expect(entryOf('member.setup')['lv'], 'error');
+      expect(ops().where((o) => o == 'member.setup'), hasLength(1));
     });
 
     test('更新と削除が id つきで残る', () async {

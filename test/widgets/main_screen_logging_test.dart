@@ -8,6 +8,7 @@ import 'package:ledger_app/logging/log_sink.dart';
 import 'package:ledger_app/logging/operation_logger.dart';
 import 'package:ledger_app/main.dart';
 import 'package:ledger_app/widgets/page_header.dart';
+import '../seed.dart';
 
 /// タブの切り替えと画面遷移がログに残るかを、**実際に押して**確かめる。
 ///
@@ -21,10 +22,11 @@ void main() {
 
   final fixedNow = DateTime(2026, 7, 15);
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     sink = MemoryLogSink();
     logger = OperationLogger(sink, clock: () => fixedNow);
+    await seedMembers(db);
   });
   tearDown(() async => db.close());
 

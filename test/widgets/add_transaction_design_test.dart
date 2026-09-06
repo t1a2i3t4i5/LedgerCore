@@ -15,6 +15,7 @@ import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:provider/provider.dart';
+import '../seed.dart';
 
 class _EmptyMemberProvider extends MemberProvider {
   _EmptyMemberProvider(super.db);
@@ -57,7 +58,11 @@ Finder _choiceChip(String label) =>
 void main() {
   late AppDatabase db;
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   Future<void> pumpScreen(

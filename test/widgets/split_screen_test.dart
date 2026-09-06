@@ -13,13 +13,18 @@ import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:ledger_app/widgets/ratio_bar.dart';
 import 'package:provider/provider.dart';
+import '../seed.dart';
 
 /// 割り勘画面を、実端末に近い幅とインメモリ DB で確認する。
 void main() {
   late AppDatabase db;
   final fixedNow = DateTime(2026, 7, 15);
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   Future<void> pumpSplit(WidgetTester tester, {double textScale = 1}) async {
