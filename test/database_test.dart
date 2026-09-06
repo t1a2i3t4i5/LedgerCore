@@ -23,6 +23,23 @@ void main() {
     expect(members.first.name, '自分');
   });
 
+  test('メンバーの同時追加でも2人を超えない', () async {
+    Future<Object?> add(String name) async {
+      try {
+        await db.insertMember(name);
+        return null;
+      } catch (error) {
+        return error;
+      }
+    }
+
+    final results = await Future.wait([add('パートナー'), add('家族')]);
+
+    expect(await db.getMembers(), hasLength(2));
+    expect(results.whereType<StateError>(), hasLength(1));
+    expect(results.whereType<StateError>().single.message, 'メンバーは2人までです');
+  });
+
   test('取引の追加と月レンジ（半開区間）取得', () async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
@@ -117,7 +134,8 @@ void main() {
     expect(summary.total, 1000);
 
     final split = await db.getSplit(2026, 7);
-    expect(split.fairShare, 500);
+    expect(split.pair?.lowerShare, 500);
+    expect(split.pair?.higherShare, 500);
     expect(split.members.length, 2);
     final b = split.members.firstWhere((m) => m.memberId == m2);
     expect(b.balance, -500);

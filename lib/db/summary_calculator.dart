@@ -127,8 +127,7 @@ List<CategorySummaryItem> _buildCategoryItems(List<TransactionView> txns) {
     });
 }
 
-/// 割り勘を計算する。全メンバーで均等割りし、各自の過不足と精算文を求める。
-/// サーバの SummaryService.getSplit を端末側に移植したもの。
+/// 2人の割り勘を計算し、各自の整数円の負担と送金を求める。
 SplitResult buildSplit(
   int year,
   int month,
@@ -141,61 +140,75 @@ SplitResult buildSplit(
   }
 
   final total = paidByMember.values.fold<double>(0, (s, v) => s + v);
-  final memberCount = members.isEmpty ? 1 : members.length;
-  final fairShare = _roundHalfUp2(total / memberCount);
+  if (members.length != 2) {
+    return SplitResult(
+      year: year,
+      month: month,
+      total: total,
+      members:
+          members
+              .map(
+                (member) => MemberBalance(
+                  memberId: member.id,
+                  memberName: member.name,
+                  paid: paidByMember[member.id] ?? 0,
+                  share: null,
+                  balance: null,
+                ),
+              )
+              .toList(),
+      pair: null,
+    );
+  }
 
-  final balances =
-      members.map((m) {
-        final paid = paidByMember[m.id] ?? 0.0;
-        return MemberBalance(
-          memberId: m.id,
-          memberName: m.name,
-          paid: paid,
-          balance: paid - fairShare,
-        );
-      }).toList();
+  final first = members.first;
+  final second = members.last;
+  final firstPaid = paidByMember[first.id] ?? 0;
+  final secondPaid = paidByMember[second.id] ?? 0;
+  final lowerShare = (total / 2).floorToDouble();
+  final higherShare = total - lowerShare;
+
+  // 合計が奇数なら、立替額の少ない側が1円多く負担する。合計が奇数の
+  // とき2人の立替額は必ず異なるため、端数がある場面で同額にはならない。
+  final firstShare = firstPaid < secondPaid ? higherShare : lowerShare;
+  final secondShare = total - firstShare;
+  final balances = [
+    MemberBalance(
+      memberId: first.id,
+      memberName: first.name,
+      paid: firstPaid,
+      share: firstShare,
+      balance: firstPaid - firstShare,
+    ),
+    MemberBalance(
+      memberId: second.id,
+      memberName: second.name,
+      paid: secondPaid,
+      share: secondShare,
+      balance: secondPaid - secondShare,
+    ),
+  ];
+
+  final debtor = balances.where((member) => member.balance! < 0).firstOrNull;
+  final creditor = balances.where((member) => member.balance! > 0).firstOrNull;
+  final settlement =
+      debtor == null || creditor == null
+          ? null
+          : SplitSettlement(
+            from: debtor,
+            to: creditor,
+            amount: debtor.balance!.abs(),
+          );
 
   return SplitResult(
     year: year,
     month: month,
     total: total,
-    fairShare: fairShare,
     members: balances,
-    settlement: _buildSettlement(balances),
+    pair: SplitPair(
+      lowerShare: lowerShare,
+      higherShare: higherShare,
+      settlement: settlement,
+    ),
   );
 }
-
-/// 小数第2位で四捨五入（HALF_UP）。fairShare は非負なので away-from-zero と一致する。
-double _roundHalfUp2(double v) => (v * 100).roundToDouble() / 100;
-
-/// 精算メッセージを生成する。
-/// 正の残高（払い過ぎ）＝受け取り側、負の残高（払い不足）＝支払い側。
-String _buildSettlement(List<MemberBalance> balances) {
-  final creditors =
-      balances.where((b) => b.balance > 0).toList()
-        ..sort((a, b) => b.balance.compareTo(a.balance));
-  final debtors =
-      balances.where((b) => b.balance < 0).toList()
-        ..sort((a, b) => a.balance.compareTo(b.balance));
-
-  if (creditors.isEmpty || debtors.isEmpty) {
-    return '精算不要';
-  }
-
-  // 2人の場合の簡易メッセージ
-  if (balances.length == 2 && creditors.length == 1 && debtors.length == 1) {
-    final debtor = debtors.first;
-    final creditor = creditors.first;
-    return '${debtor.memberName} → ${creditor.memberName} に ${_yen(debtor.balance.abs())} 円支払う';
-  }
-
-  // 3人以上は一覧形式
-  final sb = StringBuffer();
-  for (final d in debtors) {
-    sb.writeln('${d.memberName} は ${_yen(d.balance.abs())} 円の支払いが必要');
-  }
-  return sb.toString().trim();
-}
-
-/// 金額を整数円の文字列にする（表示用）。
-String _yen(double v) => v.round().toString();

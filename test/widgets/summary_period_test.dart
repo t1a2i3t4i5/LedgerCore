@@ -414,6 +414,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
+      await db.insertMember('パートナー');
       await seedTwoYears();
       await tester.pumpWidget(LedgerApp(db: db, clock: () => fixedNow));
       await tester.pumpAndSettle();

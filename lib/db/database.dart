@@ -63,9 +63,9 @@ class Transactions extends Table {
   // 整数判定は drift の式 API に無いので CustomExpression で書く。
   // Infinity は上限の比較と CAST の比較の両方で弾かれる。
   //
-  // カラム型は RealColumn のまま。IntColumn にすると表示用モデル・集計・
-  // グラフまで int が波及する一方、割り勘の fairShare は「合計 ÷ 人数」で
-  // 本質的に小数なので、結局 double が残って中途半端になる。
+  // カラム型は RealColumn のまま。既存の表示用モデル・集計・グラフは
+  // double で統一されており、IntColumn への変更はスキーマ移行を伴う一方で
+  // 保存できる値も画面の表示も変わらないため。
   //
   // check() の中で自分自身を参照するのは drift が定める書き方なので、
   // 再帰ゲッターの lint は無視する（実際には評価されず SQL の CHECK 句になる）
@@ -310,8 +310,13 @@ class AppDatabase extends _$AppDatabase {
     return rows.map((m) => HouseholdMember(id: m.id, name: m.name)).toList();
   }
 
-  Future<void> insertMember(String name) =>
-      into(members).insert(MembersCompanion.insert(name: name));
+  Future<void> insertMember(String name) => transaction(() async {
+    final existing = await (select(members)..limit(2)).get();
+    if (existing.length >= 2) {
+      throw StateError('メンバーは2人までです');
+    }
+    await into(members).insert(MembersCompanion.insert(name: name));
+  });
 
   Future<void> updateMemberName(int id, String name) => (update(members)
     ..where((m) => m.id.equals(id))).write(MembersCompanion(name: Value(name)));

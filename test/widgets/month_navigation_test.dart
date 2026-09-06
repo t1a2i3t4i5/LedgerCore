@@ -95,10 +95,12 @@ void main() {
   void monthNavigationTests(
     String label,
     Widget Function() buildScreen,
-    String Function(int month) amountOf,
-  ) {
+    String Function(int month) amountOf, [
+    Future<void> Function()? arrange,
+  ]) {
     group(label, () {
       testWidgets('初期表示は clock の月で、その月のデータが出る', (tester) async {
+        await arrange?.call();
         await seedThreeMonths();
         await pump(tester, buildScreen());
 
@@ -107,6 +109,7 @@ void main() {
       });
 
       testWidgets('左の矢印で前月へ動き、前月のデータを読み直す', (tester) async {
+        await arrange?.call();
         await seedThreeMonths();
         await pump(tester, buildScreen());
 
@@ -120,6 +123,7 @@ void main() {
       });
 
       testWidgets('右の矢印で翌月へ動き、翌月のデータを読み直す', (tester) async {
+        await arrange?.call();
         await seedThreeMonths();
         await pump(tester, buildScreen());
 
@@ -131,6 +135,7 @@ void main() {
       });
 
       testWidgets('今月に戻るボタンは今月では押せず、送った先では押せる', (tester) async {
+        await arrange?.call();
         await seedThreeMonths();
         await pump(tester, buildScreen());
 
@@ -141,6 +146,7 @@ void main() {
       });
 
       testWidgets('今月に戻るボタンで clock の月へ戻り、その月を読み直す', (tester) async {
+        await arrange?.call();
         await seedThreeMonths();
         await pump(tester, buildScreen());
         await tapIcon(tester, Icons.chevron_left);
@@ -155,6 +161,7 @@ void main() {
       });
 
       testWidgets('12 月から翌月へ送ると翌年 1 月になる', (tester) async {
+        await arrange?.call();
         await seed(2027, 1, 100);
         await pump(tester, buildScreen());
 
@@ -189,5 +196,6 @@ void main() {
     '割り勘画面',
     () => const SplitScreen(),
     (month) => '¥${month}00',
+    () => db.insertMember('パートナー'),
   );
 }
