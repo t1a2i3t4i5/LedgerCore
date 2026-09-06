@@ -90,6 +90,12 @@ void main() {
       expect(amount.style?.fontFamily, LedgerTokens.amountRow.fontFamily);
       expect(amount.style?.fontSize, LedgerTokens.amountRow.fontSize);
     }
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('summary-amount-一人当たり')))
+          .data,
+      '¥0',
+    );
   });
 
   testWidgets('メンバー行は残高の2色と支払済みの構成比を描く', (tester) async {
@@ -153,6 +159,56 @@ void main() {
     }
   });
 
+  testWidgets('同額を立て替えた2人は均等色で表示する', (tester) async {
+    await db.insertMember('みく');
+    final members = await db.getMembers();
+    for (final member in members) {
+      await insertPayment(member.id, 100);
+    }
+
+    await pumpSplit(tester);
+
+    for (final member in members) {
+      final row = memberRow(member.id);
+      expect(
+        find.descendant(of: row, matching: find.text('¥0')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: row, matching: find.text('均等')),
+        findsOneWidget,
+      );
+      expect(
+        memberBalanceText(tester, member.id).style?.color,
+        LedgerTokens.balanceEven,
+      );
+    }
+  });
+
+  testWidgets('日常的な偶数額を1つの負担額として1行に収める', (tester) async {
+    await db.insertMember('パートナー');
+    await insertPayment((await db.getMembers()).first.id, 123456);
+
+    await pumpSplit(tester);
+
+    final total = find.byKey(const ValueKey('summary-amount-合計'));
+    final fitted = find.byKey(const ValueKey('summary-amount-fitted-合計'));
+    final paragraph = tester.renderObject<RenderParagraph>(total);
+    final intrinsicWidth = paragraph.getMaxIntrinsicWidth(double.infinity);
+    final availableWidth = tester.getSize(fitted).width;
+
+    expect(intrinsicWidth, greaterThan(availableWidth));
+    expect(tester.getRect(total).width, lessThanOrEqualTo(availableWidth));
+    expect(tester.widget<Text>(total).maxLines, 1);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('summary-amount-一人当たり')))
+          .data,
+      '¥61,728',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('奇数の上限額と2つの負担額を文字倍率2.0でも省略しない', (tester) async {
     await db.insertMember('パートナー');
     final members = await db.getMembers();
@@ -161,19 +217,23 @@ void main() {
         '${formatYen((kMaxAmount / 2).floorToDouble())}・'
         '${formatYen((kMaxAmount / 2).ceilToDouble())}';
 
-    await pumpSplit(tester);
-    final amount = find.byKey(const ValueKey('summary-amount-一人当たり'));
-    final normalHeight = tester.getSize(amount).height;
-
     await pumpSplit(tester, textScale: 2);
 
     expect(find.text(formatYen(kMaxAmount)), findsOneWidget);
     expect(find.text(shares), findsOneWidget);
-    expect(find.byType(FittedBox), findsNothing);
+    expect(find.byType(FittedBox), findsNWidgets(2));
     expect(tester.takeException(), isNull);
-    final paragraph = tester.renderObject<RenderParagraph>(amount);
-    expect(paragraph.didExceedMaxLines, isFalse);
-    expect(tester.getSize(amount).height, greaterThan(normalHeight));
+    for (final label in ['合計', '一人当たり']) {
+      final amount = find.byKey(ValueKey('summary-amount-$label'));
+      final fitted = find.byKey(ValueKey('summary-amount-fitted-$label'));
+      final paragraph = tester.renderObject<RenderParagraph>(amount);
+      final intrinsicWidth = paragraph.getMaxIntrinsicWidth(double.infinity);
+      final availableWidth = tester.getSize(fitted).width;
+
+      expect(intrinsicWidth, greaterThan(availableWidth));
+      expect(tester.getRect(amount).width, lessThanOrEqualTo(availableWidth));
+      expect(tester.widget<Text>(amount).maxLines, 1);
+    }
 
     await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pumpAndSettle();

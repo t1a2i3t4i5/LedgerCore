@@ -125,6 +125,9 @@ SnackBar が出るのは `MainScreen` の Scaffold（ルートの `ScaffoldMesse
 - 精算が必要なら構造化された `SplitSettlement` を使い、
   「支払う人 → 受け取る人 に 金額」を表示する。計算層は表示文字列を作らず、
   ホームと割り勘タブの両方が `formatYen()` を通す。不要なら「精算不要」と表示する。
+- 割り勘タブ上部の「合計」「一人当たり」は、数字の途中で折り返すと誤読するため
+  `FittedBox(fit: BoxFit.scaleDown)` と `maxLines: 1` で1行を保つ。テストでは文字列の
+  存在だけでなく、内在幅が欄幅を超える前提と、変換後の描画幅が欄内であることを対で確認する。
 
 背景は `LedgerTokens.settlementSurface` のベージュとし、左に2人の
 アバターを重ね、中央に名前と金額の2段、右に濃色のピル型ボタンを置く。
