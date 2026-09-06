@@ -64,6 +64,15 @@ void main() {
   Text memberBalanceText(WidgetTester tester, int memberId) => tester
       .widget<Text>(find.byKey(ValueKey('member-balance-amount-$memberId')));
 
+  testWidgets('初回の1人状態は2人目の登録方法を案内する', (tester) async {
+    await pumpSplit(tester);
+
+    expect(find.text('精算にはメンバーが2人必要です\n設定 → メンバー管理で登録できます'), findsOneWidget);
+    expect(find.byKey(const ValueKey('settlement-card')), findsNothing);
+    expect(find.byKey(const ValueKey('summary-amount-合計')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('濃色の精算カードとテーマの金額書体を使う', (tester) async {
     await db.insertMember('パートナー');
     await pumpSplit(tester);

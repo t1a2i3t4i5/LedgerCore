@@ -382,5 +382,22 @@ void main() {
       expect(split.members.single.share, isNull);
       expect(split.members.single.balance, isNull);
     });
+
+    test('3人以上の場合も負担額と精算を算出しない', () {
+      final members = [
+        const HouseholdMember(id: 1, name: 'A'),
+        const HouseholdMember(id: 2, name: 'B'),
+        const HouseholdMember(id: 3, name: 'C'),
+      ];
+      final txns = [_tx(memberId: 1, memberName: 'A', amount: 3000)];
+      final split = buildSplit(2026, 7, txns, members);
+
+      expect(split.total, 3000);
+      expect(split.pair, isNull);
+      expect(split.members, hasLength(3));
+      expect(split.members.map((member) => member.paid), [3000, 0, 0]);
+      expect(split.members.every((member) => member.share == null), isTrue);
+      expect(split.members.every((member) => member.balance == null), isTrue);
+    });
   });
 }
