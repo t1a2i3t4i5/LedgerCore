@@ -156,7 +156,7 @@ git pull
 | `/implement <issue 番号>` | Step 2〜5（ブランチ作成から PR 作成まで） | issue 番号 1 つ | Claude が自発起動してよい | [`.claude/skills/implement/SKILL.md`](../.claude/skills/implement/SKILL.md) |
 | `/merge [PR 番号]` | Step 7〜8（squash merge から `main` 最新化・worktree 片付けまで） | PR 番号。省略時は現在のブランチの PR | ユーザーが明示的に実行 | [`.claude/skills/merge/SKILL.md`](../.claude/skills/merge/SKILL.md) |
 
-`/merge` はユーザーが明示的に依頼したときだけ起動する。実装もレビューも修正もせず、落ちた CI も直さない。worktree の削除はユーザーが明示したときだけ行う。
+`/merge` はユーザーがスラッシュコマンドとして明示実行したときだけ起動し、「マージしていいよ」などの自然文からは起動しない。base が `main` の PR だけを扱い、fork 由来の head ブランチは削除しない。実装もレビューも修正もせず、落ちた CI も直さない。worktree の削除はユーザーが明示したときだけ行う。
 
 ## トラブルシューティング
 
@@ -181,7 +181,7 @@ gh pr edit <子PR> --base main     # 先にこれ
 git push origin --delete <親ブランチ>
 ```
 
-squash merge 運用なので、付け替えた子 PR は `main` と必ずコンフリクトする。付け替えたあと子ブランチを `main` へ rebase する作業が別途要る。
+squash merge 後に子 PR がコンフリクトするかは変更箇所による。付け替え後の状態を確認し、実際にコンフリクトしている場合だけ子ブランチを `main` へ rebase する。
 
 ### worktree の活用
 
