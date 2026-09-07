@@ -154,7 +154,7 @@ void main() {
   });
 
   group('棒の並び', () {
-    // 受け入れ条件「年モードで、取引のない月も 0 として X 軸に並ぶ」。
+    // 取引のない月も 0 として渡された場合の X 軸を確認する。
     // 0 の月を間引くと 12 本の軸が欠けて、隣り合う月が実際より近く見える
     testWidgets('12 件渡すと 0 の月も含めて 12 本になる', (tester) async {
       final totals = <double>[
@@ -181,7 +181,7 @@ void main() {
       expect(groups[1].barRods.length, 1);
     });
 
-    // 受け入れ条件「全期間モードで、取引のある年だけが昇順に並ぶ」。
+    // 年別の値が昇順で渡された場合の X 軸を確認する。
     // 並べ替えはデータ層（buildYearlyTotals）の責務で、ここは受け取った順に描く
     testWidgets('年別は渡された順序のまま描く', (tester) async {
       await _pump(tester, [
@@ -219,7 +219,7 @@ void main() {
       _expectLabelsReadable(tester, items, minVisible: 6);
     });
 
-    // 全期間モードは年数が増え続ける。30 年でも間引きで読める形を保つ
+    // 年数が増え続けても、30 年で間引きながら読める形を保つ
     testWidgets('30 年でも例外を出さず、ラベルが重ならない', (tester) async {
       final items = [
         for (var i = 0; i < 30; i++) _year(1997 + i, (i + 1) * 1000),

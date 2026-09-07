@@ -4,7 +4,10 @@ import '../models/summary.dart';
 import '../models/split.dart';
 import 'month_scoped_provider.dart';
 
-/// 集計画面の表示期間。
+/// 年次・全期間集計を含む内部の表示期間。
+///
+/// ホームの期間切り替え UI は廃止したため、`SummaryScreen` は月だけを表示する。
+/// 年次集計 API と既存部品をこの UI 変更から切り離して残すため、状態も維持する。
 ///
 /// **画面の `State` ではなく Provider が持つ。** `main_screen.dart` は
 /// `IndexedStack` を使わず `body: _screens[_currentIndex]` でタブを差し替えるので、

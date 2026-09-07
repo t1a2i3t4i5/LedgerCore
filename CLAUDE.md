@@ -37,8 +37,8 @@
 - Provider は `AppDatabase` をコンストラクタ注入で受け取り、状態更新後に `notifyListeners()` を呼ぶ
 - 表示用モデルは読み出しが `*View`、書き込みが `*Input`。支払者は `memberId` / `memberName` とし、`User` 系・`Response` / `Request` 系の名前を持ち込まない
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する
-- ホームの先月比と件数は月モードだけに出す。前月0円は「先月比 —」、比率は `formatRatio()` で小数1桁にする（詳細は `docs/design-notes.md`）
-- ホームの精算カードは月モードだけに置き、共有の `SummaryProvider.split` を表示する。カードからのタブ移動も `MainScreen._selectTab` を通す（詳細は `docs/design-notes.md`）
+- ホームは月表示専用。先月比と件数を出し、前月0円は「先月比 —」、比率は `formatRatio()` で小数1桁にする（詳細は `docs/design-notes.md`）
+- ホームの精算カードは共有の `SummaryProvider.split` を表示する。カードからのタブ移動も `MainScreen._selectTab` を通す（詳細は `docs/design-notes.md`）
 - 起動時の画面出し分けは `StartupProvider` が DB の件数だけで決める。初回フラグを別に持たず、メンバー0件＋取引ありは不整合、読み取り失敗は0件扱いにしない。`onCreate` に既定メンバーを戻さない（詳細は `docs/design-notes.md`）
 - メンバーは2人まで。2人の割り勘は整数円で配分し、合計が奇数なら立替額の少ない側が1円多く負担する。2人でない場合は精算を算出しない（詳細は `docs/design-notes.md`）
 - 表示月の判断に画面から `DateTime.now()` を読まず、`MonthScopedProvider` の `clock` に集約する。取引追加画面の `_spentAt` だけが意図的な例外
@@ -47,7 +47,7 @@
 - グラフとカテゴリの識別色は `widgets/chart_palette.dart` を使い直書きしない。保存色があれば優先し、未設定時だけカテゴリ ID 由来の色へフォールバックする。カテゴリの保存順は管理・取引入力・集計内訳で揃える。グラフウィジェットは `AppDatabase` も Provider も参照せず、表示データを引数で受け取る
 - 配色・書体・角丸・影は `lib/theme/` の `ColorScheme` / `LedgerTokens` から採り、画面に色リテラルを書かない
 - 本文の Zen Maru Gothic は Regular のみ同梱する。明示的な太字は `LedgerTokens.heading` を使う（M3 ラベルの w500 は代替描画を許容。詳細は `docs/design-notes.md`）
-- 画面の大見出しは `widgets/page_header.dart` を使い、ルートタブでは本文と一緒にスクロールさせる。ホームは月・年で `MonthSelector`、全期間で `PageHeader` を使う。push 先のカテゴリ・メンバー管理は唯一の戻る導線を残す `PinnedBackPageHeader`。取引追加・編集画面は専用の 3 分割ヘッダを使う
+- 画面の大見出しは `widgets/page_header.dart` を使い、ルートタブでは本文と一緒にスクロールさせる。ホームは `MonthSelector` を使う。push 先のカテゴリ・メンバー管理は唯一の戻る導線を残す `PinnedBackPageHeader`。取引追加・編集画面は専用の 3 分割ヘッダを使う
 - カテゴリ管理の一覧は 1 枚のカードに区切り線で並べ、追加は画面下の破線ボタンで行う。既定の「その他」は `is_fixed` で削除・並べ替えを禁じ、一覧・取引入力・集計内訳のいずれでも最後に置く（詳細は `docs/design-notes.md`）
 - 取引入力のカテゴリは `FormField<int>` 内の `ChoiceChip` を `Wrap` で並べ、選択時に保存値と `didChange()` を同期する。件数が多い場合も画面全体の縦スクロールで選べるようにする
 - 操作ログは `lib/logging/` の `OperationLogger` だけを通す。取引のメモ本文とフィルターの検索語を書かず、例外文字列は `log_entry.dart` の `sanitizeError()` を通す。`info()` / `error()` は `void` で呼び出し側に `await` させない

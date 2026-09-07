@@ -202,22 +202,6 @@ void main() {
     expect(changes.single['detail'], {'from': 'summary', 'to': 'split'});
   });
 
-  testWidgets('年・全期間では非表示で、月に戻ると同じ要点が出る', (tester) async {
-    await db.insertMember('みく');
-    await pay((await db.getMembers()).first.id, 4000);
-    await pumpApp(tester);
-    expect(inCard('みく → 自分 に\n¥2,000'), findsOneWidget);
-
-    for (final period in ['年', '全期間']) {
-      await tester.tap(find.text(period));
-      await tester.pumpAndSettle();
-      expect(card, findsNothing);
-    }
-    await tester.tap(find.text('月'));
-    await tester.pumpAndSettle();
-    expect(inCard('みく → 自分 に\n¥2,000'), findsOneWidget);
-  });
-
   // 0 人のケースは置かない。起動判定がメンバー 0 人でホームを構築しないので
   // （#144）、このカードに 0 人で辿り着く経路が無くなった。1 人は 2 人から
   // 片方を消した端末で今も起こる

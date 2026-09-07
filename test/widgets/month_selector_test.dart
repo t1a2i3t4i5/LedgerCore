@@ -196,7 +196,6 @@ void main() {
   });
 
   group('年単位で使うとき', () {
-    // 集計画面の年モードがこの形で使う
     testWidgets('month が null なら年だけを表示する', (tester) async {
       await pump(tester, month: null);
 
@@ -204,7 +203,7 @@ void main() {
       expect(find.text('2026年7月'), findsNothing);
     });
 
-    // 矢印の意味は呼び出し側が決める（年モードでは年送り）。
+    // 矢印の意味は呼び出し側が決める。
     // ウィジェット側はコールバックを呼ぶだけ、という契約を固定する
     testWidgets('年表示でも矢印は同じコールバックを呼ぶ', (tester) async {
       await pump(tester, month: null);

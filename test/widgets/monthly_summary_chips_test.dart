@@ -173,21 +173,6 @@ void main() {
     expectCard('¥1,120', '先月比 +12.0%', '2件');
   });
 
-  testWidgets('年・全期間にはチップを出さず、月へ戻ると再表示する', (tester) async {
-    await seed(6, 1000);
-    await seed(7, 1120);
-    await pumpSummary(tester);
-    for (final label in ['年', '全期間']) {
-      await tester.tap(find.text(label));
-      await tester.pumpAndSettle();
-      expect(find.byType(MonthlySummaryChips), findsNothing);
-      expect(find.textContaining('先月比'), findsNothing);
-    }
-    await tester.tap(find.text('月'));
-    await tester.pumpAndSettle();
-    expectCard('¥1,120', '先月比 +12.0%', '1件');
-  });
-
   testWidgets('上限金額と大きな増加率も文字倍率2.0でカード内に折り返す', (tester) async {
     await seed(6, 1);
     await seed(7, kMaxAmount);
