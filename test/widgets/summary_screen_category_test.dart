@@ -142,18 +142,16 @@ void main() {
     expect(find.text('データがありません'), findsNothing);
   });
 
-  // 管理画面で保存した順序。この並びが崩れると、取引入力と集計で同じ
-  // カテゴリが別の位置に出る。
-  testWidgets('カテゴリ別は金額に関係なく保存順で並ぶ', (tester) async {
+  testWidgets('カテゴリ別は金額降順で、同額なら保存順に並ぶ', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
 
-    for (final (i, cat) in cats.take(3).indexed) {
+    for (final (i, amount) in [2000.0, 2000.0, 3000.0].indexed) {
       await db.insertTransaction(
         TransactionInput(
           memberId: memberId,
-          categoryId: cat.id,
-          amount: (i + 1) * 1000,
+          categoryId: cats[i].id,
+          amount: amount,
           spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
         ),
       );
@@ -162,8 +160,8 @@ void main() {
     await pumpSummary(tester);
 
     double dy(String name) => tester.getCenter(find.text(name)).dy;
+    expect(dy(cats[2].name), lessThan(dy(cats[0].name)));
     expect(dy(cats[0].name), lessThan(dy(cats[1].name)));
-    expect(dy(cats[1].name), lessThan(dy(cats[2].name)));
   });
 
   // categoryColor は色ドットと帯に届く入口。画面側で直書きの色へ
