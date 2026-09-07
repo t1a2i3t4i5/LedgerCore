@@ -147,6 +147,17 @@ void main() {
       expect(find.byType(MainScreen), findsNothing);
     });
 
+    testWidgets('メンバー0件で取引件数の読み取りに失敗しても初期設定へ進めない', (tester) async {
+      db.failingTransactionReads = 1;
+
+      await pumpApp(tester);
+
+      expect(find.textContaining('読み込みに失敗'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, '再試行'), findsOneWidget);
+      expect(find.byType(InitialSetupScreen), findsNothing);
+      expect(find.byType(MainScreen), findsNothing);
+    });
+
     testWidgets('再試行で読み直し、成功すれば初期設定へ進む', (tester) async {
       db.failingReads = 1;
       await pumpApp(tester);
@@ -299,8 +310,77 @@ void main() {
       expect(await db.countMembers(), 2);
     });
 
-    testWidgets('文字倍率2.0でも崩れず登録できる', (tester) async {
-      await pumpApp(tester, scale: 2.0);
+    testWidgets('キーボード表示中もはじめるボタン全体が上端より上に残り、登録できる', (tester) async {
+      await pumpApp(tester);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pumpAndSettle();
+
+      final startButton = find.widgetWithText(FilledButton, 'はじめる');
+      expect(startButton.hitTestable(), findsOneWidget);
+      expect(
+        tester.getRect(startButton).bottom,
+        lessThanOrEqualTo(690 - 300),
+        reason: 'はじめるボタンがキーボードに隠れている',
+      );
+
+      await enterNames(tester, 'たろう', 'はなこ');
+      await tapStart(tester);
+
+      expect(find.byType(MainScreen), findsOneWidget);
+      expect(await db.countMembers(), 2);
+    });
+
+    testWidgets('はじめるを再描画前に連打しても登録処理は1回だけ実行する', (tester) async {
+      final writing = Completer<void>();
+      db.holdWrites = writing;
+      await pumpApp(tester);
+      await enterNames(tester, 'たろう', 'はなこ');
+
+      final startButton = find.widgetWithText(FilledButton, 'はじめる');
+      await tester.tap(startButton);
+      await tester.tap(startButton);
+      writing.complete();
+      await tester.pumpAndSettle();
+
+      expect(db.initialMemberInsertCalls, 1);
+      expect(find.textContaining('保存に失敗'), findsNothing);
+      expect(find.byType(MainScreen), findsOneWidget);
+      expect((await db.getMembers()).map((member) => member.name), [
+        'たろう',
+        'はなこ',
+      ]);
+    });
+
+    testWidgets('文字倍率2.0でもラベルを入力欄の上に保ち、入力幅と高さを確保する', (tester) async {
+      await pumpApp(tester);
+
+      final firstLabel = find.text('あなたの名前');
+      final firstField = find.byType(TextFormField).first;
+      final normalLabelHeight = tester.getSize(firstLabel).height;
+      final normalFieldWidth = tester.getSize(firstField).width;
+
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getSize(firstLabel).height,
+        greaterThan(normalLabelHeight),
+        reason: '文字倍率に応じてラベルの高さが伸びていない',
+      );
+      expect(
+        tester.getSize(firstField).width,
+        closeTo(normalFieldWidth, 0.001),
+        reason: '文字倍率を上げたことで入力欄の横幅が狭くなっている',
+      );
+      for (var index = 0; index < 2; index++) {
+        final label = find.text(index == 0 ? 'あなたの名前' : 'もう1人の名前');
+        final field = find.byType(TextFormField).at(index);
+        expect(
+          tester.getRect(label).bottom,
+          lessThanOrEqualTo(tester.getRect(field).top),
+          reason: 'ラベルが入力欄の左へ移り、入力幅を奪っている',
+        );
+      }
 
       expect(tester.takeException(), isNull);
       await enterNames(tester, 'たろう', 'はなこ');
@@ -317,7 +397,9 @@ class _FlakyDatabase extends AppDatabase {
   _FlakyDatabase(super.executor) : super.forTesting();
 
   int failingReads = 0;
+  int failingTransactionReads = 0;
   int failingWrites = 0;
+  int initialMemberInsertCalls = 0;
 
   /// 完了させるまで読み取りを待たせる。起動判定中の表示を見るために使う
   Completer<void>? holdReads;
@@ -337,11 +419,26 @@ class _FlakyDatabase extends AppDatabase {
   }
 
   @override
-  Future<void> insertInitialMembers(String first, String second) {
+  Future<int> countTransactions() async {
+    if (failingTransactionReads > 0) {
+      failingTransactionReads--;
+      throw StateError('取引件数の読み取りに失敗しました');
+    }
+    return super.countTransactions();
+  }
+
+  /// 完了させるまで初期メンバーの保存を待たせる。連打の再入を見るために使う
+  Completer<void>? holdWrites;
+
+  @override
+  Future<void> insertInitialMembers(String first, String second) async {
+    initialMemberInsertCalls++;
+    final hold = holdWrites;
+    if (hold != null) await hold.future;
     if (failingWrites > 0) {
       failingWrites--;
-      return Future.error(StateError('書き込みに失敗しました'));
+      throw StateError('書き込みに失敗しました');
     }
-    return super.insertInitialMembers(first, second);
+    await super.insertInitialMembers(first, second);
   }
 }

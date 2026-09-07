@@ -56,10 +56,21 @@ class StartupProvider extends ChangeNotifier {
         _phase = StartupPhase.ready;
       } else {
         final transactionCount = await _db.countTransactions();
-        _phase =
-            transactionCount > 0
-                ? StartupPhase.inconsistent
-                : StartupPhase.setup;
+        if (transactionCount > 0) {
+          // 読み取り自体は成功しても、この状態では起動を続けられない。
+          // 共有ログから通常の読み取り失敗と区別できるよう件数を残す
+          _logger.error(
+            'startup.load',
+            StateError('メンバーが0件なのに取引が残っています'),
+            detail: {
+              'memberCount': memberCount,
+              'transactionCount': transactionCount,
+            },
+          );
+          _phase = StartupPhase.inconsistent;
+        } else {
+          _phase = StartupPhase.setup;
+        }
       }
     } catch (e) {
       // **読めなかったことを 0 件と混同しない。** 0 件扱いにすると、既存の

@@ -9,6 +9,7 @@ import 'package:ledger_app/logging/operation_logger.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/category_provider.dart';
 import 'package:ledger_app/providers/member_provider.dart';
+import 'package:ledger_app/providers/startup_provider.dart';
 import 'package:ledger_app/providers/summary_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
 
@@ -505,6 +506,42 @@ void main() {
     });
   });
 
+  group('起動判定', () {
+    test('DB の読み取り失敗は startup.load の理由まで残す', () async {
+      await db.customStatement('DROP TABLE members');
+      final provider = StartupProvider(db, logger: logger);
+
+      await provider.load();
+      await logger.flush();
+
+      expect(provider.phase, StartupPhase.failed);
+      final entry = entryOf('startup.load');
+      expect(entry['lv'], 'error');
+      expect(entry['error'], contains('no such table: members'));
+      expect(ops().where((op) => op == 'startup.load'), hasLength(1));
+    });
+
+    test('メンバー0件で取引が残る不整合は件数と理由を残す', () async {
+      await db.insertTransaction(await anInput());
+      await db.customStatement('PRAGMA foreign_keys = OFF');
+      await db.customStatement('DELETE FROM members');
+      await db.customStatement('PRAGMA foreign_keys = ON');
+      final provider = StartupProvider(db, logger: logger);
+
+      await provider.load();
+      await logger.flush();
+
+      expect(provider.phase, StartupPhase.inconsistent);
+      final entry = entryOf('startup.load');
+      expect(entry['lv'], 'error');
+      expect(entry['error'], contains('メンバーが0件なのに取引が残っています'));
+      expect(detailOf('startup.load'), {
+        'memberCount': 0,
+        'transactionCount': 1,
+      });
+    });
+  });
+
   group('メンバー', () {
     late MemberProvider provider;
 
@@ -545,7 +582,9 @@ void main() {
       );
       await logger.flush();
 
-      expect(entryOf('member.setup')['lv'], 'error');
+      final entry = entryOf('member.setup');
+      expect(entry['lv'], 'error');
+      expect(entry['error'], contains('Must at most be 50 characters long.'));
       expect(ops().where((o) => o == 'member.setup'), hasLength(1));
     });
 
