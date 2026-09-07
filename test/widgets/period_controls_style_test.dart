@@ -101,7 +101,7 @@ void main() {
     );
   });
 
-  test('期間セグメントは白い選択面と onSurface の文字を使う', () {
+  test('セグメントは白い選択面と onSurface の文字を使う', () {
     final style = ledgerTheme.segmentedButtonTheme.style!;
     final selected = {WidgetState.selected};
     final background = style.backgroundColor!.resolve(selected)!;

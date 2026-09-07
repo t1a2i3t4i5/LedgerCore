@@ -11,8 +11,6 @@ import '../widgets/chart_palette.dart';
 import '../widgets/ledger_card.dart';
 import '../widgets/month_selector.dart';
 import '../widgets/monthly_summary_chips.dart';
-import '../widgets/page_header.dart';
-import '../widgets/period_bar_chart.dart';
 import '../widgets/period_format.dart';
 import '../widgets/settlement_summary_card.dart';
 
@@ -59,70 +57,21 @@ class _SummaryScreenState extends State<SummaryScreen> {
                   horizontal: horizontal,
                   vertical: 16,
                 ),
-                // 全期間モードや取引ゼロの月は中身が短い。既定の physics だと
+                // 取引ゼロの月は中身が短い。既定の physics だと
                 // スクロールできる長さが無いときに引っ張っても反応しない
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  // 期間の切り替え。MonthSelector より上に固定する。
-                  // 下に置くと、全期間モードで MonthSelector が消えたときに
-                  // 切り替え UI 自体が上へ飛び、押した指の位置とずれる
-                  SegmentedButton<SummaryPeriod>(
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(
-                        value: SummaryPeriod.month,
-                        label: Text('月'),
-                      ),
-                      ButtonSegment(
-                        value: SummaryPeriod.year,
-                        label: Text('年'),
-                      ),
-                      ButtonSegment(
-                        value: SummaryPeriod.all,
-                        label: Text('全期間'),
-                      ),
-                    ],
-                    selected: {provider.period},
-                    onSelectionChanged:
-                        (selected) => provider.setPeriod(selected.first),
+                  MonthSelector(
+                    year: provider.year,
+                    month: provider.month,
+                    onPrev: () => provider.changeMonth(-1),
+                    onNext: () => provider.changeMonth(1),
+                    onToday:
+                        provider.isCurrentMonth
+                            ? null
+                            : provider.goToCurrentMonth,
                   ),
                   const SizedBox(height: 8),
-
-                  // 期間の送り。全期間モードには送る先が無いので出さない
-                  if (provider.period == SummaryPeriod.month) ...[
-                    MonthSelector(
-                      year: provider.year,
-                      month: provider.month,
-                      onPrev: () => provider.changeMonth(-1),
-                      onNext: () => provider.changeMonth(1),
-                      onToday:
-                          provider.isCurrentMonth
-                              ? null
-                              : provider.goToCurrentMonth,
-                    ),
-                    const SizedBox(height: 8),
-                  ] else if (provider.period == SummaryPeriod.year) ...[
-                    MonthSelector(
-                      // 表示月（provider.year）ではなく年専用の軸。ここを
-                      // provider.year にすると、年を送った瞬間に割り勘タブの
-                      // 表示期間まで 1 年ぶん動く
-                      year: provider.yearAxis,
-                      month: null,
-                      todayLabel: '今年',
-                      todayTooltip: '今年に戻る',
-                      onPrev: () => provider.changeYear(-1),
-                      onNext: () => provider.changeYear(1),
-                      onToday:
-                          provider.isCurrentYear
-                              ? null
-                              : provider.goToCurrentYear,
-                    ),
-                    const SizedBox(height: 8),
-                  ] else ...[
-                    const PageHeader(title: '全期間'),
-                    const SizedBox(height: 8),
-                  ],
-
                   if (provider.loading)
                     const Center(
                       child: Padding(
@@ -140,11 +89,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
                       ),
                     )
                   else
-                    ...switch (provider.period) {
-                      SummaryPeriod.month => _monthBody(context, provider),
-                      SummaryPeriod.year => _yearBody(context, provider),
-                      SummaryPeriod.all => _allBody(context, provider),
-                    },
+                    ..._monthBody(context, provider),
                 ],
               );
             },
@@ -187,43 +132,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
     ];
   }
 
-  /// 選択年。月別の推移グラフと、その年の合計・カテゴリ別。
-  ///
-  /// メンバー別は出さない。`YearlySummary` に `byMember` が無く、足すと
-  /// データ層とそのテストまで波及する（design-notes.md 参照）。
-  List<Widget> _yearBody(BuildContext context, SummaryProvider provider) {
-    final yearly = provider.yearly;
-    if (yearly == null) return const [_EmptySection()];
-
-    return [
-      Text('月別の推移', style: Theme.of(context).textTheme.titleMedium),
-      const SizedBox(height: 8),
-      // 取引の無い月も 0 として 12 本並ぶ（buildYearlySummary が 0 で埋める）
-      PeriodBarChart(items: yearly.byMonth),
-      const SizedBox(height: 16),
-      _totalCard(
-        context,
-        yearly.total,
-        label: '${formatPeriod(provider.yearAxis, null)}の支出',
-      ),
-      const SizedBox(height: 16),
-      ..._categorySection(context, yearly.byCategory, yearly.total),
-    ];
-  }
-
-  /// 全期間。年別の推移グラフだけ。
-  ///
-  /// 合計を出すには年別合計を画面側で fold することになり、「集計ロジックは
-  /// 純関数に置く」約束に触れる。カテゴリ別も全期間ぶんを返す API が無い。
-  List<Widget> _allBody(BuildContext context, SummaryProvider provider) {
-    return [
-      Text('年別の推移', style: Theme.of(context).textTheme.titleMedium),
-      const SizedBox(height: 8),
-      // 取引のある年だけが昇順に並ぶ。1 年も無ければグラフ側が空表示を出す
-      PeriodBarChart(items: provider.allYears),
-    ];
-  }
-
   Widget _totalCard(
     BuildContext context,
     double total, {
@@ -260,8 +168,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     );
   }
 
-  /// カテゴリ別リスト。月モードと年モードが同じ形を共有する。
-  /// 構成比の分母だけがモードで変わるので [total] を引数で受ける。
+  /// カテゴリ別リスト。構成比の分母を [total] で受ける。
   List<Widget> _categorySection(
     BuildContext context,
     List<CategorySummaryItem> items,
@@ -291,7 +198,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
     ];
   }
 
-  /// メンバー別リスト。月モードだけが使う。
+  /// メンバー別リスト。
   List<Widget> _memberSection(
     BuildContext context,
     List<MemberSummaryItem> items,
@@ -318,7 +225,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
 /// 見出しの下が無言で空白になるのを防ぐ共通の受け皿。
 ///
 /// 空状態の表示を分岐ごとに手で書き写すと、片方だけ文言や余白がずれる。
-/// 期間モードが 3 つに増えて分岐が増えたので 1 か所に寄せてある。
+/// カテゴリ別・メンバー別で同じ表示を使うので 1 か所に寄せてある。
 class _EmptySection extends StatelessWidget {
   const _EmptySection();
 
