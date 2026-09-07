@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/main.dart';
 import 'package:ledger_app/models/transaction.dart';
+import '../seed.dart';
 
 /// 取引の削除がサマリー・割り勘タブに反映されることを、タブ切り替え込みで確認する。
 ///
@@ -15,7 +16,11 @@ import 'package:ledger_app/models/transaction.dart';
 void main() {
   late AppDatabase db;
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   testWidgets('取引を削除するとサマリータブの合計に反映される', (tester) async {

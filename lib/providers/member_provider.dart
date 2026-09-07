@@ -34,6 +34,26 @@ class MemberProvider extends ChangeNotifier {
     }
   }
 
+  /// 初期設定で 2 人をまとめて登録する。
+  ///
+  /// 途中で失敗したら 1 人も登録されない（[AppDatabase.insertInitialMembers]
+  /// が 1 トランザクションで入れる）。次の起動でも初期設定が出る状態を保つ。
+  Future<void> createInitialMembers(String first, String second) async {
+    final detail = {
+      'names': [first, second],
+    };
+    try {
+      await _db.insertInitialMembers(first, second);
+    } catch (e) {
+      _logger.error('member.setup', e, detail: detail);
+      // **必ず rethrow する。** 例外は画面（initial_setup_screen.dart）の
+      // catch へ届いて SnackBar になり、入力し直せる
+      rethrow;
+    }
+    _logger.info('member.setup', detail: detail);
+    await fetchMembers();
+  }
+
   /// メンバーを追加する
   Future<void> addMember(String name) async {
     // op 名は `member.create` に揃える（メソッド名は addMember だが、

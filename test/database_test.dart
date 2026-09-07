@@ -4,23 +4,98 @@ import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
 
 import 'matchers.dart';
+import 'seed.dart';
 
 void main() {
   late AppDatabase db;
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
-  test('初回起動でデフォルトカテゴリ10件と既定メンバーが投入される', () async {
+  test('初回起動でデフォルトカテゴリ10件だけが投入され、メンバーは0件', () async {
+    // onCreate の結果そのものを見るので、seed 済みの DB は捨てて開き直す
+    await db.close();
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+
     final cats = await db.getCategories();
     expect(cats.length, 10);
     expect(cats.map((c) => c.name), contains('食費'));
     expect(cats.map((c) => c.sortOrder), List.generate(10, (index) => index));
     expect(cats.every((c) => c.colorValue == null), isTrue);
 
-    final members = await db.getMembers();
-    expect(members.length, 1);
-    expect(members.first.name, '自分');
+    // 既定メンバーは投入しない。「メンバー0件・取引0件」が新規DBの印で、
+    // ここに1人でも入ると初期設定画面が二度と出なくなる
+    expect(await db.getMembers(), isEmpty);
+    expect(await db.countMembers(), 0);
+    expect(await db.countTransactions(), 0);
+  });
+
+  group('初期設定の2人登録', () {
+    // 初期設定はメンバー 0 人の端末にしか出ないので、seed 済みの DB は捨てる
+    setUp(() async {
+      await db.close();
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+    });
+
+    test('2人がまとめて登録される', () async {
+      await db.insertInitialMembers('たろう', 'はなこ');
+
+      expect((await db.getMembers()).map((m) => m.name), ['たろう', 'はなこ']);
+      expect(await db.countMembers(), 2);
+    });
+
+    test('同名の2人でも登録できる', () async {
+      await db.insertInitialMembers('ゆう', 'ゆう');
+
+      expect((await db.getMembers()).map((m) => m.name), ['ゆう', 'ゆう']);
+    });
+
+    test('2人目が失敗したら1人も残らない', () async {
+      // 51 文字は drift の withLength(max: 50) に弾かれる
+      await expectLater(
+        db.insertInitialMembers('たろう', 'あ' * 51),
+        throwsA(anything),
+      );
+
+      // transaction() を外すと、ここに「たろう」が 1 人だけ残る。
+      // 残ると次の起動で初期設定が出なくなり、片方の名前を決め直せない
+      expect(await db.getMembers(), isEmpty);
+    });
+
+    test('既にメンバーが居る DB では登録しない', () async {
+      await seedMembers(db, const ['先住']);
+
+      await expectLater(
+        db.insertInitialMembers('たろう', 'はなこ'),
+        throwsA(isA<StateError>()),
+      );
+      expect((await db.getMembers()).map((m) => m.name), ['先住']);
+    });
+
+    test('取引の件数は JOIN ではなく実テーブルを数える', () async {
+      // メンバー 0 件・取引ありは起動判定が不整合として扱う組み合わせ。
+      // getAllTransactions() は members との innerJoin なので 0 件を返す
+      await seedMembers(db, const ['自分']);
+      await db.insertTransaction(
+        TransactionInput(
+          memberId: (await db.getMembers()).first.id,
+          categoryId: (await db.getCategories()).first.id,
+          amount: 1000,
+          spentAt: DateTime(2026, 7, 1),
+        ),
+      );
+      await db.customStatement('PRAGMA foreign_keys = OFF');
+      await db.customStatement('DELETE FROM members');
+      await db.customStatement('PRAGMA foreign_keys = ON');
+
+      expect(await db.getAllTransactions(), isEmpty);
+      expect(await db.countTransactions(), 1);
+      expect(await db.countMembers(), 0);
+    });
   });
 
   test('メンバーの同時追加でも2人を超えない', () async {

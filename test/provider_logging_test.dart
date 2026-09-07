@@ -9,10 +9,12 @@ import 'package:ledger_app/logging/operation_logger.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/category_provider.dart';
 import 'package:ledger_app/providers/member_provider.dart';
+import 'package:ledger_app/providers/startup_provider.dart';
 import 'package:ledger_app/providers/summary_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
 
 import 'matchers.dart';
+import 'seed.dart';
 
 /// Provider の操作がログにどう出るかを確かめる。
 ///
@@ -24,10 +26,11 @@ void main() {
   late MemoryLogSink sink;
   late OperationLogger logger;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     sink = MemoryLogSink();
     logger = OperationLogger(sink, clock: () => DateTime(2026, 8, 17, 12));
+    await seedMembers(db);
   });
   tearDown(() async => db.close());
 
@@ -503,6 +506,42 @@ void main() {
     });
   });
 
+  group('起動判定', () {
+    test('DB の読み取り失敗は startup.load の理由まで残す', () async {
+      await db.customStatement('DROP TABLE members');
+      final provider = StartupProvider(db, logger: logger);
+
+      await provider.load();
+      await logger.flush();
+
+      expect(provider.phase, StartupPhase.failed);
+      final entry = entryOf('startup.load');
+      expect(entry['lv'], 'error');
+      expect(entry['error'], contains('no such table: members'));
+      expect(ops().where((op) => op == 'startup.load'), hasLength(1));
+    });
+
+    test('メンバー0件で取引が残る不整合は件数と理由を残す', () async {
+      await db.insertTransaction(await anInput());
+      await db.customStatement('PRAGMA foreign_keys = OFF');
+      await db.customStatement('DELETE FROM members');
+      await db.customStatement('PRAGMA foreign_keys = ON');
+      final provider = StartupProvider(db, logger: logger);
+
+      await provider.load();
+      await logger.flush();
+
+      expect(provider.phase, StartupPhase.inconsistent);
+      final entry = entryOf('startup.load');
+      expect(entry['lv'], 'error');
+      expect(entry['error'], contains('メンバーが0件なのに取引が残っています'));
+      expect(detailOf('startup.load'), {
+        'memberCount': 0,
+        'transactionCount': 1,
+      });
+    });
+  });
+
   group('メンバー', () {
     late MemberProvider provider;
 
@@ -514,6 +553,39 @@ void main() {
 
       expect(ops(), contains('member.create'));
       expect(detailOf('member.create'), {'name': '同居人'});
+    });
+
+    test('初期設定の2人登録は member.setup で残る', () async {
+      // 外側の setUp が seed 済みなので、0 人の DB を開き直す
+      await db.close();
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      final setup = MemberProvider(db, logger: logger);
+
+      await setup.createInitialMembers('たろう', 'はなこ');
+      await logger.flush();
+
+      expect(entryOf('member.setup')['lv'], 'info');
+      expect(detailOf('member.setup'), {
+        'names': ['たろう', 'はなこ'],
+      });
+      expect(setup.members.map((m) => m.name), ['たろう', 'はなこ']);
+    });
+
+    test('初期設定の保存失敗は error で残り、例外も届く', () async {
+      await db.close();
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      final setup = MemberProvider(db, logger: logger);
+
+      await expectLater(
+        setup.createInitialMembers('たろう', 'あ' * 51),
+        throwsA(isA<InvalidDataException>()),
+      );
+      await logger.flush();
+
+      final entry = entryOf('member.setup');
+      expect(entry['lv'], 'error');
+      expect(entry['error'], contains('Must at most be 50 characters long.'));
+      expect(ops().where((o) => o == 'member.setup'), hasLength(1));
     });
 
     test('更新と削除が id つきで残る', () async {

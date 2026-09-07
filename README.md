@@ -45,7 +45,7 @@ bash tool/sync_codex_agents.sh  # Codex のスキルリンクとエージェン�
 ```
 
 - 既存の生成物と衝突する場合は `dart run build_runner build --delete-conflicting-outputs`
-- 初回起動で既定カテゴリと既定メンバー「自分」が投入され、すぐに入力を始められる
+- 初回起動で既定カテゴリが投入される。メンバーは初期設定画面で2人ぶんの名前を登録してからホームへ進む
 - Claude Code で作業する場合、`.claude/settings.json` の `PostToolUse` フックが `.dart` ファイルの編集直後に `dart format` を自動実行する（`jq` が必要）
 - 整形スタイルと SDK 下限を変える際の注意点は [docs/design-notes.md](docs/design-notes.md) の「コード整形は language version で決まる」を参照
 
@@ -136,7 +136,7 @@ assets/
 drift_schemas/                 # 各スキーマバージョンの固定記録（生成物・git 管理）
 test/generated_migrations/     # 固定記録から起こした移行ヘルパ（生成物・git 管理）
 lib/
-├── main.dart                  # 起動・Provider 登録（認証なしでメイン画面へ直行）
+├── main.dart                  # 起動・Provider 登録（DB 状態に応じた画面へ分岐）
 ├── theme/                     # 配色・書体・角丸・影のテーマとアプリ固有トークン
 │   ├── ledger_theme.dart      # ColorScheme と Material コンポーネントテーマ
 │   └── ledger_tokens.dart     # 補助色・形状・金額用 TextStyle
@@ -159,12 +159,15 @@ lib/
 │   ├── log_export.dart        # ログの読み出し・連結・共有ファイル名
 │   └── file_log_share.dart    # 共有用コピーの作成・OS 共有シート・後片付け
 ├── providers/                 # 状態管理（provider / ChangeNotifier）
+│   ├── startup_provider.dart  # 初期設定・通常起動・起動エラーの判定
 │   ├── month_scoped_provider.dart # 表示月の共通基底
 │   ├── member_provider.dart
 │   ├── category_provider.dart
 │   ├── transaction_provider.dart
 │   └── summary_provider.dart
 ├── screens/
+│   ├── startup_gate.dart      # 起動判定に応じてルート画面を差し替えるゲート
+│   ├── initial_setup_screen.dart # 初回起動で2人の名前を登録する画面
 │   ├── main_screen.dart       # ボトムナビゲーションと 4 タブの束ね
 │   ├── settings_screen.dart   # カテゴリ・メンバー管理とログ共有への設定導線
 │   ├── transactions_screen.dart   # 取引一覧

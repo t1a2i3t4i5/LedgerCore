@@ -12,6 +12,7 @@ import 'package:ledger_app/screens/transactions_screen.dart';
 import 'package:ledger_app/theme/ledger_theme.dart';
 import 'package:ledger_app/widgets/amount_format.dart';
 import 'package:provider/provider.dart';
+import '../seed.dart';
 
 /// フィルターシートが「適用」「リセット」で Provider に何を書くかを確認する。
 ///
@@ -31,9 +32,10 @@ void main() {
   // 「今月」に置くと月末 23:59 台の実行で seed と表示月がずれる
   final fixedNow = DateTime(2026, 7, 15);
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     provider = TransactionProvider(db, clock: () => fixedNow);
+    await seedMembers(db);
   });
   tearDown(() async => db.close());
 

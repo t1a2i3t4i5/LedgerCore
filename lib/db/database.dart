@@ -100,7 +100,10 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
-      // デフォルトカテゴリと既定メンバーを投入
+      // **デフォルトカテゴリだけを投入する。** メンバーは初回起動の初期設定で
+      // 2 人まとめて登録するので、ここでは 1 人も入れない（#144）。
+      // 「メンバー 0 件・取引 0 件」が正常な新規 DB の印になっており、
+      // 既定メンバーを戻すと初期設定が二度と出なくなる
       await batch((b) {
         b.insertAll(
           categories,
@@ -112,7 +115,6 @@ class AppDatabase extends _$AppDatabase {
             ),
           ),
         );
-        b.insert(members, MembersCompanion.insert(name: '自分'));
       });
     },
     onUpgrade: (m, from, to) async {
@@ -309,6 +311,43 @@ class AppDatabase extends _$AppDatabase {
           ..orderBy([(m) => OrderingTerm(expression: m.id)])).get();
     return rows.map((m) => HouseholdMember(id: m.id, name: m.name)).toList();
   }
+
+  /// メンバーの件数。起動時に初期設定を出すかの判定に使う。
+  Future<int> countMembers() {
+    final rows = countAll();
+    final query = selectOnly(members)..addColumns([rows]);
+    return query.map((row) => row.read(rows)!).getSingle();
+  }
+
+  /// 取引の件数。**[getAllTransactions] で数えないこと。**
+  ///
+  /// あちらは members との `innerJoin` なので、メンバーが 0 件の DB では
+  /// 取引が残っていても 0 件を返す。起動判定はその組み合わせ（不整合）を
+  /// 新規 DB と区別する必要があるため、実テーブルの行数を直接数える。
+  Future<int> countTransactions() {
+    final rows = countAll();
+    final query = selectOnly(transactions)..addColumns([rows]);
+    return query.map((row) => row.read(rows)!).getSingle();
+  }
+
+  /// 初期設定で 2 人をまとめて登録する。
+  ///
+  /// **1 トランザクションで入れる。** [insertMember] を 2 回呼ぶ形にすると、
+  /// 2 人目が失敗した端末に 1 人だけ残り、次の起動で初期設定が出なくなる
+  /// （メンバー 1 件以上は「登録済み」の印なので、片方の名前を決め直す
+  /// 導線がどこにも無い状態で固定される）。
+  ///
+  /// 既にメンバーが居る DB では [StateError] を投げる。初期設定は
+  /// 0 人の端末にしか出ないが、保存中に別経路で増えた場合に上書きしない。
+  Future<void> insertInitialMembers(String first, String second) =>
+      transaction(() async {
+        final existing = await (select(members)..limit(1)).get();
+        if (existing.isNotEmpty) {
+          throw StateError('メンバーは登録済みです');
+        }
+        await into(members).insert(MembersCompanion.insert(name: first));
+        await into(members).insert(MembersCompanion.insert(name: second));
+      });
 
   Future<void> insertMember(String name) => transaction(() async {
     final existing = await (select(members)..limit(2)).get();

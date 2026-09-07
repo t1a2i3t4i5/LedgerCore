@@ -6,6 +6,7 @@ import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/main.dart';
 import 'package:provider/provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
+import '../seed.dart';
 
 const _weekdays = ['月', '火', '水', '木', '金', '土', '日'];
 
@@ -22,7 +23,11 @@ void main() {
   // 表示月を実時刻から切り離す。この月が「今月」になる
   final fixedNow = DateTime(2026, 7, 15);
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   Future<void> pumpApp(WidgetTester tester) async {

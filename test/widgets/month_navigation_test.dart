@@ -11,6 +11,7 @@ import 'package:ledger_app/screens/split_screen.dart';
 import 'package:ledger_app/screens/summary_screen.dart';
 import 'package:ledger_app/screens/transactions_screen.dart';
 import 'package:provider/provider.dart';
+import '../seed.dart';
 
 /// 取引・サマリー・割り勘の 3 画面の月送りが、実際にタップして動くことを見る。
 ///
@@ -27,7 +28,11 @@ void main() {
   // 表示月を実時刻から切り離す。この月が「今月」になる
   final fixedNow = DateTime(2026, 7, 15);
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   /// 月ごとに違う金額を入れる。金額で「どの月を読んでいるか」が判別できる

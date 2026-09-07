@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/summary_provider.dart';
+import 'seed.dart';
 
 /// 集計画面の期間モードを、画面を組み立てずに見るテスト。
 ///
@@ -17,9 +18,10 @@ void main() {
   // 表示月を実時刻から切り離す。「今月」にテストデータを置かない
   final fixedNow = DateTime(2026, 7, 15);
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     provider = SummaryProvider(db, clock: () => fixedNow);
+    await seedMembers(db);
   });
   tearDown(() async => db.close());
 

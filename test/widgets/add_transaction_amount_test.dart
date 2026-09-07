@@ -8,6 +8,7 @@ import 'package:ledger_app/providers/member_provider.dart';
 import 'package:ledger_app/providers/transaction_provider.dart';
 import 'package:ledger_app/screens/add_transaction_screen.dart';
 import 'package:provider/provider.dart';
+import '../seed.dart';
 
 /// 取引追加画面の金額欄が 0 以下・小数・上限超過を弾くことを確認する。
 /// DB 側の CHECK 制約は database_test.dart 側で担保しており、
@@ -15,7 +16,11 @@ import 'package:provider/provider.dart';
 void main() {
   late AppDatabase db;
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   /// [existing] を渡すと編集モードで開く

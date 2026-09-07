@@ -5,9 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/main.dart';
 import 'package:ledger_app/models/transaction.dart';
+import 'package:ledger_app/providers/member_provider.dart';
+import 'package:ledger_app/screens/members_screen.dart';
+import 'package:ledger_app/theme/ledger_theme.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:ledger_app/widgets/page_header.dart';
+import 'package:provider/provider.dart';
+import '../seed.dart';
 
 /// メンバー画面で、削除できなかったことがユーザーに伝わるかを確かめる。
 ///
@@ -20,7 +25,11 @@ void main() {
 
   final fixedNow = DateTime(2026, 7, 15);
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   /// アプリを起動して、設定からメンバー管理画面へ移動する
@@ -135,7 +144,20 @@ void main() {
   testWidgets('メンバーが無いときはアイコン付きの空状態を描く', (tester) async {
     await deleteAllMembers();
 
-    await pumpMembersScreen(tester);
+    // 起動判定がメンバー 0 人でホームを構築しなくなったので（#144）、
+    // アプリ経由ではこの一覧に辿り着けない。残る経路は
+    // MemberProvider.fetchMembers() が読み取りに失敗して一覧が空のまま
+    // 描かれる場合なので、画面だけを直接組み立てて確かめる
+    tester.view.physicalSize = const Size(360, 690);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => MemberProvider(db),
+        child: MaterialApp(theme: ledgerTheme, home: const MembersScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
 
     final empty = find.ancestor(
       of: find.text('メンバーがいません'),

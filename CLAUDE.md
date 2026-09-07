@@ -39,6 +39,7 @@
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する
 - ホームの先月比と件数は月モードだけに出す。前月0円は「先月比 —」、比率は `formatRatio()` で小数1桁にする（詳細は `docs/design-notes.md`）
 - ホームの精算カードは月モードだけに置き、共有の `SummaryProvider.split` を表示する。カードからのタブ移動も `MainScreen._selectTab` を通す（詳細は `docs/design-notes.md`）
+- 起動時の画面出し分けは `StartupProvider` が DB の件数だけで決める。初回フラグを別に持たず、メンバー0件＋取引ありは不整合、読み取り失敗は0件扱いにしない。`onCreate` に既定メンバーを戻さない（詳細は `docs/design-notes.md`）
 - メンバーは2人まで。2人の割り勘は整数円で配分し、合計が奇数なら立替額の少ない側が1円多く負担する。2人でない場合は精算を算出しない（詳細は `docs/design-notes.md`）
 - 表示月の判断に画面から `DateTime.now()` を読まず、`MonthScopedProvider` の `clock` に集約する。取引追加画面の `_spentAt` だけが意図的な例外
 - 金額は正の整数のみ。上限は `models/transaction.dart` の `kMaxAmount` だけを直す（validator と DB の CHECK 制約が参照するスキーマ定義値）

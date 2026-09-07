@@ -15,6 +15,7 @@ import 'package:ledger_app/theme/ledger_theme.dart';
 import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/settlement_summary_card.dart';
+import '../seed.dart';
 
 void main() {
   late AppDatabase db;
@@ -32,7 +33,11 @@ void main() {
     }
   });
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   void setPhoneSize(WidgetTester tester) {
@@ -213,15 +218,15 @@ void main() {
     expect(inCard('みく → 自分 に\n¥2,000'), findsOneWidget);
   });
 
+  // 0 人のケースは置かない。起動判定がメンバー 0 人でホームを構築しないので
+  // （#144）、このカードに 0 人で辿り着く経路が無くなった。1 人は 2 人から
+  // 片方を消した端末で今も起こる
   for (final (count, hasPayments, message) in [
-    (0, false, '精算にはメンバーが2人必要です（設定 → メンバー管理で登録できます）'),
     (1, true, '精算にはメンバーが2人必要です（設定 → メンバー管理で登録できます）'),
     (2, false, '精算不要'),
     (2, true, '精算不要'),
   ]) {
     testWidgets('$count 人・支払い $hasPayments の案内を表示する', (tester) async {
-      final initial = (await db.getMembers()).single;
-      if (count == 0) await db.deleteMember(initial.id);
       for (var i = 1; i < count; i++) {
         await db.insertMember('メンバー$i');
       }

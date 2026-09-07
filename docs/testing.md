@@ -12,6 +12,20 @@
 
 `AppDatabase.forTesting(NativeDatabase.memory())` を使い、実端末のファイルに触らない（`test/database_test.dart`）。
 
+## メンバーは `seedMembers()` で自分で用意する
+
+`onCreate` はメンバーを 1 人も投入しない（#144 で既定メンバー「自分」をやめた）。
+DB を使うテストは `test/seed.dart` の `seedMembers(db)` を `setUp` で呼ぶ。
+
+**`LedgerApp` を pump するテストでは、これを忘れると通常画面が出ない。** 起動ゲートが
+メンバー 0 件を「新規の端末」と判断して初期設定画面を出すので、`find.byType(NavigationBar)`
+から始まる操作がすべて空振りする。初期設定を迂回するテスト専用フラグは作らない
+（本番に無い経路を足すと、起動時に何が出るかを守るテストが 1 本も無くなる）。
+
+`seedMembers()` は INSERT を直接書いていて、`insertMember()` の 2 人上限を通らない。
+旧版由来で 3 人以上いる端末を再現するテストにも使える。メンバー 0 件そのものを見たい
+テスト（`onCreate` の中身、初期設定）は、seed 済みの DB を `close()` してから開き直す。
+
 ## マイグレーションテストは固定スキーマから起こす
 
 drift の `SchemaVerifier` を使い、`drift_schemas/` に固定した過去バージョンから起こす（`test/database_migration_test.dart`）。手書き DDL で一部のテーブルだけ旧版に差し替える書き方はしない — 検証対象が「実在しない中間状態」になり、変更していないテーブルの移行漏れを見逃す。

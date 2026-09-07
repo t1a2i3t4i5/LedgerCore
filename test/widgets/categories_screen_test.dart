@@ -9,6 +9,7 @@ import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:ledger_app/widgets/page_header.dart';
+import '../seed.dart';
 
 /// カテゴリ画面で、削除できなかったことがユーザーに伝わるかを確かめる。
 ///
@@ -23,7 +24,11 @@ void main() {
   // 表示月を実時刻から切り離す（seed した取引が「今月」に依存しないように）
   final fixedNow = DateTime(2026, 7, 15);
 
-  setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
+    await seedMembers(db);
+  });
   tearDown(() async => db.close());
 
   /// アプリを起動して、設定からカテゴリ管理画面へ移動する

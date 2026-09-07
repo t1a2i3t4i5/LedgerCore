@@ -14,9 +14,10 @@ import 'logging/operation_logger.dart';
 import 'providers/category_provider.dart';
 import 'providers/member_provider.dart';
 import 'providers/month_scoped_provider.dart';
+import 'providers/startup_provider.dart';
 import 'providers/summary_provider.dart';
 import 'providers/transaction_provider.dart';
-import 'screens/main_screen.dart';
+import 'screens/startup_gate.dart';
 import 'theme/ledger_theme.dart';
 
 void main() {
@@ -133,6 +134,7 @@ class LedgerApp extends StatelessWidget {
         // ChangeNotifier ではないので素の Provider
         Provider<OperationLogger>.value(value: log),
         Provider<LogShare>.value(value: logShare ?? const NoopLogShare()),
+        ChangeNotifierProvider(create: (_) => StartupProvider(db, logger: log)),
         ChangeNotifierProvider(create: (_) => MemberProvider(db, logger: log)),
         ChangeNotifierProvider(
           create: (_) => TransactionProvider(db, clock: clock, logger: log),
@@ -154,8 +156,8 @@ class LedgerApp extends StatelessWidget {
               value: ledgerSystemUiOverlayStyle,
               child: child!,
             ),
-        // 認証は撤廃。起動後すぐにメイン画面へ。
-        home: const MainScreen(),
+        // 認証は撤廃。DB の状態を読んで、初期設定かメイン画面かを出し分ける。
+        home: const StartupGate(),
       ),
     );
   }
