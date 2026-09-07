@@ -2,10 +2,10 @@
 name: reviewer-design
 description: LedgerCore のコード差分を設計規約の観点だけでレビューする。docs/design-notes.md に書かれた約束が守られているかを grep で機械的に確かめる。/independent-review から起動される専用レビュアーで、単独では使わない。
 tools: Read, Grep, Glob, Bash
-model: opus
-effort: high
+model: sonnet
+effort: medium
 permissionMode: dontAsk
-maxTurns: 40
+maxTurns: 20
 color: blue
 ---
 
