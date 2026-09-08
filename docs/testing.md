@@ -189,7 +189,7 @@ bool _isEllipsized(WidgetTester tester, String text) =>
 
 ### 共有 Provider への波及は、波及先のタブを開いて確かめる
 
-`SummaryProvider` はホームと割り勘タブで 1 インスタンスを共有する。ホームで月を送ったあと精算カードから割り勘タブを開き、年月と金額が同じ表示月へ揃っていることを画面テストで確認する。Provider のテストでも `SplitResult.year` / `month` / `total` まで値で確かめ、前回取得値の残留を見逃さない。
+`SummaryProvider` はホームと精算タブで 1 インスタンスを共有する。ホームで月を送ったあと精算カードから精算タブを開き、年月と金額が同じ表示月へ揃っていることを画面テストで確認する。Provider のテストでも `SplitResult.year` / `month` / `total` まで値で確かめ、前回取得値の残留を見逃さない。
 
 ## 取引の日付に依存するテストは、日付ピッカーで明示的に選ぶ
 

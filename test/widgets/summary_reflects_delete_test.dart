@@ -6,7 +6,7 @@ import 'package:ledger_app/main.dart';
 import 'package:ledger_app/models/transaction.dart';
 import '../seed.dart';
 
-/// 取引の削除がサマリー・割り勘タブに反映されることを、タブ切り替え込みで確認する。
+/// 取引の削除がサマリー・精算タブに反映されることを、タブ切り替え込みで確認する。
 ///
 /// TransactionProvider と SummaryProvider は互いに通知を送らない。それでも
 /// サマリーが最新に見えるのは、MainScreen がタブを単純差し替えしていて

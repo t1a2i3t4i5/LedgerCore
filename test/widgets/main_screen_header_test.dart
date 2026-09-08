@@ -92,7 +92,7 @@ void main() {
       navigationBar.destinations.cast<NavigationDestination>().map(
         (destination) => destination.label,
       ),
-      ['ホーム', '取引', '割り勘', '設定'],
+      ['ホーム', '取引', '精算', '設定'],
     );
   });
 

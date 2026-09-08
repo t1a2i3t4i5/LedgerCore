@@ -41,10 +41,10 @@ class SummaryProvider extends MonthScopedProvider {
   ///
   /// 表示月の年（`MonthScopedProvider.year`）を年送りに使ってはいけない。
   /// あれは [fetch] が月次サマリーと割り勘を取る対象そのものなので、動かすと
-  /// **割り勘タブの表示期間が 1 年ぶん巻き込まれる**（`SummaryProvider` は
-  /// 集計タブと割り勘タブで 1 インスタンス）。「月の数値さえ保てば無事」では
-  /// なく、実測で割り勘タブが `2026年7月 / ¥700` から `2025年7月 / ¥250` に
-  /// 化けた。ユーザーは割り勘タブで何も操作していないので理由が分からない。
+  /// **精算タブの表示期間が 1 年ぶん巻き込まれる**（`SummaryProvider` は
+  /// 集計タブと精算タブで 1 インスタンス）。「月の数値さえ保てば無事」では
+  /// なく、実測で精算タブが `2026年7月 / ¥700` から `2025年7月 / ¥250` に
+  /// 化けた。ユーザーは精算タブで何も操作していないので理由が分からない。
   late int _yearAxis;
 
   SummaryProvider(this._db, {super.clock, super.logger}) {
@@ -96,7 +96,7 @@ class SummaryProvider extends MonthScopedProvider {
   /// 年の軸を [delta] 年ぶん送り、読み直す。**表示月には触らない。**
   ///
   /// `goToMonth(year + delta, month)` にしてはいけない理由は [_yearAxis] を
-  /// 参照。割り勘タブの表示期間ごと動く。
+  /// 参照。精算タブの表示期間ごと動く。
   Future<void> changeYear(int delta) async {
     final from = _yearAxis;
     _yearAxis += delta;
@@ -122,9 +122,9 @@ class SummaryProvider extends MonthScopedProvider {
     notifyListeners();
     try {
       // 月次サマリーと割り勘は**モードに関わらず常に取る。**
-      // 割り勘タブ（SplitScreen）が同じ SummaryProvider を共有していて
+      // 精算タブ（SplitScreen）が同じ SummaryProvider を共有していて
       // （main.dart の MultiProvider に 1 インスタンスしかない）、集計タブが
-      // 年モードだからという理由で split を落とすと、割り勘タブを開いた人に
+      // 年モードだからという理由で split を落とすと、精算タブを開いた人に
       // 「データがありません」が出る。月次サマリーも月モードの合計カードと
       // カテゴリ別に要る
       final summary = await _db.getMonthlySummary(year, month);

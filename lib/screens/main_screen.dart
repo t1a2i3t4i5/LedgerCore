@@ -64,7 +64,7 @@ class _MainScreenState extends State<MainScreen> {
           NavigationDestination(
             icon: Icon(Icons.balance_outlined),
             selectedIcon: Icon(Icons.balance),
-            label: '割り勘',
+            label: '精算',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),

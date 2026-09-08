@@ -5,7 +5,7 @@ import '../theme/ledger_tokens.dart';
 import 'amount_format.dart';
 import 'chart_palette.dart';
 
-/// 月の割り勘結果をホームに表示する。計算とデータ取得は行わない。
+/// 月の精算結果をホームに表示する。計算とデータ取得は行わない。
 class SettlementSummaryCard extends StatelessWidget {
   const SettlementSummaryCard({super.key, required this.split, this.onTap});
 
@@ -35,7 +35,7 @@ class SettlementSummaryCard extends StatelessWidget {
                   vertical: 8,
                 ),
               ),
-              child: Text(needsSettlement ? '精算する' : '割り勘を見る'),
+              child: Text(needsSettlement ? '精算する' : '精算を見る'),
             );
     final content = Column(
       mainAxisSize: MainAxisSize.min,
@@ -59,7 +59,7 @@ class SettlementSummaryCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(LedgerTokens.cardRadius),
       clipBehavior: Clip.antiAlias,
       // カード全体はタップ領域にしない。移動できるのはボタンだけで、
-      // 本文や余白を押しても割り勘タブへ飛ばない。
+      // 本文や余白を押しても精算タブへ飛ばない。
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: LayoutBuilder(

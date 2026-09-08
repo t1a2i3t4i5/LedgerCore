@@ -370,7 +370,7 @@ void main() {
     });
 
     test('年送りは summary.year で、表示月は動かさない', () async {
-      // 年の軸と表示月は独立している（同じインスタンスを割り勘タブが共有する）。
+      // 年の軸と表示月は独立している（同じインスタンスを精算タブが共有する）。
       // month.change が出るなら表示月ごと動いている
       await provider.changeYear(-1);
       await logger.flush();

@@ -71,7 +71,7 @@ void main() {
     expect(changes.single['detail'], {'from': 'summary', 'to': 'transactions'});
   });
 
-  testWidgets('タブ構成がホーム・取引・割り勘・設定になる', (tester) async {
+  testWidgets('タブ構成がホーム・取引・精算・設定になる', (tester) async {
     await pumpApp(tester);
 
     final navigationBar = tester.widget<NavigationBar>(
@@ -98,7 +98,7 @@ void main() {
   testWidgets('タブを渡り歩いた順がそのまま残る', (tester) async {
     await pumpApp(tester);
 
-    await tester.tap(find.text('割り勘'));
+    await tester.tap(find.text('精算'));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();

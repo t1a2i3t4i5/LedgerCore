@@ -198,7 +198,7 @@ void main() {
   );
 
   monthNavigationTests(
-    '割り勘画面',
+    '精算画面',
     () => const SplitScreen(),
     (month) => '¥${month}00',
     () => db.insertMember('パートナー'),
