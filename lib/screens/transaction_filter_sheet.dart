@@ -216,8 +216,8 @@ class _TransactionFilterSheetState extends State<TransactionFilterSheet> {
                 ),
               const SizedBox(height: 16),
 
-              // ---- 登録者（複数選択） ----
-              const _SectionLabel('登録者'),
+              // ---- 支払った人（複数選択） ----
+              const _SectionLabel('支払った人'),
               if (members.isEmpty)
                 Text(
                   'メンバー情報を読み込み中...',

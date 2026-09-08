@@ -21,7 +21,7 @@ import '../seed.dart';
 /// 受け付け方が割れていると、「追加画面では全角がそのまま通るのに、
 /// フィルターでは理由の分からないエラーになる」という食い違いが出る。
 ///
-/// 後半は金額欄以外の適用経路（ソート・カテゴリ・登録者・メモ・リセット）。
+/// 後半は金額欄以外の適用経路（ソート・カテゴリ・支払った人・メモ・リセット）。
 /// ここが無い間は `_apply` の `setSort` と `_reset` の `resetFilters` を
 /// 両方消しても全件グリーンのままだった。
 void main() {
@@ -162,7 +162,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// シートはカテゴリ 10 件・登録者のチップを含んで縦に長く、360x690 では
+  /// シートはカテゴリ 10 件・支払った人のチップを含んで縦に長く、360x690 では
   /// 下端のボタンが可視域の外にある。`tap` は画面外だと warnIfMissed で
   /// 落ちるので、押す前に必ずスクロールで送り込む
   Future<void> tapInSheet(WidgetTester tester, Finder finder) async {
@@ -471,7 +471,7 @@ void main() {
     expect(provider.filterCategoryIds, {target.id});
   });
 
-  // ---- カテゴリ・登録者・メモ ----
+  // ---- カテゴリ・支払った人・メモ ----
 
   testWidgets('選んだカテゴリチップが適用される', (tester) async {
     // id はリテラルで持たない。既定カテゴリの並びが変わっても追随させる
@@ -485,7 +485,14 @@ void main() {
     expect(provider.filterCategoryIds, {target.id});
   });
 
-  testWidgets('選んだ登録者チップが適用される', (tester) async {
+  testWidgets('フィルターの支払者を「支払った人」と表示する', (tester) async {
+    await pumpSheet(tester);
+
+    expect(find.text('支払った人'), findsOneWidget);
+    expect(find.text('登録者'), findsNothing);
+  });
+
+  testWidgets('選んだ支払った人のチップが適用される', (tester) async {
     // 既定の「自分」だけだと、選択に関係なく先頭を入れる実装でも通ってしまう
     await db.insertMember('配偶者');
     final members = await db.getMembers();
