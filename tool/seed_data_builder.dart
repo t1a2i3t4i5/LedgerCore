@@ -2,9 +2,10 @@
 ///
 /// アプリ本体（`lib/`）からは参照されない開発専用のコードで、Flutter にも
 /// drift にも依存しない。DB へ書き込む処理は `tool/seed_dev_data.dart` が持ち、
-/// ここは「どんな取引をいくつ作るか」だけを決める。分けてあるのは、
-/// 生成結果を DB なしでテストできるようにするため（`summary_calculator.dart` が
-/// DB に触らないのと同じ方針）。
+/// ここは「どんな取引をいくつ作るか」だけを決める。
+///
+/// 出荷物ではないのでテストは置いていない。壊れていれば投入した時点で
+/// 例外か不自然なデータとして目に見える。
 library;
 
 import 'dart:math';
@@ -176,7 +177,7 @@ List<String> get seedCategoryNames => [for (final s in _specs) s.name];
 /// 直近 [months] か月ぶんのダミー取引を組み立てる。
 ///
 /// - [now] は基準日。**この関数は `DateTime.now()` を読まない**ので、
-///   テストからは固定日を渡せる。
+///   別の月を基準にしたデータも作れる。
 /// - [categoryIdsByName] はカテゴリ名から実 ID への対応。DB から引いた値を渡す。
 ///   ここに無い名前のカテゴリは生成をスキップするので、ユーザーがカテゴリを
 ///   削除・改名した端末でも落ちない。
@@ -205,7 +206,7 @@ List<SeedTransaction> buildSeedTransactions({
   for (var offset = months - 1; offset >= 0; offset--) {
     final monthStart = DateTime(now.year, now.month - offset, 1);
     final isCurrentMonth = offset == 0;
-    final monthLastDay = lastDayOfMonth(monthStart.year, monthStart.month);
+    final monthLastDay = _lastDayOfMonth(monthStart.year, monthStart.month);
     // 当月は基準日までしか作らない（未来の取引を混ぜない）。
     final lastDay = isCurrentMonth ? now.day : monthLastDay;
 
@@ -255,11 +256,10 @@ List<SeedTransaction> buildSeedTransactions({
 ///
 /// 生成する日をこの範囲に収めるための境界。ここを誤ると `DateTime` が
 /// 静かに翌月へ繰り上げるため（2 月 30 日 → 3 月 2 日）、その月の件数が減って
-/// 翌月が増える。例外も出ず、生成結果を見ても意図した月が分からないので、
-/// **境界の計算そのものをテストで固定する**。
+/// 翌月が増える。例外は出ない。
 ///
 /// 翌月 0 日は「その月の末日」になる、という `DateTime` の正規化を使う。
-int lastDayOfMonth(int year, int month) => DateTime(year, month + 1, 0).day;
+int _lastDayOfMonth(int year, int month) => DateTime(year, month + 1, 0).day;
 
 /// 支払者を選ぶ。家賃だけ 1 人目に固定し、それ以外はおよそ 55:45 で振り分ける。
 ///
