@@ -3,9 +3,9 @@ name: reviewer-quick
 description: LedgerCore のコード差分を 1 名で通しレビューする。正確性・設計上の約束・テスト／ドキュメントを 1 体でまとめて見る。/quick-review から起動される専用レビュアーで、単独では使わない。
 tools: Read, Grep, Glob, Bash
 model: opus
-effort: high
+effort: medium
 permissionMode: dontAsk
-maxTurns: 40
+maxTurns: 25
 color: yellow
 ---
 

@@ -129,6 +129,7 @@ PR を作成・更新すると GitHub Actions の `Analyze` と `Test` が並列
 | `/security-review` | セキュリティ観点でレビュー | ユーザー | — |
 
 - `/code-review ultra` は課金が発生し、`/independent-review` は 3 体を同時起動するため、Claude 側から起動せずユーザーが明示する
+- `/independent-review` が壊して確かめる実測を行うのは「テストが実質何も保証していない」系の指摘だけで、それ以外の [致命] [重大] は検証レシピを報告に載せて判断をユーザーへ返す。使用量を高リスクの回でも一定に保つための線引きで、ブロッカーの並べ方自体は変えない
 - `/quick-review` と `/implement` は標準工程を自然文でも動かせるよう、Claude が自発起動してよい
 - `.claude/agents/` や `.claude/skills/` を新規追加した直後は Claude Code の再起動が必要。一度監視下に入った `SKILL.md` の編集は再起動なしで反映される
 
