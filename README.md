@@ -39,11 +39,13 @@ flutter test                    # テスト
 flutter analyze                 # 静的解析
 dart format lib test            # 整形
 bash tool/sync_codex_agents.sh  # Codex のスキルリンクとエージェント定義を生成
+bash tool/seed_dev_data.sh      # 開発用のダミー取引を起動中のシミュレータへ投入
 ```
 
 - 既存の生成物と衝突する場合は `dart run build_runner build --delete-conflicting-outputs`
 - 初回起動で既定カテゴリが投入される。メンバーは初期設定画面で2人ぶんの名前を登録してからホームへ進む
 - Claude Code で作業する場合、`.claude/settings.json` の `PostToolUse` フックが `.dart` ファイルの編集直後に `dart format` を自動実行する（`jq` が必要）
+- `tool/seed_dev_data.sh` は**開発用のダミーデータ投入**で、アプリには含まれない。起動中の iOS シミュレータの `ledgercore.sqlite` へ、直近 12 か月ぶん（各月 30 件前後）の取引を drift 経由で入れる。既に取引があるときは二重投入を避けて中止するので、入れ直すなら `--reset`、足すなら `--append` を付ける（`--months N` で期間、`--db PATH` で投入先を指定できる）
 - 整形スタイルと SDK 下限を変える際の注意点は [docs/design-notes.md](docs/design-notes.md) の「コード整形は language version で決まる」を参照
 
 `AppDatabase.schemaVersion` を上げたときは、固定スキーマと移行ヘルパを再生成して同じコミットに含める（手順は [docs/db-schema.md](docs/db-schema.md) の「スキーマを変更するとき」）。
