@@ -41,7 +41,7 @@ final _displayFormat = NumberFormat('#,###', 'ja_JP');
 /// （`lib/` に「記号なしで数値だけ出す」用途は無い）。
 ///
 /// 符号を前置したいときは `'+${formatYen(x)}'` のように外側で足す
-/// （割り勘画面の黒字表示がこの形。負の値は `#,###` 自身が `¥-1,000` と出す）。
+/// （精算画面の黒字表示がこの形。負の値は `#,###` 自身が `¥-1,000` と出す）。
 String formatYen(double amount) => '¥${_displayFormat.format(amount)}';
 
 /// 全体に占める割合を `35.2%` の形にする。

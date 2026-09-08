@@ -15,7 +15,7 @@ import 'package:ledger_app/widgets/ratio_bar.dart';
 import 'package:provider/provider.dart';
 import '../seed.dart';
 
-/// 割り勘画面を、実端末に近い幅とインメモリ DB で確認する。
+/// 精算画面を、実端末に近い幅とインメモリ DB で確認する。
 void main() {
   late AppDatabase db;
   final fixedNow = DateTime(2026, 7, 15);

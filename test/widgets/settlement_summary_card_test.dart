@@ -141,7 +141,7 @@ void main() {
       tester.getBottomLeft(card).dy,
       lessThan(tester.getTopLeft(find.text('カテゴリ別')).dy),
     );
-    // ピル型ボタン自身からも、本文と同じ割り勘タブへ移れる。
+    // ピル型ボタン自身からも、本文と同じ精算タブへ移れる。
     await tester.tap(button);
     await tester.pumpAndSettle();
     expect(find.byType(SplitScreen), findsOneWidget);
@@ -155,7 +155,7 @@ void main() {
     expect(inCard('みく → 自分 に\n¥1,235'), findsOneWidget);
   });
 
-  testWidgets('月送りで金額が変わり、カードから同じ月の割り勘へ移る', (tester) async {
+  testWidgets('月送りで金額が変わり、カードから同じ月の精算へ移る', (tester) async {
     await db.insertMember('みく');
     final members = await db.getMembers();
     await pay(members.first.id, 124980);
@@ -223,7 +223,7 @@ void main() {
 
       expect(inCard(message), findsOneWidget);
       expect(inCard('精算する'), findsNothing);
-      expect(inCard('割り勘を見る'), findsOneWidget);
+      expect(inCard('精算を見る'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

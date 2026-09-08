@@ -2,7 +2,7 @@
 
 サーバ不要・**モバイル端末内だけで完結するオフライン家計簿アプリ**（Flutter）。
 
-バックエンド・REST API・認証は持たない。データは [drift](https://drift.simonbinder.eu/)（SQLite）で端末内に保存し、集計・割り勘の計算も端末側で行う。
+バックエンド・REST API・認証は持たない。データは [drift](https://drift.simonbinder.eu/)（SQLite）で端末内に保存し、集計・精算の計算も端末側で行う。
 
 ## 特徴
 
@@ -12,10 +12,10 @@
   - 以前のバージョンで小数や上限超過の金額を保存していた場合、**初回起動時の移行で四捨五入・削除される**（元の値は復元できない。詳細は [docs/db-schema.md](docs/db-schema.md)）
 - **保存先の月の明示** — 表示中の月と違う月の取引を入力しているときは日付欄で警告し、保存後は保存先の月を名指しした通知を出す（`その月を表示` でその月へ移動できる）
 - **カテゴリ管理** — 初回起動時に既定カテゴリ（食費・日用品ほか）を自動投入。編集モードで削除・並べ替えができ、編集シートで名前と識別色を変更できる
-- **メンバー管理** — 端末内で2人まで登録し、割り勘の対象にする
+- **メンバー管理** — 端末内で2人まで登録し、精算の対象にする
 - **サマリー** — 表示月の合計カードに先月比と取引件数を表示する（前月0円は「—」）。カテゴリ別・メンバー別の集計。カテゴリ別は金額・構成比（%）と大小を走査できる横帯を並べる
-- **割り勘** — 2人の負担を整数円で配分し、各自の過不足と精算方法を算出（すべて端末内で計算）
-  - ホームでも精算の要点を確認でき、カードのボタンから同じ月の割り勘タブへ移動する
+- **精算** — 2人の負担を整数円で配分し、各自の過不足と精算方法を算出（すべて端末内で計算）
+  - ホームでも精算の要点を確認でき、カードのボタンから同じ月の精算タブへ移動する
 - **操作ログの共有** — 設定の「ログを共有」から退避・現行ログを1本の `.txt` として OS の共有シートへ渡す。カテゴリ名・メンバー名・金額が含まれるため、共有先に注意する。DB は共有しない
 
 ## 必要環境
@@ -142,13 +142,13 @@ lib/
 ├── db/
 │   ├── database.dart          # drift のテーブル定義・DAO・集計クエリ
 │   ├── database.g.dart        # 生成コード（build_runner）
-│   └── summary_calculator.dart# 月次サマリー・割り勘の計算（純関数）
+│   └── summary_calculator.dart# 月次サマリー・精算の計算（純関数）
 ├── models/                    # 表示用モデル（DB の JOIN 結果や入力値を保持する単純なクラス）
 │   ├── transaction.dart       # 取引と金額の上限 kMaxAmount
 │   ├── category.dart
 │   ├── household_member.dart
 │   ├── summary.dart           # 月次・年次サマリーと前月比較
-│   └── split.dart             # 割り勘の結果（各自の過不足・精算方法）
+│   └── split.dart             # 精算の結果（各自の過不足・精算方法）
 ├── logging/                   # 操作ログ
 │   ├── operation_logger.dart  # 記録の入口と書き出しキュー
 │   ├── log_entry.dart         # ログ 1 行のデータと JSON Lines への整形（純関数）
@@ -173,14 +173,14 @@ lib/
 │   ├── add_transaction_screen.dart# 取引の追加・編集
 │   ├── transaction_filter_sheet.dart # 一覧のソート・フィルター設定
 │   ├── summary_screen.dart    # 月次サマリー
-│   ├── split_screen.dart      # 割り勘
+│   ├── split_screen.dart      # 精算
 │   ├── categories_screen.dart # カテゴリ管理
 │   └── members_screen.dart    # メンバー管理
 └── widgets/                   # 画面から切り離した再利用部品（ウィジェットとは限らない）
     ├── chart_palette.dart     # グラフの色（カテゴリ ID から決まる色・推移グラフの棒の色）
     ├── category_breakdown_row.dart # カテゴリ別の名前・金額・構成比・横帯を束ねる行
     ├── ledger_card.dart       # 白地・角丸・影付きの共通カード
-    ├── settlement_summary_card.dart # ホームの月次精算要点と割り勘への導線
+    ├── settlement_summary_card.dart # ホームの月次精算要点と精算画面への導線
     ├── page_header.dart       # 画面内の大見出し（戻る導線・右側操作を任意で配置）
     ├── month_selector.dart    # 月・年の期間選択 UI
     ├── monthly_summary_chips.dart # 月の合計カードの先月比・取引件数
@@ -206,7 +206,7 @@ screens → providers → AppDatabase（drift） → SQLite
 
 `test/` は検証したい層ごとに分かれている。詳しい書き方と落とし穴は [docs/testing.md](docs/testing.md) を参照。
 
-- **純関数** — 月次集計・割り勘などの計算
+- **純関数** — 月次集計・精算などの計算
 - **DB** — DAO・期間・制約
 - **マイグレーション** — 過去バージョンからの移行と新規作成
 - **Provider** — 状態遷移

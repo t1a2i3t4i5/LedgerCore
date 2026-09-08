@@ -5,7 +5,7 @@
 ## プロジェクト概要
 
 **LedgerCore** はサーバ不要・モバイル端末内だけで完結する Flutter 単体のオフライン家計簿アプリ。
-バックエンド・REST API・認証は存在せず、データ・集計・割り勘はすべて端末内で完結する。
+バックエンド・REST API・認証は存在せず、データ・集計・精算はすべて端末内で完結する。
 `http` や `shared_preferences` は依存に含まれていない。ネットワーク通信を伴う実装を追加しないこと。
 機能・技術スタック・環境は [README.md](README.md) を参照すること。
 
@@ -38,7 +38,7 @@
 - 表示用モデルは読み出しが `*View`、書き込みが `*Input`。支払者は `memberId` / `memberName` とし、`User` 系・`Response` / `Request` 系の名前を持ち込まない
 - 月の範囲指定は半開区間 `[月初, 翌月初)` で統一する
 - ホームは月表示専用。先月比と件数を出し、前月0円は「先月比 —」、比率は `formatRatio()` で小数1桁にする（詳細は `docs/design-notes.md`）
-- ホームの精算カードは共有の `SummaryProvider.split` を表示する。カードからのタブ移動も `MainScreen._selectTab` を通す（詳細は `docs/design-notes.md`）
+- ホームの精算カードは共有の `SummaryProvider.split` を表示する。カードから精算タブへの移動も `MainScreen._selectTab` を通す（詳細は `docs/design-notes.md`）
 - 起動時の画面出し分けは `StartupProvider` が DB の件数だけで決める。初回フラグを別に持たず、メンバー0件＋取引ありは不整合、読み取り失敗は0件扱いにしない。`onCreate` に既定メンバーを戻さない（詳細は `docs/design-notes.md`）
 - メンバーは2人まで。2人の割り勘は整数円で配分し、合計が奇数なら立替額の少ない側が1円多く負担する。2人でない場合は精算を算出しない（詳細は `docs/design-notes.md`）
 - 表示月の判断に画面から `DateTime.now()` を読まず、`MonthScopedProvider` の `clock` に集約する。取引追加画面の `_spentAt` だけが意図的な例外
