@@ -174,6 +174,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
     List<CategorySummaryItem> items,
     double total,
   ) {
+    final sortedItems =
+        items.indexed.toList()..sort((left, right) {
+          final byAmount = right.$2.total.compareTo(left.$2.total);
+          if (byAmount != 0) return byAmount;
+          // 集計モデルの保存順を同額時の決定順として残す。
+          return left.$1.compareTo(right.$1);
+        });
+
     return [
       Text('カテゴリ別', style: Theme.of(context).textTheme.titleMedium),
       const SizedBox(height: 8),
@@ -183,15 +191,15 @@ class _SummaryScreenState extends State<SummaryScreen> {
       if (items.isEmpty)
         const _EmptySection()
       else
-        ...items.map(
-          (item) => CategoryBreakdownRow(
-            categoryName: item.categoryName,
-            amount: item.total,
+        ...sortedItems.map(
+          (entry) => CategoryBreakdownRow(
+            categoryName: entry.$2.categoryName,
+            amount: entry.$2.total,
             total: total,
             // カテゴリごとに決まる色を画面側で解決して渡す。
             color: categoryColor(
-              item.categoryId,
-              colorValue: item.categoryColorValue,
+              entry.$2.categoryId,
+              colorValue: entry.$2.categoryColorValue,
             ),
           ),
         ),
