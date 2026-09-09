@@ -7,8 +7,8 @@ import 'package:ledger_app/main.dart';
 import 'package:ledger_app/providers/member_provider.dart';
 import 'package:ledger_app/screens/members_screen.dart';
 import 'package:ledger_app/theme/ledger_theme.dart';
+import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
-import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:ledger_app/widgets/page_header.dart';
 import 'package:provider/provider.dart';
 
@@ -84,8 +84,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Finder cardFor(String name) =>
-      find.ancestor(of: find.text(name), matching: find.byType(LedgerCard));
+  Finder rowFor(int memberId) => find.byKey(ValueKey(memberId));
 
   Finder nameSlotFor(int memberId) =>
       find.byKey(ValueKey('member-name-slot-$memberId'));
@@ -117,43 +116,66 @@ void main() {
     expect(find.text('メンバー 2'), findsNothing);
   });
 
-  testWidgets('行は指定サイズのアバター・名前・鉛筆だけを72pxのカードに並べる', (tester) async {
+  testWidgets('行は色の丸・名前・鉛筆を72pxに並べ、行の間を区切り線で仕切る', (tester) async {
     await seedMembers(db, const ['パートナー']);
     final members = await db.getMembers();
     await pumpMembersScreen(tester);
 
-    final firstCard = cardFor('自分');
-    final secondCard = cardFor('パートナー');
-    final avatar = tester.widget<CircleAvatar>(
-      find.descendant(of: firstCard, matching: find.byType(CircleAvatar)),
+    final firstRow = rowFor(members.first.id);
+    final secondRow = rowFor(members.last.id);
+    final dot = tester.widget<Container>(
+      find.byKey(ValueKey('member-dot-${members.first.id}')),
     );
     final editButton = find.descendant(
-      of: firstCard,
+      of: firstRow,
       matching: find.byType(IconButton),
     );
 
-    expect(tester.getSize(firstCard).height, 72);
-    expect(tester.getSize(secondCard).height, 72);
+    expect(tester.getSize(firstRow).height, 72);
+    expect(tester.getSize(secondRow).height, 72);
     expect(
-      tester.getTopLeft(secondCard).dy - tester.getBottomLeft(firstCard).dy,
-      12,
+      (dot.decoration! as BoxDecoration).color,
+      memberColor(members.first.id),
     );
-    expect(avatar.radius, 21);
-    expect(avatar.backgroundColor, memberColor(members.first.id));
-    expect(avatar.foregroundColor, labelColorOn(memberColor(members.first.id)));
+    expect((dot.decoration! as BoxDecoration).shape, BoxShape.circle);
+    expect(find.byType(Divider), findsOneWidget);
+    expect(
+      tester.widget<Divider>(find.byType(Divider)).color,
+      LedgerTokens.barTrack,
+    );
     expect(isEllipsized(tester, 'パートナー'), isFalse);
     expect(tester.getSize(editButton), const Size.square(44));
     expect(
       tester
           .widget<Icon>(
             find.descendant(
-              of: firstCard,
+              of: firstRow,
               matching: find.byIcon(Icons.edit_outlined),
             ),
           )
           .color,
-      ledgerTheme.colorScheme.onSurfaceVariant,
+      LedgerTokens.subtext,
     );
+  });
+
+  testWidgets('2人のときだけ重なる2円を描く', (tester) async {
+    await pumpMembersScreen(tester);
+    expect(find.byKey(const ValueKey('member-venn')), findsNothing);
+
+    await seedMembers(db, const ['パートナー']);
+    await provider.fetchMembers();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('member-venn')), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('member-venn'))),
+      const Size(300, 190),
+    );
+
+    await seedMembers(db, const ['3人目']);
+    await provider.fetchMembers();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('member-venn')), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('名前のタップと鉛筆アイコンのどちらでも行内編集を始める', (tester) async {
@@ -173,24 +195,17 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
   });
 
-  testWidgets('入力中はアバターと50文字カウンタがその場で追従する', (tester) async {
+  testWidgets('入力中は50文字カウンタがその場で追従する', (tester) async {
     await pumpMembersScreen(tester);
     await tester.tap(find.text('自分'));
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), 'パートナー');
     await tester.pump();
-
-    final card = find.ancestor(
-      of: find.byType(TextField),
-      matching: find.byType(LedgerCard),
-    );
-    expect(find.descendant(of: card, matching: find.text('パ')), findsOneWidget);
     expect(find.text('5/50'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), '');
     await tester.pump();
-    expect(find.descendant(of: card, matching: find.text('—')), findsOneWidget);
     expect(find.text('0/50'), findsOneWidget);
   });
 
@@ -253,9 +268,9 @@ void main() {
   testWidgets('カウンタの表示切替でも行の高さと名前の幅が動かない', (tester) async {
     final member = (await db.getMembers()).single;
     await pumpMembersScreen(tester);
-    final card = cardFor('自分');
+    final row = rowFor(member.id);
     final slot = nameSlotFor(member.id);
-    final heightBefore = tester.getSize(card).height;
+    final heightBefore = tester.getSize(row).height;
     final widthBefore = tester.getSize(slot).width;
     final counter = find.byKey(ValueKey('member-counter-${member.id}'));
     expect(tester.widget<Visibility>(counter).visible, isFalse);
@@ -264,7 +279,7 @@ void main() {
     await tester.pump();
 
     expect(tester.widget<Visibility>(counter).visible, isTrue);
-    expect(tester.getSize(card).height, heightBefore);
+    expect(tester.getSize(row).height, heightBefore);
     expect(tester.getSize(slot).width, widthBefore);
     expect(heightBefore, 72);
   });

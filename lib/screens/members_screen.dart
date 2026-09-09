@@ -7,11 +7,16 @@ import '../models/household_member.dart';
 import '../providers/member_provider.dart';
 import '../theme/ledger_tokens.dart';
 import '../widgets/chart_palette.dart';
-import '../widgets/ledger_card.dart';
 import '../widgets/page_header.dart';
 
 const _memberNameMaxLength = 50;
 const _memberNameNote = '名前は取引の記録と精算画面に表示されます';
+
+/// 2 人の円が重なる図の寸法。
+///
+/// 半径は高さの半分、円の中心は左右の端から半径ぶん内側なので、
+/// 重なりの幅は `2r - (幅 - 2r)` = 80 になる。
+const _vennSize = Size(300, 190);
 
 /// 割り勘の対象となるメンバーを管理する画面。
 class MembersScreen extends StatefulWidget {
@@ -63,11 +68,25 @@ class _MembersScreenState extends State<MembersScreen> {
                 child: _EmptyMembers(),
               )
             else ...[
+              // 重なりは「2 人で分け合う家計」の図なので、精算と同じく
+              // ちょうど 2 人のときだけ描く。
+              if (members.length == 2)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+                    child: _MemberVenn(members: members),
+                  ),
+                ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsets.fromLTRB(20, 0, 8, 16),
                 sliver: SliverList.separated(
                   itemCount: members.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder:
+                      (_, __) => const Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: LedgerTokens.barTrack,
+                      ),
                   itemBuilder: (context, index) {
                     final member = members[index];
                     return _MemberRow(
@@ -79,7 +98,7 @@ class _MembersScreenState extends State<MembersScreen> {
                 ),
               ),
               const SliverPadding(
-                padding: EdgeInsets.fromLTRB(16, 0, 16, 24),
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 24),
                 sliver: SliverToBoxAdapter(child: _MemberNameNote()),
               ),
             ],
@@ -88,6 +107,66 @@ class _MembersScreenState extends State<MembersScreen> {
       ),
     );
   }
+}
+
+/// 2 人の識別色の円が重なる図。
+///
+/// 重なりの色は [multiplyColors] で 2 色から導く。名前は載せない
+/// （長い名前が入らないうえ、行側に同じ色の丸があれば対応が付く）。
+class _MemberVenn extends StatelessWidget {
+  const _MemberVenn({required this.members});
+
+  final List<HouseholdMember> members;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: ExcludeSemantics(
+      child: SizedBox.fromSize(
+        key: const ValueKey('member-venn'),
+        size: _vennSize,
+        child: CustomPaint(
+          painter: _MemberVennPainter(
+            left: memberColor(members[0].id),
+            right: memberColor(members[1].id),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _MemberVennPainter extends CustomPainter {
+  const _MemberVennPainter({required this.left, required this.right});
+
+  final Color left;
+  final Color right;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final radius = size.height / 2;
+    final leftCircle =
+        Path()..addOval(
+          Rect.fromCircle(center: Offset(radius, radius), radius: radius),
+        );
+    final rightCircle =
+        Path()..addOval(
+          Rect.fromCircle(
+            center: Offset(size.width - radius, radius),
+            radius: radius,
+          ),
+        );
+
+    canvas.drawPath(leftCircle, Paint()..color = left);
+    canvas.drawPath(rightCircle, Paint()..color = right);
+    canvas.drawPath(
+      Path.combine(PathOperation.intersect, leftCircle, rightCircle),
+      Paint()..color = multiplyColors(left, right),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_MemberVennPainter oldDelegate) =>
+      oldDelegate.left != left || oldDelegate.right != right;
 }
 
 class _MemberRow extends StatefulWidget {
@@ -160,140 +239,135 @@ class _MemberRowState extends State<_MemberRow> {
     }
   }
 
-  String get _avatarLabel {
-    final name = _controller.text;
-    return name.isEmpty ? '—' : name.characters.first;
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final avatarColor = memberColor(widget.member.id);
-    return LedgerCard(
-      padding: EdgeInsets.zero,
-      child: SizedBox(
-        height: 72,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 12),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 21,
-                backgroundColor: avatarColor,
-                foregroundColor: labelColorOn(avatarColor),
-                child: Text(_avatarLabel),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SizedBox(
-                  key: ValueKey('member-name-slot-${widget.member.id}'),
-                  child:
-                      _editing
-                          ? TextField(
-                            controller: _controller,
-                            focusNode: _focusNode,
-                            autofocus: true,
-                            maxLength: _memberNameMaxLength,
-                            maxLines: 1,
-                            textInputAction: TextInputAction.done,
-                            cursorColor: colorScheme.secondary,
-                            style: Theme.of(context).textTheme.bodyLarge,
-                            decoration: InputDecoration(
-                              isDense: true,
-                              counterText: '',
-                              filled: true,
-                              fillColor: colorScheme.secondaryContainer,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: colorScheme.secondary,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: colorScheme.secondary,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: colorScheme.secondary,
-                                ),
-                              ),
-                            ),
-                            onChanged: (_) => setState(() {}),
-                            onTapOutside: (_) => _focusNode.unfocus(),
-                            onSubmitted: (_) => _focusNode.unfocus(),
-                          )
-                          : GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: _startEditing,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                widget.member.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodyLarge,
-                              ),
+    final nameStyle = Theme.of(
+      context,
+    ).textTheme.bodyLarge?.copyWith(fontSize: 22);
+    return SizedBox(
+      height: 72,
+      child: Row(
+        children: [
+          Container(
+            key: ValueKey('member-dot-${widget.member.id}'),
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              color: memberColor(widget.member.id),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: SizedBox(
+              key: ValueKey('member-name-slot-${widget.member.id}'),
+              child:
+                  _editing
+                      ? TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        autofocus: true,
+                        maxLength: _memberNameMaxLength,
+                        maxLines: 1,
+                        textInputAction: TextInputAction.done,
+                        cursorColor: colorScheme.secondary,
+                        style: nameStyle,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          counterText: '',
+                          filled: true,
+                          fillColor: colorScheme.secondaryContainer,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: colorScheme.secondary,
                             ),
                           ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: colorScheme.secondary,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: colorScheme.secondary,
+                            ),
+                          ),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                        onTapOutside: (_) => _focusNode.unfocus(),
+                        onSubmitted: (_) => _focusNode.unfocus(),
+                      )
+                      : GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _startEditing,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            widget.member.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: nameStyle,
+                          ),
+                        ),
+                      ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // カウンタは編集中だけ出すが、隠している間も同じ幅を予約して
+          // 行の高さと名前の幅を動かさない。予約幅は文字倍率を適用した
+          // `50/50` の内容幅から採り、固定幅で末尾を切らない。
+          Stack(
+            alignment: Alignment.centerRight,
+            children: [
+              const Visibility(
+                visible: false,
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: Text(
+                  '50/50',
+                  maxLines: 1,
+                  style: TextStyle(color: LedgerTokens.subtext, fontSize: 11),
                 ),
               ),
-              const SizedBox(width: 12),
-              Stack(
-                alignment: Alignment.centerRight,
-                children: [
-                  const Visibility(
-                    visible: false,
-                    maintainSize: true,
-                    maintainAnimation: true,
-                    maintainState: true,
-                    child: Text(
-                      '50/50',
-                      maxLines: 1,
-                      style: TextStyle(
-                        color: LedgerTokens.subtext,
-                        fontSize: 11,
-                      ),
-                    ),
+              Visibility(
+                key: ValueKey('member-counter-${widget.member.id}'),
+                visible: _editing,
+                child: Text(
+                  '${_controller.text.characters.length}/$_memberNameMaxLength',
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    color: LedgerTokens.subtext,
+                    fontSize: 11,
                   ),
-                  Visibility(
-                    key: ValueKey('member-counter-${widget.member.id}'),
-                    visible: _editing,
-                    child: Text(
-                      '${_controller.text.characters.length}/$_memberNameMaxLength',
-                      textAlign: TextAlign.right,
-                      maxLines: 1,
-                      style: const TextStyle(
-                        color: LedgerTokens.subtext,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              SizedBox.square(
-                dimension: 44,
-                child: IconButton(
-                  tooltip: '名前を編集',
-                  padding: EdgeInsets.zero,
-                  icon: Icon(
-                    Icons.edit_outlined,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  onPressed: _startEditing,
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(width: 4),
+          SizedBox.square(
+            dimension: 44,
+            child: IconButton(
+              tooltip: '名前を編集',
+              padding: EdgeInsets.zero,
+              icon: const Icon(
+                Icons.edit_outlined,
+                size: 20,
+                color: LedgerTokens.subtext,
+              ),
+              onPressed: _startEditing,
+            ),
+          ),
+        ],
       ),
     );
   }
