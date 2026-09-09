@@ -4,7 +4,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/main.dart';
-import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/member_provider.dart';
 import 'package:ledger_app/screens/members_screen.dart';
 import 'package:ledger_app/theme/ledger_theme.dart';
@@ -12,32 +11,53 @@ import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:ledger_app/widgets/page_header.dart';
 import 'package:provider/provider.dart';
+
 import '../seed.dart';
 
-/// メンバー画面で、削除できなかったことがユーザーに伝わるかを確かめる。
-///
-/// 見るのは 2 種類の「削除できない」。取引が残っているときの FK 違反
-/// （例外が MemberProvider を素通りして SnackBar になる経路）と、
-/// 最後の 1 人を消させないガード（例外ではなく画面側の早期 return）。
-/// どちらも DB のテストでは代替できない。
+class _RecordingMemberProvider extends MemberProvider {
+  _RecordingMemberProvider(super.db);
+
+  final updateCalls = <String>[];
+
+  @override
+  Future<void> updateMember(int id, String name) async {
+    updateCalls.add('$id:$name');
+    await super.updateMember(id, name);
+  }
+}
+
 void main() {
   late AppDatabase db;
+  late _RecordingMemberProvider provider;
 
   final fixedNow = DateTime(2026, 7, 15);
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    // onCreate はメンバーを投入しないので、テスト側で用意する（#144）
     await seedMembers(db);
+    provider = _RecordingMemberProvider(db);
   });
   tearDown(() async => db.close());
 
-  /// アプリを起動して、設定からメンバー管理画面へ移動する
-  Future<void> pumpMembersScreen(WidgetTester tester) async {
+  void setPhoneSize(WidgetTester tester) {
     tester.view.physicalSize = const Size(360, 690);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
+  }
 
+  Future<void> pumpMembersScreen(WidgetTester tester) async {
+    setPhoneSize(tester);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<MemberProvider>.value(
+        value: provider,
+        child: MaterialApp(theme: ledgerTheme, home: const MembersScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpMembersScreenThroughSettings(WidgetTester tester) async {
+    setPhoneSize(tester);
     await tester.pumpWidget(LedgerApp(db: db, clock: () => fixedNow));
     await tester.pumpAndSettle();
 
@@ -50,41 +70,22 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('メンバー管理'));
     await tester.pumpAndSettle();
-    expect(find.byType(AppBar), findsNothing);
-    expect(find.widgetWithText(PageHeader, 'メンバー'), findsOneWidget);
-    expect(find.byType(BackButton), findsOneWidget);
   }
 
-  /// [name] の行の削除ボタンを押す
-  Future<void> tapDeleteOn(WidgetTester tester, String name) async {
-    final row = find.ancestor(
-      of: find.text(name),
-      matching: find.byType(ListTile),
-    );
-    await tester.tap(
-      find.descendant(of: row, matching: find.byIcon(Icons.delete_outline)),
-    );
-    await tester.pumpAndSettle();
-  }
+  Finder cardFor(String name) =>
+      find.ancestor(of: find.text(name), matching: find.byType(LedgerCard));
 
-  Future<void> confirmDelete(WidgetTester tester) async {
-    await tester.tap(find.widgetWithText(TextButton, '削除'));
-    await tester.pumpAndSettle();
-  }
-
-  const failureMessage = '削除できませんでした（取引が残っている可能性があります）';
-
-  Future<void> deleteAllMembers() async {
-    for (final member in await db.getMembers()) {
-      await db.deleteMember(member.id);
-    }
-  }
+  Finder nameSlotFor(int memberId) =>
+      find.byKey(ValueKey('member-name-slot-$memberId'));
 
   bool isEllipsized(WidgetTester tester, String text) =>
       tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
 
   testWidgets('メンバー見出しの戻るボタンで設定画面へ戻れる', (tester) async {
-    await pumpMembersScreen(tester);
+    await pumpMembersScreenThroughSettings(tester);
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.widgetWithText(PageHeader, 'メンバー'), findsOneWidget);
+    expect(find.byType(BackButton), findsOneWidget);
 
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
@@ -93,71 +94,187 @@ void main() {
     expect(find.text('メンバー管理'), findsOneWidget);
   });
 
-  testWidgets('2人目を追加すると追加ボタンが消えて上限の理由を表示する', (tester) async {
+  testWidgets('追加と削除の導線を置かず、名前の用途を一覧の下に表示する', (tester) async {
+    await seedMembers(db, const ['パートナー']);
     await pumpMembersScreen(tester);
 
-    await tester.tap(find.byType(FloatingActionButton));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'パートナー');
-    await tester.tap(find.widgetWithText(TextButton, '保存'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('パートナー'), findsOneWidget);
-    expect(find.text('メンバーは2人までです'), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsNothing);
-    expect(await db.getMembers(), hasLength(2));
+    expect(find.byIcon(Icons.delete_outline), findsNothing);
+    expect(find.text('名前は取引の記録と精算画面に表示されます'), findsOneWidget);
+    expect(find.text('メンバー 1'), findsNothing);
+    expect(find.text('メンバー 2'), findsNothing);
   });
 
-  testWidgets('メンバー行は識別色アバター付きカードで、6文字名が1行の高さに収まる', (tester) async {
-    const name = '子供の習い事';
-    await deleteAllMembers();
-    await db.insertMember(name);
-    final member = (await db.getMembers()).single;
-
+  testWidgets('行は指定サイズのアバター・名前・鉛筆だけを72pxのカードに並べる', (tester) async {
+    await seedMembers(db, const ['パートナー']);
+    final members = await db.getMembers();
     await pumpMembersScreen(tester);
 
-    final tile = find.ancestor(
-      of: find.text(name),
-      matching: find.byType(ListTile),
-    );
-    final card = find.ancestor(of: tile, matching: find.byType(LedgerCard));
+    final firstCard = cardFor('自分');
+    final secondCard = cardFor('パートナー');
     final avatar = tester.widget<CircleAvatar>(
-      find.descendant(of: tile, matching: find.byType(CircleAvatar)),
+      find.descendant(of: firstCard, matching: find.byType(CircleAvatar)),
     );
-    expect(card, findsOneWidget);
-    expect(avatar.backgroundColor, memberColor(member.id));
-    expect(isEllipsized(tester, name), isFalse);
-    expect(tester.getSize(tile).height, 56);
+    final editButton = find.descendant(
+      of: firstCard,
+      matching: find.byType(IconButton),
+    );
+
+    expect(tester.getSize(firstCard).height, 72);
+    expect(tester.getSize(secondCard).height, 72);
+    expect(
+      tester.getTopLeft(secondCard).dy - tester.getBottomLeft(firstCard).dy,
+      12,
+    );
+    expect(avatar.radius, 21);
+    expect(avatar.backgroundColor, memberColor(members.first.id));
+    expect(avatar.foregroundColor, labelColorOn(memberColor(members.first.id)));
+    expect(isEllipsized(tester, 'パートナー'), isFalse);
+    expect(tester.getSize(editButton), const Size.square(44));
+    expect(
+      tester
+          .widget<Icon>(
+            find.descendant(
+              of: firstCard,
+              matching: find.byIcon(Icons.edit_outlined),
+            ),
+          )
+          .color,
+      ledgerTheme.colorScheme.onSurfaceVariant,
+    );
   });
 
-  testWidgets('DB 上限の50文字名でも描画例外が起きない', (tester) async {
-    final name = 'あ' * 50;
-    await deleteAllMembers();
-    await db.insertMember(name);
+  testWidgets('名前のタップと鉛筆アイコンのどちらでも行内編集を始める', (tester) async {
+    await pumpMembersScreen(tester);
 
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('2/50'), findsOneWidget);
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget);
+  });
+
+  testWidgets('入力中はアバターと50文字カウンタがその場で追従する', (tester) async {
+    await pumpMembersScreen(tester);
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), 'パートナー');
+    await tester.pump();
+
+    final card = find.ancestor(
+      of: find.byType(TextField),
+      matching: find.byType(LedgerCard),
+    );
+    expect(find.descendant(of: card, matching: find.text('パ')), findsOneWidget);
+    expect(find.text('5/50'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '');
+    await tester.pump();
+    expect(find.descendant(of: card, matching: find.text('—')), findsOneWidget);
+    expect(find.text('0/50'), findsOneWidget);
+  });
+
+  testWidgets('Enterで変更名を一度だけMemberProviderへ渡して保存する', (tester) async {
+    final member = (await db.getMembers()).single;
+    await pumpMembersScreen(tester);
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'わたし');
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(provider.updateCalls, ['${member.id}:わたし']);
+    expect((await db.getMembers()).single.name, 'わたし');
+    expect(find.text('わたし'), findsOneWidget);
+  });
+
+  testWidgets('フォーカスアウトで変更名をMemberProviderへ渡して保存する', (tester) async {
+    final member = (await db.getMembers()).single;
+    await pumpMembersScreen(tester);
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '本人');
+    await tester.ensureVisible(find.text('名前は取引の記録と精算画面に表示されます'));
+
+    await tester.tap(find.text('名前は取引の記録と精算画面に表示されます'));
+    await tester.pumpAndSettle();
+
+    expect(provider.updateCalls, ['${member.id}:本人']);
+    expect((await db.getMembers()).single.name, '本人');
+  });
+
+  testWidgets('名前が変わっていなければMemberProviderを呼ばない', (tester) async {
+    await pumpMembersScreen(tester);
+    await tester.tap(find.byIcon(Icons.edit_outlined));
+    await tester.pump();
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(provider.updateCalls, isEmpty);
+    expect((await db.getMembers()).single.name, '自分');
+  });
+
+  testWidgets('空欄で確定すると通知を出さず元の名前へ戻す', (tester) async {
+    await pumpMembersScreen(tester);
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '');
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(provider.updateCalls, isEmpty);
+    expect(find.text('自分'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('カウンタの表示切替でも行の高さと名前の幅が動かない', (tester) async {
+    final member = (await db.getMembers()).single;
+    await pumpMembersScreen(tester);
+    final card = cardFor('自分');
+    final slot = nameSlotFor(member.id);
+    final heightBefore = tester.getSize(card).height;
+    final widthBefore = tester.getSize(slot).width;
+    final counter = find.ancestor(
+      of: find.text('2/50'),
+      matching: find.byType(Visibility),
+    );
+    expect(tester.widget<Visibility>(counter).visible, isFalse);
+
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+
+    expect(tester.widget<Visibility>(counter).visible, isTrue);
+    expect(tester.getSize(card).height, heightBefore);
+    expect(tester.getSize(slot).width, widthBefore);
+    expect(heightBefore, 72);
+  });
+
+  testWidgets('50文字名は非編集中に省略し、描画例外を起こさない', (tester) async {
+    final name = 'あ' * 50;
+    await db.updateMemberName((await db.getMembers()).single.id, name);
     await pumpMembersScreen(tester);
 
     expect(find.text(name), findsOneWidget);
+    expect(isEllipsized(tester, name), isTrue);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('メンバーが無いときはアイコン付きの空状態を描く', (tester) async {
-    await deleteAllMembers();
-
-    // 起動判定がメンバー 0 人でホームを構築しなくなったので（#144）、
-    // アプリ経由ではこの一覧に辿り着けない。残る経路は
-    // MemberProvider.fetchMembers() が読み取りに失敗して一覧が空のまま
-    // 描かれる場合なので、画面だけを直接組み立てて確かめる
-    tester.view.physicalSize = const Size(360, 690);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => MemberProvider(db),
-        child: MaterialApp(theme: ledgerTheme, home: const MembersScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
+    for (final member in await db.getMembers()) {
+      await db.deleteMember(member.id);
+    }
+    await pumpMembersScreen(tester);
 
     final empty = find.ancestor(
       of: find.text('メンバーがいません'),
@@ -167,69 +284,6 @@ void main() {
       find.descendant(of: empty, matching: find.byIcon(Icons.people_outline)),
       findsOneWidget,
     );
-  });
-
-  testWidgets('取引が残っているメンバーは削除できず、理由が SnackBar に出る', (tester) async {
-    // 2 人にしておく。1 人だと「最後のメンバー」ガードで先に止まり、
-    // FK 違反の経路まで届かない
-    await db.insertMember('パートナー');
-    final partner = (await db.getMembers()).firstWhere(
-      (m) => m.name == 'パートナー',
-    );
-    final cats = await db.getCategories();
-    await db.insertTransaction(
-      TransactionInput(
-        memberId: partner.id,
-        categoryId: cats.first.id,
-        amount: 1200,
-        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
-      ),
-    );
-
-    await pumpMembersScreen(tester);
-    await tapDeleteOn(tester, 'パートナー');
-    final deleteButton = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, '削除'),
-    );
-    expect(
-      deleteButton.style?.foregroundColor?.resolve({}),
-      Theme.of(tester.element(find.byType(AlertDialog))).colorScheme.error,
-    );
-    await confirmDelete(tester);
-
-    expect(find.text(failureMessage), findsOneWidget);
-    expect(find.text('パートナー'), findsOneWidget);
-    expect((await db.getMembers()).map((m) => m.name), contains('パートナー'));
-  });
-
-  testWidgets('最後のメンバーは確認ダイアログすら出さずに拒否される', (tester) async {
-    // 既定メンバーは onCreate で入る「自分」の 1 人だけ
-    await pumpMembersScreen(tester);
-    await tapDeleteOn(tester, '自分');
-
-    expect(find.text('最後のメンバーは削除できません'), findsOneWidget);
-
-    // ガードが showDialog より前にあることの固定。
-    // 後ろに移すと「削除しますか？」に答えたあとで拒否される流れになる
-    expect(find.text('メンバーを削除'), findsNothing);
-
-    expect(find.text('自分'), findsOneWidget);
-    expect((await db.getMembers()).map((m) => m.name), contains('自分'));
-  });
-
-  testWidgets('取引のないメンバーは削除でき、SnackBar は出ない', (tester) async {
-    await db.insertMember('パートナー');
-
-    await pumpMembersScreen(tester);
-    await tapDeleteOn(tester, 'パートナー');
-    await confirmDelete(tester);
-
-    expect(find.text(failureMessage), findsNothing);
-    expect(find.text('最後のメンバーは削除できません'), findsNothing);
-    expect(find.text('パートナー'), findsNothing);
-    expect(
-      (await db.getMembers()).map((m) => m.name),
-      isNot(contains('パートナー')),
-    );
+    expect(find.byType(FloatingActionButton), findsNothing);
   });
 }
