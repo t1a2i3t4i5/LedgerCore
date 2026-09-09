@@ -246,23 +246,37 @@ class _MemberRowState extends State<_MemberRow> {
                 ),
               ),
               const SizedBox(width: 12),
-              SizedBox(
-                width: 32,
-                child: Visibility(
-                  visible: _editing,
-                  maintainSize: true,
-                  maintainAnimation: true,
-                  maintainState: true,
-                  child: Text(
-                    '${_controller.text.characters.length}/$_memberNameMaxLength',
-                    textAlign: TextAlign.right,
-                    maxLines: 1,
-                    style: const TextStyle(
-                      color: LedgerTokens.subtext,
-                      fontSize: 11,
+              Stack(
+                alignment: Alignment.centerRight,
+                children: [
+                  const Visibility(
+                    visible: false,
+                    maintainSize: true,
+                    maintainAnimation: true,
+                    maintainState: true,
+                    child: Text(
+                      '50/50',
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: LedgerTokens.subtext,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
-                ),
+                  Visibility(
+                    key: ValueKey('member-counter-${widget.member.id}'),
+                    visible: _editing,
+                    child: Text(
+                      '${_controller.text.characters.length}/$_memberNameMaxLength',
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        color: LedgerTokens.subtext,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(width: 12),
               SizedBox.square(

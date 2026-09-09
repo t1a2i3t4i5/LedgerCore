@@ -45,12 +45,24 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
-  Future<void> pumpMembersScreen(WidgetTester tester) async {
+  Future<void> pumpMembersScreen(
+    WidgetTester tester, {
+    TextScaler textScaler = TextScaler.noScaling,
+  }) async {
     setPhoneSize(tester);
     await tester.pumpWidget(
       ChangeNotifierProvider<MemberProvider>.value(
         value: provider,
-        child: MaterialApp(theme: ledgerTheme, home: const MembersScreen()),
+        child: MaterialApp(
+          theme: ledgerTheme,
+          home: Builder(
+            builder:
+                (context) => MediaQuery(
+                  data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+                  child: const MembersScreen(),
+                ),
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -245,10 +257,7 @@ void main() {
     final slot = nameSlotFor(member.id);
     final heightBefore = tester.getSize(card).height;
     final widthBefore = tester.getSize(slot).width;
-    final counter = find.ancestor(
-      of: find.text('2/50'),
-      matching: find.byType(Visibility),
-    );
+    final counter = find.byKey(ValueKey('member-counter-${member.id}'));
     expect(tester.widget<Visibility>(counter).visible, isFalse);
 
     await tester.tap(find.text('自分'));
@@ -258,6 +267,30 @@ void main() {
     expect(tester.getSize(card).height, heightBefore);
     expect(tester.getSize(slot).width, widthBefore);
     expect(heightBefore, 72);
+  });
+
+  testWidgets('文字倍率2.0でもカウンタ末尾が切れず名前幅が動かない', (tester) async {
+    final member = (await db.getMembers()).single;
+    await pumpMembersScreen(tester, textScaler: const TextScaler.linear(2));
+    final slot = nameSlotFor(member.id);
+    final widthBefore = tester.getSize(slot).width;
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'あ' * 50);
+    await tester.pump();
+
+    final counter = find.byKey(ValueKey('member-counter-${member.id}'));
+    final counterText = find.descendant(
+      of: counter,
+      matching: find.text('50/50'),
+    );
+    final paragraph = tester.renderObject<RenderParagraph>(counterText);
+    expect(
+      paragraph.getMaxIntrinsicWidth(double.infinity),
+      lessThanOrEqualTo(tester.getSize(counterText).width),
+    );
+    expect(tester.getSize(slot).width, widthBefore);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('50文字名は非編集中に省略し、描画例外を起こさない', (tester) async {

@@ -75,10 +75,7 @@ class _SplitScreenState extends State<SplitScreen> {
                 const Padding(
                   padding: EdgeInsets.all(32),
                   child: Center(
-                    child: Text(
-                      '精算にはメンバーが2人必要です\n設定 → メンバー管理で登録できます',
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('精算にはメンバーが2人必要です', textAlign: TextAlign.center),
                   ),
                 )
               else ...[

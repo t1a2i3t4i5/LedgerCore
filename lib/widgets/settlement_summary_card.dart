@@ -42,7 +42,7 @@ class SettlementSummaryCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (pair == null)
-          const Text('精算にはメンバーが2人必要です（設定 → メンバー管理で登録できます）')
+          const Text('精算にはメンバーが2人必要です')
         else if (!needsSettlement)
           const Text('精算不要')
         else
