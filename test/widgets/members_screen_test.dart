@@ -209,6 +209,57 @@ void main() {
     expect(find.text('0/50'), findsOneWidget);
   });
 
+  testWidgets('絵文字を含む名前はDBと同じ長さ50まで保存できる', (tester) async {
+    final member = (await db.getMembers()).single;
+    const family = '👨‍👩‍👧‍👦';
+    final name = '$family$family$family$family${'あ' * 6}';
+    expect(name.length, 50);
+
+    await pumpMembersScreen(tester);
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), name);
+    await tester.pump();
+
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey('member-counter-${member.id}')),
+        matching: find.text('50/50'),
+      ),
+      findsOneWidget,
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(provider.updateCalls, ['${member.id}:$name']);
+    expect((await db.getMembers()).single.name, name);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('DBの長さ50を超える絵文字入力を受け付けない', (tester) async {
+    const family = '👨‍👩‍👧‍👦';
+    final tooLongName = family * 5;
+    expect(tooLongName.length, 55);
+
+    await pumpMembersScreen(tester);
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), tooLongName);
+    await tester.pump();
+
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '自分',
+    );
+    expect(find.text('2/50'), findsOneWidget);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(provider.updateCalls, isEmpty);
+    expect((await db.getMembers()).single.name, '自分');
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
   testWidgets('Enterで変更名を一度だけMemberProviderへ渡して保存する', (tester) async {
     final member = (await db.getMembers()).single;
     await pumpMembersScreen(tester);
@@ -305,6 +356,26 @@ void main() {
       lessThanOrEqualTo(tester.getSize(counterText).width),
     );
     expect(tester.getSize(slot).width, widthBefore);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('文字倍率2.0では編集欄に合わせて行が下端まで伸びる', (tester) async {
+    final member = (await db.getMembers()).single;
+    await pumpMembersScreen(tester, textScaler: const TextScaler.linear(2));
+    final row = rowFor(member.id);
+    final heightBefore = tester.getSize(row).height;
+
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+
+    final field = find.byType(TextField);
+    final heightWhileEditing = tester.getSize(row).height;
+    expect(heightBefore, 72);
+    expect(heightWhileEditing, greaterThan(heightBefore));
+    expect(
+      tester.getBottomLeft(field).dy,
+      lessThanOrEqualTo(tester.getBottomLeft(row).dy),
+    );
     expect(tester.takeException(), isNull);
   });
 

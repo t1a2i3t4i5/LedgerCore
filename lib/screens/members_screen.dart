@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/household_member.dart';
@@ -11,6 +12,14 @@ import '../widgets/page_header.dart';
 
 const _memberNameMaxLength = 50;
 const _memberNameNote = '名前は取引の記録と精算画面に表示されます';
+
+final _memberNameLengthFormatter = TextInputFormatter.withFunction((
+  oldValue,
+  newValue,
+) {
+  if (newValue.text.length <= _memberNameMaxLength) return newValue;
+  return oldValue;
+});
 
 /// 2 人の円が重なる図の寸法。
 ///
@@ -245,8 +254,8 @@ class _MemberRowState extends State<_MemberRow> {
     final nameStyle = Theme.of(
       context,
     ).textTheme.bodyLarge?.copyWith(fontSize: 22);
-    return SizedBox(
-      height: 72,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 72),
       child: Row(
         children: [
           Container(
@@ -268,7 +277,7 @@ class _MemberRowState extends State<_MemberRow> {
                         controller: _controller,
                         focusNode: _focusNode,
                         autofocus: true,
-                        maxLength: _memberNameMaxLength,
+                        inputFormatters: [_memberNameLengthFormatter],
                         maxLines: 1,
                         textInputAction: TextInputAction.done,
                         cursorColor: colorScheme.secondary,
@@ -342,7 +351,7 @@ class _MemberRowState extends State<_MemberRow> {
                 key: ValueKey('member-counter-${widget.member.id}'),
                 visible: _editing,
                 child: Text(
-                  '${_controller.text.characters.length}/$_memberNameMaxLength',
+                  '${_controller.text.length}/$_memberNameMaxLength',
                   textAlign: TextAlign.right,
                   maxLines: 1,
                   style: const TextStyle(
