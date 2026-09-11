@@ -5,6 +5,7 @@ import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
 import 'package:ledger_app/models/transaction.dart';
+import 'package:ledger_app/widgets/chart_palette.dart';
 
 import 'generated_migrations/schema.dart';
 import 'matchers.dart';
@@ -64,6 +65,16 @@ const _categoryCustomizationVersion = 5;
 /// 色と並び順を持たない起点バージョン。
 final _versionsWithoutCategoryCustomization =
     _oldVersions.where((v) => v < _categoryCustomizationVersion).toList();
+
+/// メンバー色を追加したバージョン。
+const _memberColorVersion = 6;
+
+/// メンバー色を持たない起点バージョン。
+final _versionsWithoutMemberColor =
+    _oldVersions.where((v) => v < _memberColorVersion).toList();
+
+/// メンバー色を追加する直前のバージョン。
+final _versionBeforeMemberColor = _versionsWithoutMemberColor.last;
 
 /// 検証を厳しめにする。既定では `validateDropped: false` で
 /// 「参照に無いのに実在するテーブル」を見ないため、移行が中間テーブルを
@@ -173,6 +184,55 @@ void main() {
       );
     });
   }
+
+  test('メンバー色を持たない起点バージョンが存在する', () {
+    expect(_versionsWithoutMemberColor, isNotEmpty);
+    expect(
+      _versionsWithoutMemberColor.every(
+        (version) => version < _memberColorVersion,
+      ),
+      isTrue,
+    );
+  });
+
+  test('直前版のメンバーは色と表示を保って最新版へ移行する', () async {
+    final schema = await verifier.schemaAt(_versionBeforeMemberColor);
+    addTearDown(schema.close);
+
+    final raw = schema.rawDatabase;
+    for (final name in ['自分', 'パートナー']) {
+      raw.execute('INSERT INTO members (name) VALUES (?)', [name]);
+    }
+    final before =
+        raw
+            .select('SELECT id, name FROM members ORDER BY id')
+            .map(
+              (row) => (
+                id: row['id'] as int,
+                name: row['name'] as String,
+                color: memberColor(row['id'] as int),
+              ),
+            )
+            .toList();
+
+    final db = AppDatabase.forTesting(schema.newConnection());
+    addTearDown(db.close);
+    await verifier.migrateAndValidate(db, _latestVersion, options: _validation);
+
+    final after = await db.getMembers();
+    expect(after.map((member) => (member.id, member.name)).toList(), [
+      for (final member in before) (member.id, member.name),
+    ]);
+    expect(after.every((member) => member.colorValue == null), isTrue);
+    expect(
+      after
+          .map(
+            (member) => memberColor(member.id, colorValue: member.colorValue),
+          )
+          .toList(),
+      before.map((member) => member.color).toList(),
+    );
+  });
 
   test('カテゴリの色と並び順を持たない起点バージョンが存在する', () {
     expect(_versionsWithoutCategoryCustomization, isNotEmpty);
@@ -445,6 +505,7 @@ void main() {
       expect(columns.map((r) => r.read<String>('name')).toList(), [
         'id',
         'name',
+        'color_value',
       ]);
 
       // 行は 2 件とも残り、id も名前も保たれる

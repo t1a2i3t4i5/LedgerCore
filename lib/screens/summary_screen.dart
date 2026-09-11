@@ -272,7 +272,23 @@ class _SummaryScreenState extends State<SummaryScreen> {
       else
         ...items.map(
           (item) => ListTile(
-            leading: CircleAvatar(child: Text(item.memberName[0])),
+            leading: CircleAvatar(
+              backgroundColor: memberColor(
+                item.memberId,
+                colorValue: item.memberColorValue,
+              ),
+              child: Text(
+                item.memberName[0],
+                style: TextStyle(
+                  color: labelColorOn(
+                    memberColor(
+                      item.memberId,
+                      colorValue: item.memberColorValue,
+                    ),
+                  ),
+                ),
+              ),
+            ),
             title: Text(item.memberName),
             trailing: Text(formatYen(item.total)),
             dense: true,

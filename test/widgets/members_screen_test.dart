@@ -18,13 +18,22 @@ class _RecordingMemberProvider extends MemberProvider {
   _RecordingMemberProvider(super.db);
 
   final updateCalls = <String>[];
+  final colorUpdateCalls = <(int, int)>[];
   var failUpdates = false;
+  var failColorUpdates = false;
 
   @override
   Future<void> updateMember(int id, String name) async {
     updateCalls.add('$id:$name');
     if (failUpdates) throw StateError('テスト用の更新失敗');
     await super.updateMember(id, name);
+  }
+
+  @override
+  Future<void> updateMemberColor(int id, int colorValue) async {
+    colorUpdateCalls.add((id, colorValue));
+    if (failColorUpdates) throw StateError('テスト用の更新失敗');
+    await super.updateMemberColor(id, colorValue);
   }
 }
 
@@ -178,6 +187,71 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('member-venn')), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('色ドットから相手と異なる色を選び、即時保存する', (tester) async {
+    await seedMembers(db, const ['パートナー']);
+    final members = await db.getMembers();
+    final target = members.first;
+    final other = members.last;
+    final current = memberColor(target.id, colorValue: target.colorValue);
+    final otherColor = memberColor(other.id, colorValue: other.colorValue);
+    final selected = memberPalette.firstWhere(
+      (color) => color != current && color != otherColor,
+    );
+    await pumpMembersScreen(tester);
+
+    await tester.tap(find.byKey(ValueKey('member-color-button-${target.id}')));
+    await tester.pumpAndSettle();
+
+    final unavailable = tester.widget<InkResponse>(
+      find.byKey(ValueKey('member-color-${otherColor.toARGB32()}')),
+    );
+    expect(unavailable.onTap, isNull);
+
+    await tester.tap(
+      find.byKey(ValueKey('member-color-${selected.toARGB32()}')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(provider.colorUpdateCalls, [(target.id, selected.toARGB32())]);
+    expect((await db.getMembers()).first.colorValue, selected.toARGB32());
+    expect(find.text('${target.name}の色'), findsNothing);
+    final dot = tester.widget<Container>(
+      find.byKey(ValueKey('member-dot-${target.id}')),
+    );
+    expect((dot.decoration! as BoxDecoration).color, selected);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('member-venn')),
+        matching: find.byType(CustomPaint),
+      ),
+      paints
+        ..path(color: selected)
+        ..path(color: otherColor)
+        ..path(color: multiplyColors(selected, otherColor)),
+    );
+  });
+
+  testWidgets('色の保存に失敗すると選択シートを残して理由を表示する', (tester) async {
+    final member = (await db.getMembers()).single;
+    final selected = memberPalette.firstWhere(
+      (color) => color != memberColor(member.id),
+    );
+    provider.failColorUpdates = true;
+    await pumpMembersScreen(tester);
+
+    await tester.tap(find.byKey(ValueKey('member-color-button-${member.id}')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(ValueKey('member-color-${selected.toARGB32()}')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('${member.name}の色'), findsOneWidget);
+    expect(find.text('色を保存できませんでした'), findsOneWidget);
+    expect(find.textContaining('保存失敗'), findsOneWidget);
+    expect((await db.getMembers()).single.colorValue, isNull);
   });
 
   testWidgets('名前のタップと鉛筆アイコンのどちらでも行内編集を始める', (tester) async {

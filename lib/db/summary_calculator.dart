@@ -12,10 +12,12 @@ MonthlySummary buildMonthlySummary(
 ) {
   final memberTotals = <int, double>{};
   final memberNames = <int, String>{};
+  final memberColors = <int, int?>{};
 
   for (final t in txns) {
     memberTotals[t.memberId] = (memberTotals[t.memberId] ?? 0) + t.amount;
     memberNames[t.memberId] = t.memberName;
+    memberColors[t.memberId] = t.memberColorValue;
   }
 
   final byCategory = _buildCategoryItems(txns);
@@ -26,6 +28,7 @@ MonthlySummary buildMonthlySummary(
             (e) => MemberSummaryItem(
               memberId: e.key,
               memberName: memberNames[e.key]!,
+              memberColorValue: memberColors[e.key],
               total: e.value,
             ),
           )
@@ -151,6 +154,7 @@ SplitResult buildSplit(
                 (member) => MemberBalance(
                   memberId: member.id,
                   memberName: member.name,
+                  memberColorValue: member.colorValue,
                   paid: paidByMember[member.id] ?? 0,
                   share: null,
                   balance: null,
@@ -176,6 +180,7 @@ SplitResult buildSplit(
     MemberBalance(
       memberId: first.id,
       memberName: first.name,
+      memberColorValue: first.colorValue,
       paid: firstPaid,
       share: firstShare,
       balance: firstPaid - firstShare,
@@ -183,6 +188,7 @@ SplitResult buildSplit(
     MemberBalance(
       memberId: second.id,
       memberName: second.name,
+      memberColorValue: second.colorValue,
       paid: secondPaid,
       share: secondShare,
       balance: secondPaid - secondShare,

@@ -84,6 +84,19 @@ class MemberProvider extends ChangeNotifier {
     await fetchMembers();
   }
 
+  /// メンバーの識別色を変更する
+  Future<void> updateMemberColor(int id, int colorValue) async {
+    final detail = {'id': id, 'colorValue': colorValue};
+    try {
+      await _db.updateMemberColor(id, colorValue);
+    } catch (e) {
+      _logger.error('member.update', e, detail: detail);
+      rethrow;
+    }
+    _logger.info('member.update', detail: detail);
+    await fetchMembers();
+  }
+
   /// メンバーを削除する
   Future<void> deleteMember(int id) async {
     final detail = {'id': id};

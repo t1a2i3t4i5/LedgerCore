@@ -30,14 +30,12 @@ double _effectiveContrastRatio(Color foreground, Color background) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-/// パレットは private なので、ID を十分な数だけ回して実際に使われる色を集める。
+/// ID を十分な数だけ回して実際に使われるカテゴリ色を集める。
 Set<Color> _allPaletteColors() => {
   for (var id = 0; id < 100; id++) categoryColor(id),
 };
 
-Set<Color> _allMemberPaletteColors() => {
-  for (var id = 0; id < 100; id++) memberColor(id),
-};
+Set<Color> _allMemberPaletteColors() => memberPalette.toSet();
 
 /// sRGB を CIE L*a*b*（D65）へ変換する。
 /// パレットの色同士が知覚上近付き過ぎていないかを CIE76 ΔE で測る。
@@ -181,6 +179,12 @@ void main() {
   });
 
   group('memberColor', () {
+    test('保存済みの色が ID 由来のフォールバックより優先される', () {
+      final stored = memberPalette.last;
+      expect(memberColor(1, colorValue: stored.toARGB32()), stored);
+      expect(memberColor(1), isNot(stored));
+    });
+
     test('同じメンバー ID なら常に同じ色を返す', () {
       for (final id in [0, 1, 7, 42, 999]) {
         expect(memberColor(id), memberColor(id));

@@ -161,6 +161,42 @@ void main() {
     expect(find.text('データがありません'), findsNothing);
   });
 
+  testWidgets('メンバー別アバターは保存した識別色を使う', (tester) async {
+    final member = (await db.getMembers()).single;
+    final selectedColor = memberPalette.last;
+    await db.updateMemberColor(member.id, selectedColor.toARGB32());
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: member.id,
+        categoryId: (await db.getCategories()).first.id,
+        amount: 1000,
+        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+      ),
+    );
+
+    await pumpSummary(tester);
+
+    final row = find.ancestor(
+      of: find.text(member.name),
+      matching: find.byType(ListTile),
+    );
+    final avatarFinder = find.descendant(
+      of: row,
+      matching: find.byType(CircleAvatar),
+    );
+    final avatar = tester.widget<CircleAvatar>(avatarFinder);
+    expect(avatar.backgroundColor, selectedColor);
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(of: avatarFinder, matching: find.text('自')),
+          )
+          .style
+          ?.color,
+      labelColorOn(selectedColor),
+    );
+  });
+
   testWidgets('カテゴリ別は金額降順で、同額なら保存順に並ぶ', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;

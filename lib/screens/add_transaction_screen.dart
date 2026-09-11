@@ -527,7 +527,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                                                           _selectedMemberId ==
                                                           m.id;
                                                       final avatarColor =
-                                                          memberColor(m.id);
+                                                          memberColor(
+                                                            m.id,
+                                                            colorValue:
+                                                                m.colorValue,
+                                                          );
                                                       return SizedBox(
                                                         width: chipWidth,
                                                         child: ConstrainedBox(
