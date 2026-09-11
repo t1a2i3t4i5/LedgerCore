@@ -7,6 +7,7 @@ import '../providers/summary_provider.dart';
 import '../theme/ledger_tokens.dart';
 import '../widgets/amount_format.dart';
 import '../widgets/category_breakdown_row.dart';
+import '../widgets/category_breakdown_sheet.dart';
 import '../widgets/chart_palette.dart';
 import '../widgets/ledger_card.dart';
 import '../widgets/month_selector.dart';
@@ -16,6 +17,9 @@ import '../widgets/settlement_summary_card.dart';
 
 /// デスクトップ幅でも名前と金額を 1 行として追える本文幅。
 const double _maxContentWidth = 480;
+
+/// ホームでひと目に見せるカテゴリ数。残りは全件シートへ送る。
+const int _categoryPreviewCount = 4;
 
 class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key, this.onOpenSplit});
@@ -125,7 +129,13 @@ class _SummaryScreenState extends State<SummaryScreen> {
         SettlementSummaryCard(split: split, onTap: widget.onOpenSplit),
         const SizedBox(height: 16),
       ],
-      ..._categorySection(context, summary.byCategory, summary.total),
+      ..._categorySection(
+        context,
+        summary.byCategory,
+        summary.total,
+        year: summary.year,
+        month: summary.month,
+      ),
       const Divider(),
       const SizedBox(height: 8),
       ..._memberSection(context, summary.byMember),
@@ -172,8 +182,10 @@ class _SummaryScreenState extends State<SummaryScreen> {
   List<Widget> _categorySection(
     BuildContext context,
     List<CategorySummaryItem> items,
-    double total,
-  ) {
+    double total, {
+    required int year,
+    required int month,
+  }) {
     final sortedItems =
         items.indexed.toList()..sort((left, right) {
           final byAmount = right.$2.total.compareTo(left.$2.total);
@@ -181,6 +193,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
           // 集計モデルの保存順を同額時の決定順として残す。
           return left.$1.compareTo(right.$1);
         });
+    final sorted = List<CategorySummaryItem>.unmodifiable(
+      sortedItems.map((entry) => entry.$2),
+    );
 
     return [
       Text('カテゴリ別', style: Theme.of(context).textTheme.titleMedium),
@@ -190,20 +205,57 @@ class _SummaryScreenState extends State<SummaryScreen> {
       // この分岐が無いと見出しの下が無言で空白になる
       if (items.isEmpty)
         const _EmptySection()
-      else
-        ...sortedItems.map(
-          (entry) => CategoryBreakdownRow(
-            categoryName: entry.$2.categoryName,
-            amount: entry.$2.total,
-            total: total,
-            // カテゴリごとに決まる色を画面側で解決して渡す。
-            color: categoryColor(
-              entry.$2.categoryId,
-              colorValue: entry.$2.categoryColorValue,
+      else ...[
+        ...sorted
+            .take(_categoryPreviewCount)
+            .map(
+              (item) => CategoryBreakdownRow(
+                categoryName: item.categoryName,
+                amount: item.total,
+                total: total,
+                // カテゴリごとに決まる色を画面側で解決して渡す。
+                color: categoryColor(
+                  item.categoryId,
+                  colorValue: item.categoryColorValue,
+                ),
+              ),
+            ),
+        if (sorted.length > _categoryPreviewCount)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed:
+                  () => _openCategoryBreakdownSheet(
+                    items: sorted,
+                    total: total,
+                    year: year,
+                    month: month,
+                  ),
+              child: const Text('もっとみる'),
             ),
           ),
-        ),
+      ],
     ];
+  }
+
+  Future<void> _openCategoryBreakdownSheet({
+    required List<CategorySummaryItem> items,
+    required double total,
+    required int year,
+    required int month,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder:
+          (_) => CategoryBreakdownSheet(
+            items: items,
+            total: total,
+            year: year,
+            month: month,
+          ),
+    );
   }
 
   /// メンバー別リスト。
