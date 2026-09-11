@@ -1,6 +1,7 @@
 class MemberBalance {
   final int memberId;
   final String memberName;
+  final int? memberColorValue;
   final double paid;
 
   /// このメンバーが最終的に負担する金額。2人でない場合は算出しない。
@@ -13,6 +14,7 @@ class MemberBalance {
   const MemberBalance({
     required this.memberId,
     required this.memberName,
+    this.memberColorValue,
     required this.paid,
     required this.balance,
     required this.share,

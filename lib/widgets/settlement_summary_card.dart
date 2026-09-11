@@ -186,13 +186,21 @@ class _MemberAvatars extends StatelessWidget {
                     padding: const EdgeInsets.all(2),
                     child: CircleAvatar(
                       radius: 16,
-                      backgroundColor: memberColor(member.memberId),
+                      backgroundColor: memberColor(
+                        member.memberId,
+                        colorValue: member.memberColorValue,
+                      ),
                       child: Text(
                         member.memberName.isEmpty
                             ? '?'
                             : member.memberName.characters.first,
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: labelColorOn(memberColor(member.memberId)),
+                          color: labelColorOn(
+                            memberColor(
+                              member.memberId,
+                              colorValue: member.memberColorValue,
+                            ),
+                          ),
                         ),
                       ),
                     ),
