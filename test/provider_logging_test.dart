@@ -613,6 +613,28 @@ void main() {
       expect(provider.members.single.colorValue, 0xFF7FAEAA);
     });
 
+    test('識別色更新の失敗は error で残り、例外も届く', () async {
+      final member = (await db.getMembers()).single;
+      // forTesting の接続は遅延されるため、閉じる前に一度読んで開かせる。
+      await db.getMembers();
+      await db.close();
+
+      await expectLater(
+        provider.updateMemberColor(member.id, 0xFF7FAEAA),
+        throwsA(anything),
+      );
+      await logger.flush();
+
+      final updates =
+          entries().where((entry) => entry['op'] == 'member.update').toList();
+      expect(updates, hasLength(1));
+      expect(updates.single['lv'], 'error');
+      expect(updates.single['detail'], {
+        'id': member.id,
+        'colorValue': 0xFF7FAEAA,
+      });
+    });
+
     test('追加の失敗は error で残り、例外も届く', () async {
       // Members.name も withLength(max: 50)。カテゴリと同じ経路
       await expectLater(

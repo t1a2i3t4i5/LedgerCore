@@ -161,10 +161,12 @@ void main() {
     expect(find.text('データがありません'), findsNothing);
   });
 
-  testWidgets('メンバー別アバターは保存した識別色を使う', (tester) async {
-    final member = (await db.getMembers()).single;
+  testWidgets('メンバー別アバターは保存色と絵文字の頭文字を使う', (tester) async {
+    final memberId = (await db.getMembers()).single.id;
     final selectedColor = memberPalette.last;
-    await db.updateMemberColor(member.id, selectedColor.toARGB32());
+    await db.updateMemberName(memberId, '🌸はな');
+    await db.updateMemberColor(memberId, selectedColor.toARGB32());
+    final member = (await db.getMembers()).single;
     await db.insertTransaction(
       TransactionInput(
         memberId: member.id,
@@ -176,6 +178,7 @@ void main() {
 
     await pumpSummary(tester);
 
+    expect(tester.takeException(), isNull);
     final row = find.ancestor(
       of: find.text(member.name),
       matching: find.byType(ListTile),
@@ -187,9 +190,13 @@ void main() {
     final avatar = tester.widget<CircleAvatar>(avatarFinder);
     expect(avatar.backgroundColor, selectedColor);
     expect(
+      find.descendant(of: avatarFinder, matching: find.text('🌸')),
+      findsOne,
+    );
+    expect(
       tester
           .widget<Text>(
-            find.descendant(of: avatarFinder, matching: find.text('自')),
+            find.descendant(of: avatarFinder, matching: find.text('🌸')),
           )
           .style
           ?.color,

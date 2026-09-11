@@ -278,7 +278,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 colorValue: item.memberColorValue,
               ),
               child: Text(
-                item.memberName[0],
+                item.memberName.isEmpty
+                    ? '?'
+                    : item.memberName.characters.first,
                 style: TextStyle(
                   color: labelColorOn(
                     memberColor(
