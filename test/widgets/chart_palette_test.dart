@@ -222,6 +222,21 @@ void main() {
     });
   });
 
+  group('multiplyColors', () {
+    test('各RGB成分を乗算し、元の2色より暗い重なり色を返す', () {
+      const first = Color.from(alpha: 1, red: 0.8, green: 0.5, blue: 0.25);
+      const second = Color.from(alpha: 1, red: 0.5, green: 0.4, blue: 0.8);
+
+      final result = multiplyColors(first, second);
+
+      expect(result.r, closeTo(0.4, 1e-10));
+      expect(result.g, closeTo(0.2, 1e-10));
+      expect(result.b, closeTo(0.2, 1e-10));
+      expect(result.computeLuminance(), lessThan(first.computeLuminance()));
+      expect(result.computeLuminance(), lessThan(second.computeLuminance()));
+    });
+  });
+
   group('labelColorOn', () {
     test('パレット全色で実効コントラスト比が WCAG AA（4.5:1）以上になる', () {
       for (final color in _allPaletteColors()) {

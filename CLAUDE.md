@@ -41,6 +41,7 @@
 - ホームの精算カードは共有の `SummaryProvider.split` を表示する。カードから精算タブへの移動も `MainScreen._selectTab` を通す（詳細は `docs/design-notes.md`）
 - 起動時の画面出し分けは `StartupProvider` が DB の件数だけで決める。初回フラグを別に持たず、メンバー0件＋取引ありは不整合、読み取り失敗は0件扱いにしない。`onCreate` に既定メンバーを戻さない（詳細は `docs/design-notes.md`）
 - メンバーは2人まで。2人の割り勘は整数円で配分し、合計が奇数なら立替額の少ない側が1円多く負担する。2人でない場合は精算を算出しない（詳細は `docs/design-notes.md`）
+- メンバー管理は追加・削除の導線を持たず、名前だけを行内で変更する。空欄は保存せず元へ戻し、変更時だけ `MemberProvider.updateMember` を呼ぶ。画面上部の重なる2円はメンバーがちょうど2人のときだけ描き、重なりの色は `chart_palette.dart` の `multiplyColors()` から導く（詳細は `docs/design-notes.md`）
 - 表示月の判断に画面から `DateTime.now()` を読まず、`MonthScopedProvider` の `clock` に集約する。取引追加画面の `_spentAt` だけが意図的な例外
 - 金額は正の整数のみ。上限は `models/transaction.dart` の `kMaxAmount` だけを直す（validator と DB の CHECK 制約が参照するスキーマ定義値）
 - 金額表示は `widgets/amount_format.dart` の `formatYen()`、入力欄は `AmountInputFormatter`、構成比は `formatRatio()`、年月は `widgets/period_format.dart` の `formatPeriod()` / `formatPeriodShort()` を使い、画面側で書式を組み立て直さない

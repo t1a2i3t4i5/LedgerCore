@@ -56,6 +56,14 @@ Color leastUsedCategoryColor(Iterable<Color> usedColors) {
 Color memberColor(int memberId) =>
     _memberPalette[memberId % _memberPalette.length];
 
+/// 2 色を乗算合成した色を返す。
+///
+/// メンバーの識別色どうしが重なる図（メンバー管理の 2 円）で、重なりの色を
+/// 画面側に直書きしないために置いている。乗算なのでどちらの色より必ず暗く、
+/// 元の 2 色との対比が保たれる。
+Color multiplyColors(Color a, Color b) =>
+    Color.from(alpha: 1, red: a.r * b.r, green: a.g * b.g, blue: a.b * b.b);
+
 /// 白と黒のどちらが読みやすいかが入れ替わる輝度。
 /// 白との比 (1.05)/(L+0.05) と黒との比 (L+0.05)/0.05 が等しくなる点で、
 /// L = sqrt(0.0525) - 0.05 ≒ 0.179。
