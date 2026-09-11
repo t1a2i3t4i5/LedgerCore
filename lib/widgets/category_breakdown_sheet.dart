@@ -7,6 +7,9 @@ import 'category_breakdown_row.dart';
 import 'chart_palette.dart';
 import 'period_format.dart';
 
+/// ホームと同じ、名前と金額を1行として追える本文幅。
+const double _maxContentWidth = 480;
+
 /// 月内のカテゴリ別支出を全件表示する BottomSheet。
 ///
 /// [items] はホームで並べ替え済みのスナップショットを受け取る。ここでは DB や
@@ -29,6 +32,7 @@ class CategoryBreakdownSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return ConstrainedBox(
       constraints: BoxConstraints(
+        maxWidth: _maxContentWidth,
         // showDragHandle が本文の外側に確保する48pxを先に引き、シート全体を
         // 画面高の80%以内に収める。SafeAreaもこの制約の内側に含める。
         maxHeight: math.max(

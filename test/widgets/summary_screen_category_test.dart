@@ -304,6 +304,19 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('広い画面でも全件シートは480pxで中央に置かれる', (tester) async {
+      await seedCategoryTotals([6000, 5000, 4000, 3000, 2000]);
+
+      await pumpSummary(tester, size: const Size(788, 690));
+      await tester.ensureVisible(find.text('もっとみる'));
+      await tester.tap(find.text('もっとみる'));
+      await tester.pumpAndSettle();
+
+      final rect = tester.getRect(find.byType(CategoryBreakdownSheet));
+      expect(rect.width, 480);
+      expect(rect.center.dx, closeTo(394, 0.01));
+    });
   });
 
   // categoryColor は色ドットと帯に届く入口。画面側で直書きの色へ
