@@ -18,10 +18,12 @@ class _RecordingMemberProvider extends MemberProvider {
   _RecordingMemberProvider(super.db);
 
   final updateCalls = <String>[];
+  var failUpdates = false;
 
   @override
   Future<void> updateMember(int id, String name) async {
     updateCalls.add('$id:$name');
+    if (failUpdates) throw StateError('テスト用の更新失敗');
     await super.updateMember(id, name);
   }
 }
@@ -314,6 +316,28 @@ void main() {
     expect(provider.updateCalls, isEmpty);
     expect(find.text('自分'), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('保存に失敗すると通知を出し、入力内容を元の名前へ戻す', (tester) async {
+    final member = (await db.getMembers()).single;
+    provider.failUpdates = true;
+    await pumpMembersScreen(tester);
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), '変更後');
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(provider.updateCalls, ['${member.id}:変更後']);
+    expect(find.textContaining('保存失敗'), findsOneWidget);
+    expect((await db.getMembers()).single.name, '自分');
+    await tester.tap(find.text('自分'));
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '自分',
+    );
   });
 
   testWidgets('カウンタの表示切替でも行の高さと名前の幅が動かない', (tester) async {
