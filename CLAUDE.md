@@ -45,7 +45,7 @@
 - 表示月の判断に画面から `DateTime.now()` を読まず、`MonthScopedProvider` の `clock` に集約する。取引追加画面の `_spentAt` だけが意図的な例外
 - 金額は正の整数のみ。上限は `models/transaction.dart` の `kMaxAmount` だけを直す（validator と DB の CHECK 制約が参照するスキーマ定義値）
 - 金額表示は `widgets/amount_format.dart` の `formatYen()`、入力欄は `AmountInputFormatter`、構成比は `formatRatio()`、年月は `widgets/period_format.dart` の `formatPeriod()` / `formatPeriodShort()` を使い、画面側で書式を組み立て直さない
-- グラフとカテゴリの識別色は `widgets/chart_palette.dart` を使い直書きしない。保存色があれば優先し、未設定時だけカテゴリ ID 由来の色へフォールバックする。カテゴリの保存順は管理・取引入力・集計モデルで共有し、ホームの月次カテゴリ内訳だけ金額降順（同額は保存順）にする。グラフウィジェットは `AppDatabase` も Provider も参照せず、表示データを引数で受け取る
+- グラフとカテゴリの識別色は `widgets/chart_palette.dart` を使い直書きしない。保存色があれば優先し、未設定時だけカテゴリ ID 由来の色へフォールバックする。カテゴリの保存順は管理・取引入力・集計モデルで共有し、ホームの月次カテゴリ内訳だけ金額降順（同額は保存順）の上位4件にする。5件以上の全件表示シートは同じ並べ替え済みリストと月合計を受け取り、DB・Providerを参照しない。グラフウィジェットも表示データを引数で受け取る
 - 配色・書体・角丸・影は `lib/theme/` の `ColorScheme` / `LedgerTokens` から採り、画面に色リテラルを書かない
 - 本文の Zen Maru Gothic は Regular のみ同梱する。明示的な太字は `LedgerTokens.heading` を使う（M3 ラベルの w500 は代替描画を許容。詳細は `docs/design-notes.md`）
 - 画面の大見出しは `widgets/page_header.dart` を使い、ルートタブでは本文と一緒にスクロールさせる。ホームは `MonthSelector` を使う。push 先のカテゴリ・メンバー管理は唯一の戻る導線を残す `PinnedBackPageHeader`。取引追加・編集画面は専用の 3 分割ヘッダを使う

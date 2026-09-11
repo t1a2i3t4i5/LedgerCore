@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_app/db/database.dart';
+import 'package:ledger_app/models/category.dart';
 import 'package:ledger_app/models/transaction.dart';
 import 'package:ledger_app/providers/summary_provider.dart';
 import 'package:ledger_app/screens/summary_screen.dart';
 import 'package:ledger_app/theme/ledger_tokens.dart';
 import 'package:ledger_app/widgets/category_breakdown_row.dart';
+import 'package:ledger_app/widgets/category_breakdown_sheet.dart';
 import 'package:ledger_app/widgets/chart_palette.dart';
 import 'package:ledger_app/widgets/ledger_card.dart';
 import 'package:ledger_app/widgets/ratio_bar.dart';
@@ -114,6 +116,23 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// 保存順の先頭から、指定した金額でカテゴリごとに取引を 1 件積む。
+  Future<List<CategoryView>> seedCategoryTotals(List<double> amounts) async {
+    final cats = await db.getCategories();
+    final memberId = (await db.getMembers()).first.id;
+    for (final (index, amount) in amounts.indexed) {
+      await db.insertTransaction(
+        TransactionInput(
+          memberId: memberId,
+          categoryId: cats[index].id,
+          amount: amount,
+          spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+        ),
+      );
+    }
+    return cats;
+  }
+
   // 行数だけを数えると、行と行で中身が入れ替わる改変を検知できない
   // （カテゴリ 3 + メンバー 1 = 4 件は保たれるため）。名前・金額・構成比が
   // 同じ CategoryBreakdownRow に収まっているかまで見る
@@ -162,6 +181,142 @@ void main() {
     double dy(String name) => tester.getCenter(find.text(name)).dy;
     expect(dy(cats[2].name), lessThan(dy(cats[0].name)));
     expect(dy(cats[0].name), lessThan(dy(cats[1].name)));
+  });
+
+  group('カテゴリ別の上位表示と全件シート', () {
+    testWidgets('ホームは上位4件だけを表示し、5件で「もっとみる」を出す', (tester) async {
+      final cats = await seedCategoryTotals([2000, 6000, 1000, 5000, 3000]);
+      final expected = [cats[1], cats[3], cats[4], cats[0], cats[2]];
+
+      await pumpSummary(tester);
+
+      expect(find.byType(CategoryBreakdownRow), findsNWidgets(4));
+      for (final cat in expected.take(4)) {
+        expect(find.text(cat.name), findsOneWidget);
+      }
+      for (final cat in expected.skip(4)) {
+        expect(find.text(cat.name), findsNothing);
+      }
+      expect(find.text('もっとみる'), findsOneWidget);
+    });
+
+    testWidgets('4件以下では「もっとみる」を出さない', (tester) async {
+      await seedCategoryTotals([4000, 3000, 2000, 1000]);
+
+      await pumpSummary(tester);
+
+      expect(find.byType(CategoryBreakdownRow), findsNWidgets(4));
+      expect(find.text('もっとみる'), findsNothing);
+    });
+
+    testWidgets('シートは同じ並びの全件を月合計の構成比で表示する', (tester) async {
+      final cats = await seedCategoryTotals([
+        2000,
+        6000,
+        1000,
+        5000,
+        3000,
+        4000,
+      ]);
+      final expected = [cats[1], cats[3], cats[5], cats[4], cats[0], cats[2]];
+
+      await pumpSummary(tester);
+      await tester.ensureVisible(find.text('もっとみる'));
+      await tester.tap(find.text('もっとみる'));
+      await tester.pumpAndSettle();
+
+      final sheet = find.byType(CategoryBreakdownSheet);
+      expect(sheet, findsOneWidget);
+      expect(
+        find.descendant(of: sheet, matching: find.text('2026年7月のカテゴリ別')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: sheet, matching: find.byType(CategoryBreakdownRow)),
+        findsNWidgets(6),
+      );
+
+      double sheetDy(String name) =>
+          tester
+              .getCenter(find.descendant(of: sheet, matching: find.text(name)))
+              .dy;
+      for (var i = 0; i < 5; i++) {
+        expect(
+          sheetDy(expected[i].name),
+          lessThan(sheetDy(expected[i + 1].name)),
+        );
+      }
+
+      final lastRow = find.descendant(
+        of: sheet,
+        matching: find.ancestor(
+          of: find.text(expected.last.name),
+          matching: find.byType(CategoryBreakdownRow),
+        ),
+      );
+      expect(
+        find.descendant(of: lastRow, matching: find.text('¥1,000')),
+        findsOneWidget,
+      );
+      // 1,000 / 21,000。上位4件の小計ではなく月合計が分母になる。
+      expect(
+        find.descendant(of: lastRow, matching: find.text('4.8%')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('件数が多いシートは画面より低く、一覧内で末尾までスクロールできる', (tester) async {
+      final cats = await seedCategoryTotals([
+        10000,
+        9000,
+        8000,
+        7000,
+        6000,
+        5000,
+        4000,
+        3000,
+        2000,
+        1000,
+      ]);
+
+      tester.view.padding = const FakeViewPadding(bottom: 34);
+      await pumpSummary(tester, size: const Size(390, 844));
+      await tester.ensureVisible(find.text('もっとみる'));
+      await tester.tap(find.text('もっとみる'));
+      await tester.pumpAndSettle();
+
+      final sheet = find.byType(CategoryBreakdownSheet);
+      final bottomSheet = find.byType(BottomSheet);
+      expect(tester.getSize(bottomSheet).height, lessThanOrEqualTo(844 * 0.8));
+
+      final sheetScrollable = find.descendant(
+        of: sheet,
+        matching: find.byType(Scrollable),
+      );
+      await tester.scrollUntilVisible(
+        find.descendant(of: sheet, matching: find.text(cats.last.name)),
+        200,
+        scrollable: sheetScrollable,
+      );
+      expect(
+        find.descendant(of: sheet, matching: find.text(cats.last.name)),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('広い画面でも全件シートは480pxで中央に置かれる', (tester) async {
+      await seedCategoryTotals([6000, 5000, 4000, 3000, 2000]);
+
+      await pumpSummary(tester, size: const Size(788, 690));
+      await tester.ensureVisible(find.text('もっとみる'));
+      await tester.tap(find.text('もっとみる'));
+      await tester.pumpAndSettle();
+
+      final rect = tester.getRect(find.byType(CategoryBreakdownSheet));
+      expect(rect.width, 480);
+      expect(rect.center.dx, closeTo(394, 0.01));
+    });
   });
 
   // categoryColor は色ドットと帯に届く入口。画面側で直書きの色へ
@@ -292,7 +447,7 @@ void main() {
 
     // #45 の動機そのもの。かつてのドーナツグラフは _minLabelRatio = 0.05 未満の
     // 扇形にラベルを出さず、細かいカテゴリの割合はどこにも出ていなかった。
-    // リストは件数によらず全カテゴリに出す
+    // 全件シートでは小さいカテゴリも省かずに出す
     testWidgets('5%未満のカテゴリでも構成比が出る', (tester) async {
       await seed('食費', 9800);
       await seed('日用品', 200); // 2%
