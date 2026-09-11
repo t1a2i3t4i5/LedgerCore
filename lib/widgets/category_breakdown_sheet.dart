@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../models/summary.dart';
@@ -25,12 +27,16 @@ class CategoryBreakdownSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          // 全件表示でも背後の画面を残し、一覧だけをシート内でスクロールする。
-          maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        // showDragHandle が本文の外側に確保する48pxを先に引き、シート全体を
+        // 画面高の80%以内に収める。SafeAreaもこの制約の内側に含める。
+        maxHeight: math.max(
+          0.0,
+          MediaQuery.sizeOf(context).height * 0.8 - kMinInteractiveDimension,
         ),
+      ),
+      child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
           child: Column(

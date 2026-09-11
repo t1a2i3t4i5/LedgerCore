@@ -184,16 +184,9 @@ void main() {
   });
 
   group('カテゴリ別の上位表示と全件シート', () {
-    testWidgets('ホームは上位4件だけを表示し、5件以上で「もっとみる」を出す', (tester) async {
-      final cats = await seedCategoryTotals([
-        2000,
-        6000,
-        1000,
-        5000,
-        3000,
-        4000,
-      ]);
-      final expected = [cats[1], cats[3], cats[5], cats[4], cats[0], cats[2]];
+    testWidgets('ホームは上位4件だけを表示し、5件で「もっとみる」を出す', (tester) async {
+      final cats = await seedCategoryTotals([2000, 6000, 1000, 5000, 3000]);
+      final expected = [cats[1], cats[3], cats[4], cats[0], cats[2]];
 
       await pumpSummary(tester);
 
@@ -286,14 +279,15 @@ void main() {
         1000,
       ]);
 
-      await pumpSummary(tester);
+      tester.view.padding = const FakeViewPadding(bottom: 34);
+      await pumpSummary(tester, size: const Size(390, 844));
       await tester.ensureVisible(find.text('もっとみる'));
       await tester.tap(find.text('もっとみる'));
       await tester.pumpAndSettle();
 
       final sheet = find.byType(CategoryBreakdownSheet);
       final bottomSheet = find.byType(BottomSheet);
-      expect(tester.getSize(bottomSheet).height, lessThan(690));
+      expect(tester.getSize(bottomSheet).height, lessThanOrEqualTo(844 * 0.8));
 
       final sheetScrollable = find.descendant(
         of: sheet,
