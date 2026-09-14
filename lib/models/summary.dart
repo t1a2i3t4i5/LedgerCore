@@ -15,11 +15,13 @@ class CategorySummaryItem {
 class MemberSummaryItem {
   final int memberId;
   final String memberName;
+  final int? memberColorValue;
   final double total;
 
   const MemberSummaryItem({
     required this.memberId,
     required this.memberName,
+    this.memberColorValue,
     required this.total,
   });
 }

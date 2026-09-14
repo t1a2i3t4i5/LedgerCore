@@ -161,6 +161,49 @@ void main() {
     expect(find.text('データがありません'), findsNothing);
   });
 
+  testWidgets('メンバー別アバターは保存色と絵文字の頭文字を使う', (tester) async {
+    final memberId = (await db.getMembers()).single.id;
+    final selectedColor = memberPalette.last;
+    await db.updateMemberName(memberId, '🌸はな');
+    await db.updateMemberColor(memberId, selectedColor.toARGB32());
+    final member = (await db.getMembers()).single;
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: member.id,
+        categoryId: (await db.getCategories()).first.id,
+        amount: 1000,
+        spentAt: DateTime(fixedNow.year, fixedNow.month, 5),
+      ),
+    );
+
+    await pumpSummary(tester);
+
+    expect(tester.takeException(), isNull);
+    final row = find.ancestor(
+      of: find.text(member.name),
+      matching: find.byType(ListTile),
+    );
+    final avatarFinder = find.descendant(
+      of: row,
+      matching: find.byType(CircleAvatar),
+    );
+    final avatar = tester.widget<CircleAvatar>(avatarFinder);
+    expect(avatar.backgroundColor, selectedColor);
+    expect(
+      find.descendant(of: avatarFinder, matching: find.text('🌸')),
+      findsOne,
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(of: avatarFinder, matching: find.text('🌸')),
+          )
+          .style
+          ?.color,
+      labelColorOn(selectedColor),
+    );
+  });
+
   testWidgets('カテゴリ別は金額降順で、同額なら保存順に並ぶ', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;

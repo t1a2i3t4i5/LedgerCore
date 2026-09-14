@@ -5,8 +5,8 @@ LedgerCore のデータはすべて [drift](https://drift.simonbinder.eu/)（SQL
 3 テーブルがアプリの持つデータのすべて。
 
 - **Dart 側のテーブル定義** — [`lib/db/database.dart`](../lib/db/database.dart)。`database.g.dart` は `build_runner` の生成物
-- **生成後の実 DDL** — 現行 v5 は [`drift_schemas/drift_schema_v5.json`](../drift_schemas/drift_schema_v5.json)。バージョンごとの JSON を `drift_schemas/` に保存する
-- **`schemaVersion`** — 現在 `5`（カテゴリの識別色と並び順を追加した。[マイグレーション履歴](#マイグレーション履歴)を参照）
+- **生成後の実 DDL** — 現行 v6 は [`drift_schemas/drift_schema_v6.json`](../drift_schemas/drift_schema_v6.json)。バージョンごとの JSON を `drift_schemas/` に保存する
+- **`schemaVersion`** — 現在 `6`（メンバーの識別色を追加した。[マイグレーション履歴](#マイグレーション履歴)を参照）
 - このドキュメントと実装が食い違った場合は `database.dart` が正。スキーマを変更したらこのファイルも更新する
 
 Dart 側の識別子は camelCase だが、drift が実際の SQL 名を **snake_case** に変換する
@@ -31,6 +31,7 @@ erDiagram
     members {
         INTEGER id PK
         TEXT name
+        INTEGER color_value "NULL可"
     }
 
     transactions {
@@ -74,6 +75,7 @@ erDiagram
 | --- | --- | --- | --- | --- |
 | `id` | `id` | INTEGER | PK / AUTOINCREMENT | |
 | `name` | `name` | TEXT | NOT NULL | メンバー名。1〜50 文字 |
+| `color_value` | `colorValue` | INTEGER | NULL 可 | 選択した ARGB 色。NULL は `memberColor()` の ID 由来色へフォールバック |
 
 **`onCreate` はメンバーを投入しない。** 初回起動の初期設定画面で 2 人ぶんの名前を
 登録し、`insertInitialMembers()` が 1 トランザクションで入れる（#144）。
@@ -168,7 +170,7 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | 表示用モデル | 対応するテーブル | 備考 |
 | --- | --- | --- |
 | `CategoryView` | `categories` | `id` / `name` / `colorValue` / `sortOrder` / `isFixed` |
-| `HouseholdMember` | `members` | `id` / `name` のみ |
+| `HouseholdMember` | `members` | `id` / `name` / `colorValue` |
 | `TransactionView` | `transactions` + `members` + `categories` の JOIN | 下記のフィールド対応を参照 |
 | `TransactionInput` | 書き込み用の入力 | `memberId` が `member_id` に入る |
 | `MonthlySummary` / `MonthlyComparisonView` / `YearlySummary` / `CategorySummaryItem` / `MemberSummaryItem` / `PeriodTotal` | なし | `summary_calculator.dart` が取引リストから計算する導出値。DB には保存されない |
@@ -180,6 +182,7 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | --- | --- |
 | `TransactionView.memberId` | `members.id` |
 | `TransactionView.memberName` | `members.name` |
+| `TransactionView.memberColorValue` | `members.color_value` |
 | `TransactionView.categoryId` | `categories.id` |
 | `TransactionView.categoryName` | `categories.name` |
 | `TransactionView.categoryColorValue` | `categories.color_value` |
@@ -187,7 +190,7 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | `TransactionView.categoryIsFixed` | `categories.is_fixed` |
 | `TransactionInput.memberId` | `transactions.member_id` に書き込まれる |
 
-`MemberSummaryItem` / `MemberBalance` の `memberId` / `memberName` も同じく `members` を指す。
+`MemberSummaryItem` / `MemberBalance` の `memberId` / `memberName` / `memberColorValue` も同じく `members` を指す。
 **`Users` テーブルは存在しない**ので、これらを `userId` / `userName` に戻さないこと。
 
 ## スキーマを変更するとき
@@ -214,6 +217,10 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | 3 | `transactions.amount` に上限（`<= 999999999999`）と整数条件を追加 |
 | 4 | 未使用だった `members.mail` を削除 |
 | 5 | `categories` に識別色 `color_value`・並び順 `sort_order`・受け皿の印 `is_fixed` を追加 |
+| 6 | `members` に識別色 `color_value` を追加 |
+
+v5 から v6 への移行では、メンバーの `color_value` は NULL のままにする。表示側が従来と同じ
+`id % パレット長` の色へフォールバックするため、移行しただけで色は変わらない。
 
 v4 以前から v5 への移行では、`color_value` は NULL のままにする。表示側が従来と同じ
 `id % パレット長` の色へフォールバックするため、移行しただけで色は変わらない。

@@ -19,7 +19,7 @@ const List<Color> categoryPalette = [
 
 /// メンバーを識別するための固定パレット。
 /// カテゴリとの無意味な対応を作らないよう、カテゴリ用とは別の色だけを持つ。
-const List<Color> _memberPalette = [
+const List<Color> memberPalette = [
   Color(0xFFE8A87C), // デザイン案（みく）
   Color(0xFF8FB8A8), // デザイン案（たいち）
   Color(0xFFD39B84), // コーラル
@@ -53,8 +53,10 @@ Color leastUsedCategoryColor(Iterable<Color> usedColors) {
 
 /// メンバー ID から色を決定的に選ぶ。
 /// カテゴリ色とは交わらないため、同色による無意味な対応が生まれない。
-Color memberColor(int memberId) =>
-    _memberPalette[memberId % _memberPalette.length];
+Color memberColor(int memberId, {int? colorValue}) =>
+    colorValue == null
+        ? memberPalette[memberId % memberPalette.length]
+        : Color(colorValue);
 
 /// 2 色を乗算合成した色を返す。
 ///

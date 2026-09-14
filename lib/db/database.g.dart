@@ -394,8 +394,19 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _colorValueMeta = const VerificationMeta(
+    'colorValue',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, name];
+  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
+    'color_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, colorValue];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -419,6 +430,12 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
     } else if (isInserting) {
       context.missing(_nameMeta);
     }
+    if (data.containsKey('color_value')) {
+      context.handle(
+        _colorValueMeta,
+        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
+      );
+    }
     return context;
   }
 
@@ -438,6 +455,10 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
             DriftSqlType.string,
             data['${effectivePrefix}name'],
           )!,
+      colorValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color_value'],
+      ),
     );
   }
 
@@ -450,17 +471,28 @@ class $MembersTable extends Members with TableInfo<$MembersTable, Member> {
 class Member extends DataClass implements Insertable<Member> {
   final int id;
   final String name;
-  const Member({required this.id, required this.name});
+  final int? colorValue;
+  const Member({required this.id, required this.name, this.colorValue});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
+    if (!nullToAbsent || colorValue != null) {
+      map['color_value'] = Variable<int>(colorValue);
+    }
     return map;
   }
 
   MembersCompanion toCompanion(bool nullToAbsent) {
-    return MembersCompanion(id: Value(id), name: Value(name));
+    return MembersCompanion(
+      id: Value(id),
+      name: Value(name),
+      colorValue:
+          colorValue == null && nullToAbsent
+              ? const Value.absent()
+              : Value(colorValue),
+    );
   }
 
   factory Member.fromJson(
@@ -471,6 +503,7 @@ class Member extends DataClass implements Insertable<Member> {
     return Member(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
+      colorValue: serializer.fromJson<int?>(json['colorValue']),
     );
   }
   @override
@@ -479,15 +512,25 @@ class Member extends DataClass implements Insertable<Member> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
+      'colorValue': serializer.toJson<int?>(colorValue),
     };
   }
 
-  Member copyWith({int? id, String? name}) =>
-      Member(id: id ?? this.id, name: name ?? this.name);
+  Member copyWith({
+    int? id,
+    String? name,
+    Value<int?> colorValue = const Value.absent(),
+  }) => Member(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    colorValue: colorValue.present ? colorValue.value : this.colorValue,
+  );
   Member copyWithCompanion(MembersCompanion data) {
     return Member(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      colorValue:
+          data.colorValue.present ? data.colorValue.value : this.colorValue,
     );
   }
 
@@ -495,42 +538,59 @@ class Member extends DataClass implements Insertable<Member> {
   String toString() {
     return (StringBuffer('Member(')
           ..write('id: $id, ')
-          ..write('name: $name')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name);
+  int get hashCode => Object.hash(id, name, colorValue);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Member && other.id == this.id && other.name == this.name);
+      (other is Member &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.colorValue == this.colorValue);
 }
 
 class MembersCompanion extends UpdateCompanion<Member> {
   final Value<int> id;
   final Value<String> name;
+  final Value<int?> colorValue;
   const MembersCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.colorValue = const Value.absent(),
   });
   MembersCompanion.insert({
     this.id = const Value.absent(),
     required String name,
+    this.colorValue = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Member> custom({
     Expression<int>? id,
     Expression<String>? name,
+    Expression<int>? colorValue,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (colorValue != null) 'color_value': colorValue,
     });
   }
 
-  MembersCompanion copyWith({Value<int>? id, Value<String>? name}) {
-    return MembersCompanion(id: id ?? this.id, name: name ?? this.name);
+  MembersCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<int?>? colorValue,
+  }) {
+    return MembersCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      colorValue: colorValue ?? this.colorValue,
+    );
   }
 
   @override
@@ -542,6 +602,9 @@ class MembersCompanion extends UpdateCompanion<Member> {
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
+    if (colorValue.present) {
+      map['color_value'] = Variable<int>(colorValue.value);
+    }
     return map;
   }
 
@@ -549,7 +612,8 @@ class MembersCompanion extends UpdateCompanion<Member> {
   String toString() {
     return (StringBuffer('MembersCompanion(')
           ..write('id: $id, ')
-          ..write('name: $name')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue')
           ..write(')'))
         .toString();
   }
@@ -1390,9 +1454,17 @@ typedef $$CategoriesTableProcessedTableManager =
       PrefetchHooks Function({bool transactionsRefs})
     >;
 typedef $$MembersTableCreateCompanionBuilder =
-    MembersCompanion Function({Value<int> id, required String name});
+    MembersCompanion Function({
+      Value<int> id,
+      required String name,
+      Value<int?> colorValue,
+    });
 typedef $$MembersTableUpdateCompanionBuilder =
-    MembersCompanion Function({Value<int> id, Value<String> name});
+    MembersCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<int?> colorValue,
+    });
 
 final class $$MembersTableReferences
     extends BaseReferences<_$AppDatabase, $MembersTable, Member> {
@@ -1433,6 +1505,11 @@ class $$MembersTableFilterComposer
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1480,6 +1557,11 @@ class $$MembersTableOrderingComposer
     column: $table.name,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$MembersTableAnnotationComposer
@@ -1496,6 +1578,11 @@ class $$MembersTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => column,
+  );
 
   Expression<T> transactionsRefs<T extends Object>(
     Expression<T> Function($$TransactionsTableAnnotationComposer a) f,
@@ -1553,10 +1640,19 @@ class $$MembersTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
-              }) => MembersCompanion(id: id, name: name),
+                Value<int?> colorValue = const Value.absent(),
+              }) =>
+                  MembersCompanion(id: id, name: name, colorValue: colorValue),
           createCompanionCallback:
-              ({Value<int> id = const Value.absent(), required String name}) =>
-                  MembersCompanion.insert(id: id, name: name),
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                Value<int?> colorValue = const Value.absent(),
+              }) => MembersCompanion.insert(
+                id: id,
+                name: name,
+                colorValue: colorValue,
+              ),
           withReferenceMapper:
               (p0) =>
                   p0

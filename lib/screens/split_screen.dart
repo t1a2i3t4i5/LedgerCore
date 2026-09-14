@@ -227,7 +227,10 @@ class _MemberBalanceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = memberColor(member.memberId);
+    final color = memberColor(
+      member.memberId,
+      colorValue: member.memberColorValue,
+    );
     final balanceAmount = member.balance!;
     final (status, balanceColor) = switch (balanceAmount) {
       > 0 => ('受け取り', LedgerTokens.balancePositive),

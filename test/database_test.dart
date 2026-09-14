@@ -115,6 +115,36 @@ void main() {
     expect(results.whereType<StateError>().single.message, 'メンバーは2人までです');
   });
 
+  test('メンバー色を保存し、取引・集計・精算へ渡す', () async {
+    const selectedColor = 0xFF7FAEAA;
+    final member = (await db.getMembers()).single;
+    await db.updateMemberColor(member.id, selectedColor);
+
+    expect((await db.getMembers()).single.colorValue, selectedColor);
+
+    await db.insertTransaction(
+      TransactionInput(
+        memberId: member.id,
+        categoryId: (await db.getCategories()).first.id,
+        amount: 1000,
+        spentAt: DateTime(2026, 7, 5),
+      ),
+    );
+
+    expect(
+      (await db.getTransactionsByMonth(2026, 7)).single.memberColorValue,
+      selectedColor,
+    );
+    expect(
+      (await db.getMonthlySummary(2026, 7)).byMember.single.memberColorValue,
+      selectedColor,
+    );
+    expect(
+      (await db.getSplit(2026, 7)).members.single.memberColorValue,
+      selectedColor,
+    );
+  });
+
   test('取引の追加と月レンジ（半開区間）取得', () async {
     final cats = await db.getCategories();
     final members = await db.getMembers();

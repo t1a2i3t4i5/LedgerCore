@@ -45,6 +45,7 @@ class Categories extends Table {
 class Members extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 50)();
+  IntColumn get colorValue => integer().nullable()();
 }
 
 class Transactions extends Table {
@@ -94,7 +95,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -121,7 +122,7 @@ class AppDatabase extends _$AppDatabase {
       // 未対応のバージョンを黙って素通りさせない。drift の既定 onUpgrade は
       // 「移行が書かれていません」と例外を投げる安全網だが、それを上書きして
       // しまうため、分岐から漏れたら気付けるようにここで落とす。
-      if (from < 1 || to > 5) {
+      if (from < 1 || to > 6) {
         throw StateError('未対応のマイグレーションです: v$from → v$to');
       }
       // drift は onUpgrade をトランザクションで包まない。包まないと
@@ -192,6 +193,12 @@ class AppDatabase extends _$AppDatabase {
         if (from < 3) {
           // ignore: experimental_member_use
           await m.alterTable(TableMigration(transactions));
+        }
+        if (from < 6) {
+          // 既存メンバーの色は未設定のままにし、表示側の ID 由来の色へ
+          // フォールバックさせる。v4 より前ではこのあと members を最新定義で
+          // 作り直すため、そのコピー元にも先に列を足しておく。
+          await m.addColumn(members, members.colorValue);
         }
         if (from < 4) {
           // v4 は未使用だった members.mail の削除。SQLite の DROP COLUMN は
@@ -309,7 +316,12 @@ class AppDatabase extends _$AppDatabase {
     final rows =
         await (select(members)
           ..orderBy([(m) => OrderingTerm(expression: m.id)])).get();
-    return rows.map((m) => HouseholdMember(id: m.id, name: m.name)).toList();
+    return rows
+        .map(
+          (m) =>
+              HouseholdMember(id: m.id, name: m.name, colorValue: m.colorValue),
+        )
+        .toList();
   }
 
   /// メンバーの件数。起動時に初期設定を出すかの判定に使う。
@@ -359,6 +371,11 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> updateMemberName(int id, String name) => (update(members)
     ..where((m) => m.id.equals(id))).write(MembersCompanion(name: Value(name)));
+
+  Future<void> updateMemberColor(int id, int colorValue) => (update(members)
+    ..where(
+      (m) => m.id.equals(id),
+    )).write(MembersCompanion(colorValue: Value(colorValue)));
 
   Future<void> deleteMember(int id) =>
       (delete(members)..where((m) => m.id.equals(id))).go();
@@ -414,6 +431,7 @@ class AppDatabase extends _$AppDatabase {
         id: t.id,
         memberId: m.id,
         memberName: m.name,
+        memberColorValue: m.colorValue,
         categoryId: c.id,
         categoryName: c.name,
         categoryColorValue: c.colorValue,

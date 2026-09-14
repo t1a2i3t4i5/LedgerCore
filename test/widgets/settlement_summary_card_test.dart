@@ -70,7 +70,10 @@ void main() {
 
   testWidgets('月の合計直下に送金元・送金先・桁区切りの金額を表示する', (tester) async {
     await db.insertMember('みく');
-    await pay((await db.getMembers()).first.id, 124980);
+    var members = await db.getMembers();
+    await db.updateMemberColor(members.first.id, memberPalette.last.toARGB32());
+    members = await db.getMembers();
+    await pay(members.first.id, 124980);
     await pumpApp(tester);
 
     expect(inCard('みく → 自分 に\n¥62,490'), findsOneWidget);
@@ -80,14 +83,13 @@ void main() {
       matching: find.byType(CircleAvatar),
     );
     expect(avatars, findsNWidgets(2));
-    final members = await db.getMembers();
     expect(
       tester.widget<CircleAvatar>(avatars.first).backgroundColor,
-      memberColor(members.last.id),
+      memberColor(members.last.id, colorValue: members.last.colorValue),
     );
     expect(
       tester.widget<CircleAvatar>(avatars.last).backgroundColor,
-      memberColor(members.first.id),
+      memberColor(members.first.id, colorValue: members.first.colorValue),
     );
     expect(
       find.descendant(of: avatars.first, matching: find.text('み')),
@@ -109,7 +111,7 @@ void main() {
             )
             .style
             ?.color,
-        labelColorOn(memberColor(member.id)),
+        labelColorOn(memberColor(member.id, colorValue: member.colorValue)),
       );
     }
     final leftAvatar = tester.getRect(avatars.first);

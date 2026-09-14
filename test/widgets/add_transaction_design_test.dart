@@ -421,16 +421,18 @@ void main() {
   });
 
   testWidgets('選択済みの登録者チップを押しても解除されず保存できる', (tester) async {
+    final member = (await db.getMembers()).first;
+    final selectedColor = memberPalette.last;
+    await db.updateMemberColor(member.id, selectedColor.toARGB32());
     await pumpScreen(tester);
 
-    final member = (await db.getMembers()).first;
     final memberChip = _choiceChip(member.name);
     final chip = tester.widget<ChoiceChip>(memberChip);
     expect(chip.selected, isTrue);
     final avatar = tester.widget<CircleAvatar>(
       find.descendant(of: memberChip, matching: find.byType(CircleAvatar)),
     );
-    expect(avatar.backgroundColor, memberColor(member.id));
+    expect(avatar.backgroundColor, selectedColor);
     expect(
       find.descendant(of: memberChip, matching: find.text('自')),
       findsOneWidget,

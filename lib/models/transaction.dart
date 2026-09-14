@@ -26,6 +26,7 @@ class TransactionView {
   final int id;
   final int memberId;
   final String memberName;
+  final int? memberColorValue;
   final int categoryId;
   final String categoryName;
   final int? categoryColorValue;
@@ -42,6 +43,7 @@ class TransactionView {
     required this.id,
     required this.memberId,
     required this.memberName,
+    this.memberColorValue,
     required this.categoryId,
     required this.categoryName,
     this.categoryColorValue,

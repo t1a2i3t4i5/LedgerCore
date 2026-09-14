@@ -114,7 +114,9 @@ void main() {
 
   testWidgets('メンバー行は残高の2色と支払済みの構成比を描く', (tester) async {
     await db.insertMember('みく');
-    final members = await db.getMembers();
+    var members = await db.getMembers();
+    await db.updateMemberColor(members.first.id, memberPalette.last.toARGB32());
+    members = await db.getMembers();
 
     // 合計 300 円・一人当たり 150 円で、受け取りと支払いを作る。
     await insertPayment(members[0].id, 200);
@@ -132,7 +134,7 @@ void main() {
     for (var i = 0; i < members.length; i++) {
       final member = members[i];
       final row = memberRow(member.id);
-      final color = memberColor(member.id);
+      final color = memberColor(member.id, colorValue: member.colorValue);
       expect(row, findsOneWidget);
       expect(
         find.descendant(of: row, matching: find.text(expected[i].$1)),

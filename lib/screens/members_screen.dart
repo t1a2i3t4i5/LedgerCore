@@ -57,6 +57,43 @@ class _MembersScreenState extends State<MembersScreen> {
     }
   }
 
+  Future<void> _updateMemberColor(int id, Color color) async {
+    try {
+      await context.read<MemberProvider>().updateMemberColor(
+        id,
+        color.toARGB32(),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('保存失敗: $e')));
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _showColorPicker(
+    HouseholdMember member,
+    List<HouseholdMember> members,
+  ) async {
+    final unavailableColors = {
+      for (final other in members)
+        if (other.id != member.id)
+          memberColor(other.id, colorValue: other.colorValue),
+    };
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      builder:
+          (_) => _MemberColorPickerSheet(
+            member: member,
+            unavailableColors: unavailableColors,
+            onSelected: (color) => _updateMemberColor(member.id, color),
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<MemberProvider>();
@@ -102,6 +139,7 @@ class _MembersScreenState extends State<MembersScreen> {
                       key: ValueKey(member.id),
                       member: member,
                       onSave: _updateMember,
+                      onColorTap: () => _showColorPicker(member, members),
                     );
                   },
                 ),
@@ -135,8 +173,11 @@ class _MemberVenn extends StatelessWidget {
         size: _vennSize,
         child: CustomPaint(
           painter: _MemberVennPainter(
-            left: memberColor(members[0].id),
-            right: memberColor(members[1].id),
+            left: memberColor(members[0].id, colorValue: members[0].colorValue),
+            right: memberColor(
+              members[1].id,
+              colorValue: members[1].colorValue,
+            ),
           ),
         ),
       ),
@@ -179,10 +220,16 @@ class _MemberVennPainter extends CustomPainter {
 }
 
 class _MemberRow extends StatefulWidget {
-  const _MemberRow({super.key, required this.member, required this.onSave});
+  const _MemberRow({
+    super.key,
+    required this.member,
+    required this.onSave,
+    required this.onColorTap,
+  });
 
   final HouseholdMember member;
   final Future<void> Function(int id, String name) onSave;
+  final VoidCallback onColorTap;
 
   @override
   State<_MemberRow> createState() => _MemberRowState();
@@ -258,16 +305,35 @@ class _MemberRowState extends State<_MemberRow> {
       constraints: const BoxConstraints(minHeight: 72),
       child: Row(
         children: [
-          Container(
-            key: ValueKey('member-dot-${widget.member.id}'),
-            width: 14,
-            height: 14,
-            decoration: BoxDecoration(
-              color: memberColor(widget.member.id),
-              shape: BoxShape.circle,
+          Semantics(
+            button: true,
+            label: '${widget.member.name}の色を変更',
+            child: Tooltip(
+              message: '色を変更',
+              child: InkResponse(
+                key: ValueKey('member-color-button-${widget.member.id}'),
+                onTap: widget.onColorTap,
+                radius: 22,
+                child: SizedBox.square(
+                  dimension: 44,
+                  child: Center(
+                    child: Container(
+                      key: ValueKey('member-dot-${widget.member.id}'),
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: memberColor(
+                          widget.member.id,
+                          colorValue: widget.member.colorValue,
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 14),
           Expanded(
             child: SizedBox(
               key: ValueKey('member-name-slot-${widget.member.id}'),
@@ -376,6 +442,150 @@ class _MemberRowState extends State<_MemberRow> {
               onPressed: _startEditing,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MemberColorPickerSheet extends StatefulWidget {
+  const _MemberColorPickerSheet({
+    required this.member,
+    required this.unavailableColors,
+    required this.onSelected,
+  });
+
+  final HouseholdMember member;
+  final Set<Color> unavailableColors;
+  final Future<void> Function(Color color) onSelected;
+
+  @override
+  State<_MemberColorPickerSheet> createState() =>
+      _MemberColorPickerSheetState();
+}
+
+class _MemberColorPickerSheetState extends State<_MemberColorPickerSheet> {
+  var _saving = false;
+  String? _error;
+
+  Future<void> _select(Color color) async {
+    if (_saving) return;
+    final current = memberColor(
+      widget.member.id,
+      colorValue: widget.member.colorValue,
+    );
+    if (color == current) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.onSelected(color);
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = '色を保存できませんでした';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final current = memberColor(
+      widget.member.id,
+      colorValue: widget.member.colorValue,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Text(
+              '${widget.member.name}の色',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              for (final (index, color) in memberPalette.indexed)
+                Builder(
+                  builder: (context) {
+                    final unavailable =
+                        widget.unavailableColors.contains(color) &&
+                        color != current;
+                    return Semantics(
+                      label:
+                          unavailable
+                              ? 'メンバー色${index + 1}、使用中'
+                              : 'メンバー色${index + 1}',
+                      button: true,
+                      selected: color == current,
+                      enabled: !unavailable && !_saving,
+                      child: Tooltip(
+                        message: unavailable ? 'ほかのメンバーが使用中' : '色を選択',
+                        child: InkResponse(
+                          key: ValueKey('member-color-${color.toARGB32()}'),
+                          onTap:
+                              unavailable || _saving
+                                  ? null
+                                  : () => _select(color),
+                          radius: 24,
+                          child: Opacity(
+                            opacity: unavailable ? 0.35 : 1,
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color:
+                                      color == current
+                                          ? scheme.onSurface
+                                          : scheme.outlineVariant,
+                                  width: color == current ? 3 : 1,
+                                ),
+                              ),
+                              child:
+                                  color == current
+                                      ? Icon(
+                                        Icons.check,
+                                        color: labelColorOn(color),
+                                      )
+                                      : unavailable
+                                      ? Icon(
+                                        Icons.block,
+                                        color: labelColorOn(color),
+                                      )
+                                      : null,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+          if (_saving) ...[
+            const SizedBox(height: 16),
+            const Center(child: CircularProgressIndicator()),
+          ],
+          if (_error case final error?) ...[
+            const SizedBox(height: 16),
+            Text(error, style: TextStyle(color: scheme.error)),
+          ],
         ],
       ),
     );

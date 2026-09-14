@@ -2,6 +2,11 @@
 class HouseholdMember {
   final int id;
   final String name;
+  final int? colorValue;
 
-  const HouseholdMember({required this.id, required this.name});
+  const HouseholdMember({
+    required this.id,
+    required this.name,
+    this.colorValue,
+  });
 }
