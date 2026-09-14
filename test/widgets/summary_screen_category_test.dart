@@ -133,10 +133,9 @@ void main() {
     return cats;
   }
 
-  // 行数だけを数えると、行と行で中身が入れ替わる改変を検知できない
-  // （カテゴリ 3 + メンバー 1 = 4 件は保たれるため）。名前・金額・構成比が
-  // 同じ CategoryBreakdownRow に収まっているかまで見る
-  testWidgets('カテゴリごとに名前・金額・構成比が同じ行に並ぶ', (tester) async {
+  // 行数だけを数えると、行と行で中身が入れ替わる改変を検知できない。
+  // 上位2件の名前・金額・構成比が同じ CategoryBreakdownRow に収まっているかまで見る
+  testWidgets('上位カテゴリごとに名前・金額・構成比が同じ行に並ぶ', (tester) async {
     final cats = await db.getCategories();
     final memberId = (await db.getMembers()).first.id;
 
@@ -157,7 +156,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expectRow(tester, cats[2].name, amount: '¥3,000', ratio: '50.0%');
     expectRow(tester, cats[1].name, amount: '¥2,000', ratio: '33.3%');
-    expectRow(tester, cats[0].name, amount: '¥1,000', ratio: '16.7%');
+    expect(find.text(cats[0].name), findsNothing);
     expect(find.text('データがありません'), findsNothing);
   });
 
@@ -223,32 +222,32 @@ void main() {
 
     double dy(String name) => tester.getCenter(find.text(name)).dy;
     expect(dy(cats[2].name), lessThan(dy(cats[0].name)));
-    expect(dy(cats[0].name), lessThan(dy(cats[1].name)));
+    expect(find.text(cats[1].name), findsNothing);
   });
 
   group('カテゴリ別の上位表示と全件シート', () {
-    testWidgets('ホームは上位4件だけを表示し、5件で「もっとみる」を出す', (tester) async {
-      final cats = await seedCategoryTotals([2000, 6000, 1000, 5000, 3000]);
-      final expected = [cats[1], cats[3], cats[4], cats[0], cats[2]];
+    testWidgets('ホームは上位2件だけを表示し、3件で「もっとみる」を出す', (tester) async {
+      final cats = await seedCategoryTotals([2000, 6000, 1000]);
+      final expected = [cats[1], cats[0], cats[2]];
 
       await pumpSummary(tester);
 
-      expect(find.byType(CategoryBreakdownRow), findsNWidgets(4));
-      for (final cat in expected.take(4)) {
+      expect(find.byType(CategoryBreakdownRow), findsNWidgets(2));
+      for (final cat in expected.take(2)) {
         expect(find.text(cat.name), findsOneWidget);
       }
-      for (final cat in expected.skip(4)) {
+      for (final cat in expected.skip(2)) {
         expect(find.text(cat.name), findsNothing);
       }
       expect(find.text('もっとみる'), findsOneWidget);
     });
 
-    testWidgets('4件以下では「もっとみる」を出さない', (tester) async {
-      await seedCategoryTotals([4000, 3000, 2000, 1000]);
+    testWidgets('2件以下では「もっとみる」を出さない', (tester) async {
+      await seedCategoryTotals([4000, 3000]);
 
       await pumpSummary(tester);
 
-      expect(find.byType(CategoryBreakdownRow), findsNWidgets(4));
+      expect(find.byType(CategoryBreakdownRow), findsNWidgets(2));
       expect(find.text('もっとみる'), findsNothing);
     });
 
@@ -264,7 +263,6 @@ void main() {
       final expected = [cats[1], cats[3], cats[5], cats[4], cats[0], cats[2]];
 
       await pumpSummary(tester);
-      await tester.ensureVisible(find.text('もっとみる'));
       await tester.tap(find.text('もっとみる'));
       await tester.pumpAndSettle();
 
@@ -301,7 +299,7 @@ void main() {
         find.descendant(of: lastRow, matching: find.text('¥1,000')),
         findsOneWidget,
       );
-      // 1,000 / 21,000。上位4件の小計ではなく月合計が分母になる。
+      // 1,000 / 21,000。上位2件の小計ではなく月合計が分母になる。
       expect(
         find.descendant(of: lastRow, matching: find.text('4.8%')),
         findsOneWidget,
@@ -352,7 +350,6 @@ void main() {
       await seedCategoryTotals([6000, 5000, 4000, 3000, 2000]);
 
       await pumpSummary(tester, size: const Size(788, 690));
-      await tester.ensureVisible(find.text('もっとみる'));
       await tester.tap(find.text('もっとみる'));
       await tester.pumpAndSettle();
 
