@@ -129,6 +129,9 @@ class _SummaryScreenState extends State<SummaryScreen> {
         SettlementSummaryCard(split: split, onTap: widget.onOpenSplit),
         const SizedBox(height: 16),
       ],
+      ..._memberSection(context, summary.byMember),
+      const Divider(),
+      const SizedBox(height: 8),
       ..._categorySection(
         context,
         summary.byCategory,
@@ -136,9 +139,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
         year: summary.year,
         month: summary.month,
       ),
-      const Divider(),
-      const SizedBox(height: 8),
-      ..._memberSection(context, summary.byMember),
     ];
   }
 

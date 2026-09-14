@@ -33,8 +33,11 @@ void main() {
     );
   }
 
-  Future<void> pumpSummary(WidgetTester tester) async {
-    tester.view.physicalSize = const Size(360, 690);
+  Future<void> pumpSummary(
+    WidgetTester tester, {
+    Size size = const Size(360, 690),
+  }) async {
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -75,5 +78,35 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('¥700'), findsWidgets);
+  });
+
+  testWidgets('狭い画面でも2人のメンバー別をスクロール前に表示する', (tester) async {
+    await db.customStatement('DELETE FROM members');
+    final members = await seedMembers(db, const ['たいち', 'みく']);
+    final categories = (await db.getCategories()).take(4).toList();
+    for (final (index, category) in categories.indexed) {
+      await db.insertTransaction(
+        TransactionInput(
+          memberId: members[index ~/ 2].id,
+          categoryId: category.id,
+          amount: (index + 1) * 1000,
+          spentAt: DateTime(2026, 7, 5),
+        ),
+      );
+    }
+
+    // 添付画面でナビゲーションバーより上に使える高さに合わせる。
+    await pumpSummary(tester, size: const Size(370, 663));
+
+    final viewportBottom = tester.getRect(find.byType(ListView)).bottom;
+    for (final label in ['メンバー別', 'たいち', 'みく', '¥3,000', '¥7,000']) {
+      final rect = tester.getRect(find.text(label).last);
+      expect(rect.top, greaterThanOrEqualTo(0), reason: '$label が上端の外にある');
+      expect(
+        rect.bottom,
+        lessThanOrEqualTo(viewportBottom),
+        reason: '$label がスクロール前の表示範囲に収まっていない',
+      );
+    }
   });
 }

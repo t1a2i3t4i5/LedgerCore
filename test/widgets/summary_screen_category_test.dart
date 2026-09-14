@@ -23,6 +23,18 @@ import '../seed.dart';
 bool _isEllipsized(WidgetTester tester, String text) =>
     tester.renderObject<RenderParagraph>(find.text(text)).didExceedMaxLines;
 
+/// メンバー別を先に表示する狭い画面では、カテゴリ末尾の導線は遅延構築される。
+///
+/// Finder が存在する前は `ensureVisible` を使えないため、実際の操作と同じく
+/// 一覧を上へ送ってから導線を探す。
+Future<void> revealMoreButton(WidgetTester tester) async {
+  for (var i = 0; i < 4 && find.text('もっとみる').evaluate().isEmpty; i++) {
+    await tester.drag(find.byType(ListView), const Offset(0, -200));
+    await tester.pumpAndSettle();
+  }
+  expect(find.text('もっとみる'), findsOneWidget);
+}
+
 /// カテゴリ名の行に、その金額と構成比が同じ公開ウィジェット内に出ていること。
 ///
 /// 画面のどこかに '¥7,500' と '75.0%' があることを別々に見るだけでは、
@@ -232,6 +244,7 @@ void main() {
       final expected = [cats[1], cats[3], cats[4], cats[0], cats[2]];
 
       await pumpSummary(tester);
+      await revealMoreButton(tester);
 
       expect(find.byType(CategoryBreakdownRow), findsNWidgets(4));
       for (final cat in expected.take(4)) {
@@ -264,7 +277,7 @@ void main() {
       final expected = [cats[1], cats[3], cats[5], cats[4], cats[0], cats[2]];
 
       await pumpSummary(tester);
-      await tester.ensureVisible(find.text('もっとみる'));
+      await revealMoreButton(tester);
       await tester.tap(find.text('もっとみる'));
       await tester.pumpAndSettle();
 
@@ -352,7 +365,7 @@ void main() {
       await seedCategoryTotals([6000, 5000, 4000, 3000, 2000]);
 
       await pumpSummary(tester, size: const Size(788, 690));
-      await tester.ensureVisible(find.text('もっとみる'));
+      await revealMoreButton(tester);
       await tester.tap(find.text('もっとみる'));
       await tester.pumpAndSettle();
 
@@ -419,13 +432,13 @@ void main() {
     expect(empties, findsNWidgets(2));
     expect(
       tester.getRect(empties.at(0)).top,
-      greaterThan(tester.getRect(find.text('カテゴリ別')).bottom),
-      reason: 'カテゴリ別の見出しの下に受け皿が無い',
+      greaterThan(tester.getRect(find.text('メンバー別')).bottom),
+      reason: 'メンバー別の見出しの下に受け皿が無い',
     );
     expect(
       tester.getRect(empties.at(1)).top,
-      greaterThan(tester.getRect(find.text('メンバー別')).bottom),
-      reason: 'メンバー別の見出しの下に受け皿が無い',
+      greaterThan(tester.getRect(find.text('カテゴリ別')).bottom),
+      reason: 'カテゴリ別の見出しの下に受け皿が無い',
     );
   });
 
