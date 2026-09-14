@@ -96,9 +96,18 @@ void main() {
     }
 
     // 添付画面でナビゲーションバーより上に使える高さに合わせる。
-    await pumpSummary(tester, size: const Size(370, 663));
+    await pumpSummary(tester, size: const Size(320, 663));
 
     final viewportBottom = tester.getRect(find.byType(ListView)).bottom;
+    expect(
+      tester.getCenter(find.text('カテゴリ別')).dy,
+      lessThan(tester.getCenter(find.text('メンバー別')).dy),
+    );
+    expect(
+      tester.getCenter(find.text('たいち')).dy,
+      tester.getCenter(find.text('みく')).dy,
+    );
+    expect(tester.takeException(), isNull);
     for (final label in ['メンバー別', 'たいち', 'みく', '¥3,000', '¥7,000']) {
       final rect = tester.getRect(find.text(label).last);
       expect(rect.top, greaterThanOrEqualTo(0), reason: '$label が上端の外にある');

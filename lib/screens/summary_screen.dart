@@ -19,7 +19,7 @@ import '../widgets/settlement_summary_card.dart';
 const double _maxContentWidth = 480;
 
 /// ホームでひと目に見せるカテゴリ数。残りは全件シートへ送る。
-const int _categoryPreviewCount = 4;
+const int _categoryPreviewCount = 2;
 
 class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key, this.onOpenSplit});
@@ -129,9 +129,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
         SettlementSummaryCard(split: split, onTap: widget.onOpenSplit),
         const SizedBox(height: 16),
       ],
-      ..._memberSection(context, summary.byMember),
-      const Divider(),
-      const SizedBox(height: 8),
       ..._categorySection(
         context,
         summary.byCategory,
@@ -139,6 +136,8 @@ class _SummaryScreenState extends State<SummaryScreen> {
         year: summary.year,
         month: summary.month,
       ),
+      const Divider(),
+      ..._memberSection(context, summary.byMember),
     ];
   }
 
@@ -196,10 +195,34 @@ class _SummaryScreenState extends State<SummaryScreen> {
     final sorted = List<CategorySummaryItem>.unmodifiable(
       sortedItems.map((entry) => entry.$2),
     );
+    final hasMore = sorted.length > _categoryPreviewCount;
 
     return [
-      Text('カテゴリ別', style: Theme.of(context).textTheme.titleMedium),
-      const SizedBox(height: 8),
+      if (hasMore)
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'カテゴリ別',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            TextButton(
+              onPressed:
+                  () => _openCategoryBreakdownSheet(
+                    items: sorted,
+                    total: total,
+                    year: year,
+                    month: month,
+                  ),
+              child: const Text('もっとみる'),
+            ),
+          ],
+        )
+      else ...[
+        Text('カテゴリ別', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+      ],
       // 取引ゼロの期間でも summary 自体は非 null で返る（byCategory が空、
       // total が 0）ので、上位の null 判定では受からない。
       // この分岐が無いと見出しの下が無言で空白になる
@@ -220,20 +243,6 @@ class _SummaryScreenState extends State<SummaryScreen> {
                 ),
               ),
             ),
-        if (sorted.length > _categoryPreviewCount)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed:
-                  () => _openCategoryBreakdownSheet(
-                    items: sorted,
-                    total: total,
-                    year: year,
-                    month: month,
-                  ),
-              child: const Text('もっとみる'),
-            ),
-          ),
       ],
     ];
   }
@@ -269,34 +278,105 @@ class _SummaryScreenState extends State<SummaryScreen> {
       // カテゴリ別と同じ理由の空分岐。取引ゼロの月では byMember も空になる
       if (items.isEmpty)
         const _EmptySection()
+      else if (items.length == 2)
+        _TwoMemberSummary(items: items)
       else
-        ...items.map(
-          (item) => ListTile(
-            leading: CircleAvatar(
-              backgroundColor: memberColor(
-                item.memberId,
-                colorValue: item.memberColorValue,
-              ),
-              child: Text(
-                item.memberName.isEmpty
-                    ? '?'
-                    : item.memberName.characters.first,
-                style: TextStyle(
-                  color: labelColorOn(
-                    memberColor(
-                      item.memberId,
-                      colorValue: item.memberColorValue,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            title: Text(item.memberName),
-            trailing: Text(formatYen(item.total)),
-            dense: true,
-          ),
-        ),
+        ...items.map((item) => _MemberSummaryTile(item: item)),
     ];
+  }
+}
+
+/// 通常の2人家計は、名前と金額を2列でまとめて初期表示内に収める。
+///
+/// 横幅や文字倍率に余裕がなければ従来の縦並びへ戻し、情報を切らない。
+class _TwoMemberSummary extends StatelessWidget {
+  const _TwoMemberSummary({required this.items});
+
+  final List<MemberSummaryItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 320px 幅の端末では ListView の左右 padding を引いた本文幅が288px。
+        final canUseColumns =
+            constraints.maxWidth >= 288 &&
+            MediaQuery.textScalerOf(context).scale(1) <= 1;
+        if (!canUseColumns) {
+          return Column(
+            children:
+                items.map((item) => _MemberSummaryTile(item: item)).toList(),
+          );
+        }
+        return Row(
+          children: [
+            for (final (index, item) in items.indexed) ...[
+              if (index > 0) const SizedBox(width: 12),
+              Expanded(child: _memberCell(context, item)),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _memberCell(BuildContext context, MemberSummaryItem item) {
+    final color = memberColor(item.memberId, colorValue: item.memberColorValue);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color,
+            child: Text(
+              item.memberName.isEmpty ? '?' : item.memberName.characters.first,
+              style: TextStyle(color: labelColorOn(color)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.memberName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(formatYen(item.total)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MemberSummaryTile extends StatelessWidget {
+  const _MemberSummaryTile({required this.item});
+
+  final MemberSummaryItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = memberColor(item.memberId, colorValue: item.memberColorValue);
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: color,
+        child: Text(
+          item.memberName.isEmpty ? '?' : item.memberName.characters.first,
+          style: TextStyle(color: labelColorOn(color)),
+        ),
+      ),
+      title: Text(item.memberName),
+      trailing: Text(formatYen(item.total)),
+      dense: true,
+    );
   }
 }
 
