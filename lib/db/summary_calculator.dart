@@ -55,41 +55,6 @@ MonthlyComparisonView buildMonthlyComparison(
   amountChange: current.total - previous.total,
 );
 
-/// 指定年の年次サマリーを組み立てる。
-/// 月別合計は取引の無い月も 0 で埋めた 12 件を返す（グラフの X 軸を欠けさせないため）。
-/// txns に他の年の取引が混ざっていても、指定年のものだけを集計する。
-YearlySummary buildYearlySummary(int year, List<TransactionView> txns) {
-  final inYear = txns.where((t) => t.spentAt.year == year).toList();
-
-  final monthTotals = List<double>.filled(12, 0);
-  for (final t in inYear) {
-    monthTotals[t.spentAt.month - 1] += t.amount;
-  }
-
-  final byMonth = List.generate(
-    12,
-    (i) => PeriodTotal(year: year, month: i + 1, total: monthTotals[i]),
-  );
-
-  return YearlySummary(
-    year: year,
-    total: monthTotals.fold<double>(0, (s, v) => s + v),
-    byMonth: byMonth,
-    byCategory: _buildCategoryItems(inYear),
-  );
-}
-
-/// 年別の合計金額を求める。取引のある年だけを年の昇順で返す。
-List<PeriodTotal> buildYearlyTotals(List<TransactionView> txns) {
-  final yearTotals = <int, double>{};
-  for (final t in txns) {
-    yearTotals[t.spentAt.year] = (yearTotals[t.spentAt.year] ?? 0) + t.amount;
-  }
-
-  final years = yearTotals.keys.toList()..sort();
-  return years.map((y) => PeriodTotal(year: y, total: yearTotals[y]!)).toList();
-}
-
 /// カテゴリ別の合計をカテゴリ管理で保存した順序に組み立てる。
 List<CategorySummaryItem> _buildCategoryItems(List<TransactionView> txns) {
   final catTotals = <int, double>{};

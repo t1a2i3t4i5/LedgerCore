@@ -54,7 +54,7 @@ void main() {
 
     await pumpSummary(tester);
 
-    expect(find.byType(SegmentedButton<SummaryPeriod>), findsNothing);
+    expect(find.byType(SegmentedButton), findsNothing);
     expect(find.text('月'), findsNothing);
     expect(find.text('年'), findsNothing);
     expect(find.text('全期間'), findsNothing);
