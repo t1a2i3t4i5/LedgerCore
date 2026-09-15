@@ -13,7 +13,6 @@ dependencies:
   intl: ^0.19.0
   drift: ^2.20.0
   drift_flutter: ^0.2.0
-  fl_chart: ^1.2.0
   # 操作ログの保存先と共有用の一時領域を解決するために使う（lib/logging/）。
   # どちらも drift_flutter 経由で既に pubspec.lock に入っていた推移的依存を
   # 直接依存へ昇格しただけで、新しく取ってくるパッケージではない。

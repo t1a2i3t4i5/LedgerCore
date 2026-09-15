@@ -344,52 +344,6 @@ void main() {
     });
   });
 
-  group('集計', () {
-    late SummaryProvider provider;
-
-    setUp(() {
-      provider = SummaryProvider(
-        db,
-        clock: () => DateTime(2026, 8, 17),
-        logger: logger,
-      );
-    });
-
-    test('期間モードの切り替えが残る', () async {
-      await provider.setPeriod(SummaryPeriod.year);
-      await logger.flush();
-
-      expect(detailOf('summary.period'), {'from': 'month', 'to': 'year'});
-    });
-
-    test('同じモードを選び直しても残さない', () async {
-      await provider.setPeriod(SummaryPeriod.month);
-      await logger.flush();
-
-      expect(ops(), isNot(contains('summary.period')));
-    });
-
-    test('年送りは summary.year で、表示月は動かさない', () async {
-      // 年の軸と表示月は独立している（同じインスタンスを精算タブが共有する）。
-      // month.change が出るなら表示月ごと動いている
-      await provider.changeYear(-1);
-      await logger.flush();
-
-      expect(detailOf('summary.year'), {'from': 2026, 'to': 2025});
-      expect(ops(), isNot(contains('month.change')));
-    });
-
-    test('今年へ戻す操作も summary.year で残る', () async {
-      await provider.changeYear(-3);
-      await provider.goToCurrentYear();
-      await logger.flush();
-
-      final years = entries().where((e) => e['op'] == 'summary.year').toList();
-      expect(years, hasLength(2));
-      expect(years.last['detail'], {'from': 2023, 'to': 2026});
-    });
-  });
-
   group('カテゴリ', () {
     late CategoryProvider provider;
 
@@ -707,7 +661,7 @@ void main() {
       expect(entry['detail'], {'year': 2026, 'month': 7});
     });
 
-    test('集計の読み出し失敗はモードと年軸まで残る', () async {
+    test('集計の読み出し失敗が表示月つきで残る', () async {
       final provider = SummaryProvider(db, logger: logger)
         ..setYearMonth(2026, 7);
       await closeAfterOpening();
@@ -717,12 +671,7 @@ void main() {
 
       final entry = entryOf('summary.fetch');
       expect(entry['lv'], 'error');
-      expect(detailOf('summary.fetch'), {
-        'year': 2026,
-        'month': 7,
-        'period': 'month',
-        'yearAxis': 2026,
-      });
+      expect(detailOf('summary.fetch'), {'year': 2026, 'month': 7});
     });
 
     test('カテゴリの読み出し失敗が残る', () async {

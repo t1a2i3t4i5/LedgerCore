@@ -62,7 +62,6 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 | 状態管理   | `provider`（`ChangeNotifier`）                          |
 | 永続化     | `drift` + `drift_flutter`（端末内 `ledgercore.sqlite`） |
 | 日付整形   | `intl`                                                  |
-| グラフ描画 | `fl_chart`（純 Dart 実装。ネイティブ依存・通信なし。既存の支出推移グラフ部品で使う） |
 | 操作ログ   | 自前実装（`lib/logging/`）。端末内のファイルへ JSON Lines で追記する |
 | ファイル配置 | `path_provider` + `path`（ログの保存先と共有用の一時領域を解決する） |
 | ログ共有 | `share_plus`（OS の共有シート。アプリ自身は通信しない） |
@@ -97,10 +96,10 @@ curl -L -o assets/fonts/OFL-Outfit.txt "$OUTFIT/OFL.txt"
 
 ### ウェイト整理の記録（#106、2026-08-31）
 
-本文・入力欄・グラフの軸は Zen Maru Gothic Regular、見出しと明示的な強調は
+本文・入力欄は Zen Maru Gothic Regular、見出しと明示的な強調は
 Zen Kaku Gothic New Bold、金額と年の数字は Outfit SemiBold を使う。
-Zen Maru Gothic の w600 / w700 を要求していた取引件数・今月／今年ボタン・
-棒グラフのツールチップを見出し書体へ寄せ、不要になった Bold を外した。
+Zen Maru Gothic の w600 / w700 を要求していた取引件数・今月／今年ボタンを
+見出し書体へ寄せ、不要になった Bold を外した。
 
 `titleMedium` は既に Zen Kaku Gothic New の w700 で、M3 既定の w500 ではない。
 `labelLarge` などの M3 ラベルは w500 を要求するが、**Medium は追加しない**。
@@ -147,7 +146,7 @@ lib/
 │   ├── transaction.dart       # 取引と金額の上限 kMaxAmount
 │   ├── category.dart
 │   ├── household_member.dart
-│   ├── summary.dart           # 月次・年次サマリーと前月比較
+│   ├── summary.dart           # 月次サマリーと前月比較
 │   └── split.dart             # 精算の結果（各自の過不足・精算方法）
 ├── logging/                   # 操作ログ
 │   ├── operation_logger.dart  # 記録の入口と書き出しキュー
@@ -177,15 +176,14 @@ lib/
 │   ├── categories_screen.dart # カテゴリ管理
 │   └── members_screen.dart    # メンバー管理
 └── widgets/                   # 画面から切り離した再利用部品（ウィジェットとは限らない）
-    ├── chart_palette.dart     # グラフの色（カテゴリ ID から決まる色・推移グラフの棒の色）
+    ├── chart_palette.dart     # カテゴリ・メンバーの識別色
     ├── category_breakdown_row.dart # カテゴリ別の名前・金額・構成比・横帯を束ねる行
     ├── ledger_card.dart       # 白地・角丸・影付きの共通カード
     ├── settlement_summary_card.dart # ホームの月次精算要点と精算画面への導線
     ├── page_header.dart       # 画面内の大見出し（戻る導線・右側操作を任意で配置）
-    ├── month_selector.dart    # 月・年の期間選択 UI
+    ├── month_selector.dart    # 月の期間選択 UI
     ├── monthly_summary_chips.dart # 月の合計カードの先月比・取引件数
-    ├── period_bar_chart.dart  # 月別・年別の支出推移を描く棒グラフ
-    ├── period_format.dart     # 年月の表示整形（'2026年7月' / 軸用の '7月'）
+    ├── period_format.dart     # 年月の表示整形（'2026年7月' / '7月'）
     ├── ratio_bar.dart         # 金額が合計に占める割合を長さで表す横帯
     └── amount_format.dart      # 金額・構成比の表示整形（¥ 付き / %）と入力欄の全角正規化・記号除去・桁数制限
 ```

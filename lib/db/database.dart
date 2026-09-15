@@ -64,7 +64,7 @@ class Transactions extends Table {
   // 整数判定は drift の式 API に無いので CustomExpression で書く。
   // Infinity は上限の比較と CAST の比較の両方で弾かれる。
   //
-  // カラム型は RealColumn のまま。既存の表示用モデル・集計・グラフは
+  // カラム型は RealColumn のまま。既存の表示用モデル・集計は
   // double で統一されており、IntColumn への変更はスキーマ移行を伴う一方で
   // 保存できる値も画面の表示も変わらないため。
   //
@@ -148,7 +148,7 @@ class AppDatabase extends _$AppDatabase {
         // v1 → 最新の直行だけが移行に失敗する。
         if (from < 2) {
           // 負の金額はマイナス記号の打ち間違いとみなして絶対値に補正し、
-          // 0 円は集計上意味を持たない（グラフでも幅 0 のセクションになる）ので削除する。
+          // 0 円は集計上意味を持たないので削除する。
           await customStatement(
             'UPDATE transactions SET amount = abs(amount) WHERE amount < 0',
           );
@@ -396,7 +396,7 @@ class AppDatabase extends _$AppDatabase {
     DateTime end,
   ) => _selectTransactions(start: start, end: end);
 
-  /// 全期間の取引を取得する（年別集計用）。
+  /// 全期間の取引を取得する。
   Future<List<TransactionView>> getAllTransactions() => _selectTransactions();
 
   /// 取引をメンバー名・カテゴリ名付きで取得する共通クエリ。
@@ -474,22 +474,6 @@ class AppDatabase extends _$AppDatabase {
   Future<MonthlySummary> getMonthlySummary(int year, int month) async {
     final txns = await getTransactionsByMonth(year, month);
     return buildMonthlySummary(year, month, txns);
-  }
-
-  /// 指定年の年次サマリー（月別推移＋カテゴリ別内訳）。
-  /// 年レンジは半開区間 [1/1, 翌年1/1)。
-  Future<YearlySummary> getYearlySummary(int year) async {
-    final txns = await getTransactionsByRange(
-      DateTime(year, 1, 1),
-      DateTime(year + 1, 1, 1),
-    );
-    return buildYearlySummary(year, txns);
-  }
-
-  /// 全期間の年別合計（取引のある年のみ、昇順）。
-  Future<List<PeriodTotal>> getYearlyTotals() async {
-    final txns = await getAllTransactions();
-    return buildYearlyTotals(txns);
   }
 
   Future<SplitResult> getSplit(int year, int month) async {

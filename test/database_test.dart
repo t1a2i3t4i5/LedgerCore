@@ -280,51 +280,6 @@ void main() {
     expect(all.length, 4);
   });
 
-  test('年次サマリーと年別合計がDB経由で計算できる', () async {
-    final cats = await db.getCategories();
-    final members = await db.getMembers();
-    final memberId = members.first.id;
-    final food = cats.firstWhere((c) => c.name == '食費').id;
-    final transport = cats.firstWhere((c) => c.name == '交通費').id;
-
-    await db.insertTransaction(
-      TransactionInput(
-        memberId: memberId,
-        categoryId: food,
-        amount: 1000,
-        spentAt: DateTime(2026, 4, 10),
-      ),
-    );
-    await db.insertTransaction(
-      TransactionInput(
-        memberId: memberId,
-        categoryId: transport,
-        amount: 300,
-        spentAt: DateTime(2026, 4, 20),
-      ),
-    );
-    await db.insertTransaction(
-      TransactionInput(
-        memberId: memberId,
-        categoryId: food,
-        amount: 500,
-        spentAt: DateTime(2025, 11, 3),
-      ),
-    );
-
-    final yearly = await db.getYearlySummary(2026);
-    expect(yearly.total, 1300);
-    expect(yearly.byMonth.length, 12);
-    expect(yearly.byMonth[3].total, 1300); // 4月
-    expect(yearly.byMonth[0].total, 0); // 1月は取引なし
-    expect(yearly.byCategory.first.categoryName, '食費');
-
-    final totals = await db.getYearlyTotals();
-    expect(totals.map((p) => p.year), [2025, 2026]);
-    expect(totals.first.total, 500);
-    expect(totals.last.total, 1300);
-  });
-
   test('年レンジの境界をDAO側で正しく絞り込む', () async {
     final cats = await db.getCategories();
     final members = await db.getMembers();
@@ -355,12 +310,6 @@ void main() {
     );
     expect(inYear.length, 2);
     expect(inYear.every((t) => t.spentAt.year == 2026), isTrue);
-
-    // 年境界の取引が 1月 と 12月 に振り分けられる
-    final yearly = await db.getYearlySummary(2026);
-    expect(yearly.total, 200);
-    expect(yearly.byMonth.first.total, 100); // 1/1 00:00
-    expect(yearly.byMonth.last.total, 100); // 12/31 23:59:59
   });
 
   test('0 以下・小数・上限超過の金額は insert できない', () async {
@@ -511,7 +460,7 @@ void main() {
     expect((await db.getCategories()).map((c) => c.id), contains(fixed.id));
   });
 
-  test('保存したカテゴリ順が一覧と月次・年次の内訳へ反映される', () async {
+  test('保存したカテゴリ順が一覧と月次の内訳へ反映される', () async {
     final cats = await db.getCategories();
     final food = cats.firstWhere((c) => c.name == '食費');
     final transport = cats.firstWhere((c) => c.name == '交通費');
@@ -559,9 +508,6 @@ void main() {
     final monthly = await db.getMonthlySummary(2026, 7);
     expect(monthly.byCategory.map((item) => item.categoryName), ['交通費', '食費']);
     expect(monthly.byCategory.first.categoryColorValue, transportColor);
-
-    final yearly = await db.getYearlySummary(2026);
-    expect(yearly.byCategory.map((item) => item.categoryName), ['交通費', '食費']);
   });
 
   test('取引を削除するとカテゴリが削除できるようになる', () async {
