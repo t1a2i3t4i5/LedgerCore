@@ -27,6 +27,8 @@
 
 `android/ ios/ macos/ linux/ windows/ web/` のビルド設定は `flutter create` が生成したものが揃っているが、**動作確認済みと言えるプラットフォームはまだ無い**。
 
+iOS は **iPhone・縦向き専用**（`TARGETED_DEVICE_FAMILY = 1`、`Info.plist` の向きは Portrait のみ）。App Store へ出す対象を絞るためで、iPad と横向きのレイアウトは検証していない。
+
 `web` は対象外。`drift_flutter` を web で動かすには `sqlite3.wasm` と `drift_worker.js` を `web/` に置く必要があるが、現状置いていない。
 
 ## 開発コマンド
