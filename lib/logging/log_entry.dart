@@ -101,7 +101,7 @@ String formatLogTimestamp(DateTime ts) {
 /// - `DateTime` → 時刻書式（フィルターの日付や `spentAt` が該当）
 /// - `Set` / `Iterable` → `List`（`jsonEncode` は `Set` を書けない。
 ///   `TransactionProvider` のフィルターが `Set<int>` を持つ）
-/// - `Enum` → 名前（`SummaryPeriod` や `SortOrder` が該当）
+/// - `Enum` → 名前（`SortOrder` などが該当）
 ///
 /// [depth] が [_maxNormalizeDepth] を超えたら、そこから先は `toString()` で
 /// 畳む。**入れ子が深すぎる値や循環参照でこの関数が自分自身を呼び続けるのを

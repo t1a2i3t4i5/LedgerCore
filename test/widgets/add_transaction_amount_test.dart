@@ -197,7 +197,7 @@ void main() {
     await selectFirstCategory(tester);
 
     // 上限が無いと double が Infinity に飽和する。Infinity は `> 0` を満たすので
-    // validator も DB の CHECK もすり抜け、円グラフの構成比が Inf/Inf = NaN になり
+    // validator も DB の CHECK もすり抜け、構成比が Inf/Inf = NaN になり
     // その行を手で消すまで合計が復旧しない
     await tester.enterText(amountField(), '9' * 400);
     await tester.pump();

@@ -122,7 +122,7 @@ CREATE TABLE に `CHECK` 制約は生成されない。違反すると SQLite �
 ### `amount` は整数しか入らないが型は REAL
 
 CHECK に `amount = CAST(amount AS INTEGER)` があるので、v3 以降の `amount` は必ず整数。
-それでも `IntColumn` にしていないのは、既存の表示用モデル・集計・グラフが `double` で
+それでも `IntColumn` にしていないのは、既存の表示用モデル・集計が `double` で
 統一されており、`IntColumn` への変更はスキーマ移行を伴う一方で、保存できる値も画面の表示も
 変わらないため。2人の割り勘は整数の負担額へ配分するが、それだけを理由に列型は変更しない。
 
@@ -173,7 +173,7 @@ SELECT datetime(spent_at, 'unixepoch') FROM transactions;   -- UTC で表示さ�
 | `HouseholdMember` | `members` | `id` / `name` / `colorValue` |
 | `TransactionView` | `transactions` + `members` + `categories` の JOIN | 下記のフィールド対応を参照 |
 | `TransactionInput` | 書き込み用の入力 | `memberId` が `member_id` に入る |
-| `MonthlySummary` / `MonthlyComparisonView` / `YearlySummary` / `CategorySummaryItem` / `MemberSummaryItem` / `PeriodTotal` | なし | `summary_calculator.dart` が取引リストから計算する導出値。DB には保存されない |
+| `MonthlySummary` / `MonthlyComparisonView` / `CategorySummaryItem` / `MemberSummaryItem` | なし | `summary_calculator.dart` が取引リストから計算する導出値。DB には保存されない |
 | `SplitResult` / `MemberBalance` | なし | 同上（割り勘の計算結果） |
 
 ### `TransactionView` のフィールド対応

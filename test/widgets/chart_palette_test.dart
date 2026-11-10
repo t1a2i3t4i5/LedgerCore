@@ -270,42 +270,4 @@ void main() {
       expect(labelColorOn(Colors.black), Colors.white);
     });
   });
-
-  group('trendColor', () {
-    // 推移グラフのツールチップは trendColor を背景に敷いて文字を載せるので、
-    // 棒の色が変わったときに文字が読めなくなる経路も各テーマで塞ぐ。
-    test('アプリのライトテーマで primary と文字の AA を保つ', () {
-      final scheme = ledgerTheme.colorScheme;
-      final bar = trendColor(scheme);
-      expect(bar, scheme.primary);
-      expect(
-        _effectiveContrastRatio(labelColorOn(bar), bar),
-        greaterThanOrEqualTo(4.5),
-      );
-    });
-
-    // アプリはライト専用だが、固定色を直書きして将来のダークテーマで
-    // ツールチップの文字が背景に溶ける回帰は合成スキームで守る。
-    test('合成ダークスキームで primary と文字の AA を保つ', () {
-      final scheme = ColorScheme.fromSeed(
-        seedColor: const Color(0xFF2E2620),
-        brightness: Brightness.dark,
-      );
-      final bar = trendColor(scheme);
-      expect(bar, scheme.primary);
-      expect(
-        _effectiveContrastRatio(labelColorOn(bar), bar),
-        greaterThanOrEqualTo(4.5),
-      );
-    });
-
-    // カテゴリの色を流用すると、無関係なカテゴリと同色になって
-    // 「この棒は食費」という誤った対応に見える
-    test('ライトテーマでカテゴリ色をそのまま流用していない', () {
-      expect(
-        _allPaletteColors(),
-        isNot(contains(trendColor(ledgerTheme.colorScheme))),
-      );
-    });
-  });
 }
