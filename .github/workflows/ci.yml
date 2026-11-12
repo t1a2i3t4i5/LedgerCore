@@ -22,14 +22,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # Flutter のバージョンは .fvmrc を正本とし、手元の fvm と CI で揃える
+      - name: Read Flutter version
+        id: flutter-version
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.41.9
+          flutter-version: ${{ steps.flutter-version.outputs.version }}
           cache: true
           pub-cache: true
-          pub-cache-key: flutter-pub-${{ runner.os }}-3.41.9-${{ hashFiles('pubspec.lock') }}
+          pub-cache-key: flutter-pub-${{ runner.os }}-${{ steps.flutter-version.outputs.version }}-${{ hashFiles('pubspec.lock') }}
 
       - name: Install dependencies
         run: flutter pub get
@@ -56,14 +61,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # Flutter のバージョンは .fvmrc を正本とし、手元の fvm と CI で揃える
+      - name: Read Flutter version
+        id: flutter-version
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.41.9
+          flutter-version: ${{ steps.flutter-version.outputs.version }}
           cache: true
           pub-cache: true
-          pub-cache-key: flutter-pub-${{ runner.os }}-3.41.9-${{ hashFiles('pubspec.lock') }}
+          pub-cache-key: flutter-pub-${{ runner.os }}-${{ steps.flutter-version.outputs.version }}-${{ hashFiles('pubspec.lock') }}
 
       - name: Install dependencies
         run: flutter pub get

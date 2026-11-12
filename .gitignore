@@ -25,6 +25,8 @@ migrate_working_dir/
 .vscode/
 
 # Flutter/Dart/Pub related
+# fvm がプロジェクトごとに置く SDK へのリンク。正本は追跡する .fvmrc。
+.fvm/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
