@@ -22,9 +22,10 @@
 
 - [Flutter](https://docs.flutter.dev/get-started/install) は `.fvmrc` に書いたバージョン（現在 3.41.9）。CI も同じファイルを読む
   - 新しい Flutter では非推奨の注意が大量に出たり、`pubspec.lock` と `windows/flutter/` に差分が出たりするため、[fvm](https://fvm.app/) で揃える
-  - 初回は `brew tap leoafarias/fvm && brew install fvm` のあと、リポジトリ直下で `fvm install` を実行する。以降は `flutter` を `fvm flutter`、`dart` を `fvm dart` に読み替える
+  - 初回は `brew tap leoafarias/fvm && brew install fvm` のあと、リポジトリ直下で `fvm install` と `fvm global 3.41.9` を実行し、`export PATH="$HOME/fvm/default/bin:$PATH"` をシェルの設定に足す（ほかの Flutter より前に置く。`command -v flutter` で確かめられる）
+  - これで PATH 上の `flutter` / `dart` そのものが固定版になるので、開発コマンドも `tool/*.sh` も Claude Code の整形フックも読み替えずにそのまま使える。代わりに、ほかのプロジェクトでも既定の Flutter が 3.41.9 になる
   - VS Code は `fvm install`（`fvm use`）が `.vscode/settings.json` の `dart.flutterSdkPath` を書き換えるので、ウィンドウを再読み込みすれば解析も同じ SDK になる
-  - Flutter を上げるときは `.fvmrc` だけを書き換える
+  - Flutter を上げるときは `.fvmrc` だけを書き換える。各自は `fvm install` と `fvm global <新しい版>` をやり直す
 - iOS/macOS で動かす場合は Xcode（初回のみ `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` が必要なことがある）
 
 ### 対応プラットフォーム
