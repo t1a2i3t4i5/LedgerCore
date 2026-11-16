@@ -119,6 +119,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
           ),
         ),
+        const SizedBox(height: 24),
+        Text('このアプリについて', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 12),
+        LedgerCard(
+          padding: EdgeInsets.zero,
+          child: ListTile(
+            leading: const Icon(Icons.description_outlined),
+            title: const Text('ライセンス'),
+            trailing: const Icon(Icons.chevron_right),
+            // 同梱フォントの OFL は本文の同梱が条件。main.dart で登録した
+            // ライセンスを利用者が開ける導線はここだけ。
+            onTap: () => showLicensePage(context: context),
+          ),
+        ),
       ],
     );
   }
