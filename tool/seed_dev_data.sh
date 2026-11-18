@@ -13,7 +13,7 @@
 # 既存の取引があるのに --reset も --append も無いときは、二重投入を避けて中止する。
 set -euo pipefail
 
-BUNDLE_ID="com.example.ledgerApp"
+BUNDLE_ID="com.t1a2i3t4i5.ledgercore"
 MONTHS="12"
 DB_PATH=""
 RESET=""
